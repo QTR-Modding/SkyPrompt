@@ -1,9 +1,9 @@
 #pragma once
-#include <atomic>
 #include <shared_mutex>
+
+#include "API.h"
 #include "MCP.h"
 #include "Settings.h"
-#include "API.h"
 
 
 namespace ImGui::Renderer {
@@ -162,7 +162,7 @@ namespace ImGui::Renderer
 		mutable std::shared_mutex mutex_;
 
         std::unique_ptr<SubManager>& Add2Q(const Interaction& a_interaction, bool show = true);
-        bool Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink);
+        bool Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID);
 		bool IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink) const;
 		void RemoveFromQ(const Interaction& a_interaction);
 		void RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) const;

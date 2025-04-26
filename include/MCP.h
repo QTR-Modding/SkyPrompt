@@ -41,19 +41,6 @@ namespace MCP {
 	    inline std::atomic initialized{ false };
 
 
-        enum UpdateSpeed {
-			kSlow = 0,
-			kNormal = 1,
-			kFast = 2,
-			kFaster = 3,
-			kFastest = 4,
-			kTotal
-		};
-        float to_seconds(UpdateSpeed a_speed);
-		std::string to_string(UpdateSpeed a_speed);
-		inline UpdateSpeed update_speed = UpdateSpeed::kNormal;
-		inline float update_interval = to_seconds(update_speed);
-
 		inline std::map<Input::DEVICE, bool> enabled_devices = {
 			{Input::DEVICE::kKeyboard, true },
 			{Input::DEVICE::kMouse, false },
