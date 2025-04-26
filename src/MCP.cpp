@@ -1,20 +1,19 @@
 #include "MCP.h"
 #include "Utils.h"
-#include "SKSEMCP/SKSEMenuFramework.hpp"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "Hooks.h"
 #include "Settings.h"
-
+#include "SKSEMCP/SKSEMenuFramework.hpp"
 
 static void HelpMarker(const char* desc) {
-    ImGuiMCP::TextDisabled("(?)");
-    if (ImGuiMCP::BeginItemTooltip()) {
-        ImGuiMCP::PushTextWrapPos(ImGuiMCP::GetFontSize() * 35.0f);
-        ImGuiMCP::TextUnformatted(desc);
-        ImGuiMCP::PopTextWrapPos();
-        ImGuiMCP::EndTooltip();
+    MCP_API::TextDisabled("(?)");
+    if (MCP_API::BeginItemTooltip()) {
+        MCP_API::PushTextWrapPos(MCP_API::GetFontSize() * 35.0f);
+        MCP_API::TextUnformatted(desc);
+        MCP_API::PopTextWrapPos();
+        MCP_API::EndTooltip();
     }
 }
 
@@ -24,80 +23,58 @@ void __stdcall MCP::RenderSettings()
 
     // Checkbox for enable/disable mod
     bool enabled = Settings::initialized.load();
-    if (ImGuiMCP::Checkbox("Enable Mod", &enabled)) {
+    if (MCP_API::Checkbox("Enable Mod", &enabled)) {
         Settings::initialized.store(enabled);
     }
 #ifndef NDEBUG
 	// Checkbox for debug mode
-	ImGuiMCP::SameLine();
-	ImGuiMCP::Checkbox("Draw Debug", &Settings::draw_debug);
+	MCP_API::SameLine();
+	MCP_API::Checkbox("Draw Debug", &Settings::draw_debug);
 #endif
 
-	// Checkbox for multi-threading
-	bool multithreaded = Settings::multi_threaded.load();
-	if (ImGuiMCP::Checkbox("Multi-threaded", &multithreaded )) {
-		Settings::multi_threaded.store(multithreaded);
-    }
-
     // Slider for fade speed
-    if (!ImGuiMCP::SliderFloat("Fade Speed", &Settings::fadeSpeed, 0.0f, 0.1f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (!MCP_API::SliderFloat("Fade Speed", &Settings::fadeSpeed, 0.0f, 0.1f)) {
+        if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
 
     // Slider for X Percent
-    if (!ImGuiMCP::SliderFloat("X Percent", &Settings::xPercent, 0.0f, 1.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (!MCP_API::SliderFloat("X Percent", &Settings::xPercent, 0.0f, 1.0f)) {
+        if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
 
     // Slider for Y Percent
-    if (!ImGuiMCP::SliderFloat("Y Percent", &Settings::yPercent, 0.0f, 1.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (!MCP_API::SliderFloat("Y Percent", &Settings::yPercent, 0.0f, 1.0f)) {
+        if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
 
     // Slider for Prompt Size
-    if (!ImGuiMCP::SliderFloat("Prompt Size", &Settings::prompt_size, 15.0f, 100.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
+    if (!MCP_API::SliderFloat("Prompt Size", &Settings::prompt_size, 15.0f, 100.0f)) {
+        if (MCP_API::IsItemDeactivatedAfterEdit()) {
             Settings::shouldReloadPromptSize.store(true);
             settingsChanged = true;
         }
     }
 
 	// Slider for Icon2Font Ratio
-	if (!ImGuiMCP::SliderFloat("Icon2Font Ratio", &Settings::icon2font_ratio, 0.5f, 2.0f)) {
-		if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
+	if (!MCP_API::SliderFloat("Icon2Font Ratio", &Settings::icon2font_ratio, 0.5f, 2.0f)) {
+		if (MCP_API::IsItemDeactivatedAfterEdit()) {
 		    Settings::shouldReloadPromptSize.store(true);
 	        settingsChanged = true;
 		}
 	}
 
     // Slider for Progress Speed
-    if (!ImGuiMCP::SliderFloat("Progress Speed", &Settings::progress_speed, 0.0f, 1.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (!MCP_API::SliderFloat("Progress Speed", &Settings::progress_speed, 0.0f, 1.0f)) {
+        if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
 
     // Slider for Lifetime
-    if (!ImGuiMCP::SliderFloat("Lifetime", &Settings::lifetime, 1.0f, 30.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
+    if (!MCP_API::SliderFloat("Lifetime", &Settings::lifetime, 1.0f, 30.0f)) {
+        if (MCP_API::IsItemDeactivatedAfterEdit()) {
             Settings::shouldReloadLifetime.store(true);
             settingsChanged = true;
         }
         
-    }
-
-    // Combo box for update speed
-    if (ImGuiMCP::BeginCombo("Update Speed", to_string(Settings::update_speed).c_str())) {
-        for (int i = 0; i < static_cast<int>(Settings::UpdateSpeed::kTotal); i++) {
-            const bool isSelected = Settings::update_speed == static_cast<Settings::UpdateSpeed>(i);
-            if (ImGuiMCP::Selectable(to_string(static_cast<Settings::UpdateSpeed>(i)).c_str(), isSelected)) {
-                if (!isSelected) {
-                    Settings::update_speed = static_cast<Settings::UpdateSpeed>(i);
-                    Settings::update_interval = to_seconds(Settings::update_speed);
-                    settingsChanged = true;
-                }
-            }
-            if (isSelected) ImGuiMCP::SetItemDefaultFocus();
-        }
-        ImGuiMCP::EndCombo();
     }
 
     if (settingsChanged) {
@@ -110,17 +87,17 @@ void __stdcall MCP::RenderSettings()
 void __stdcall MCP::RenderLog()
 {
 #ifndef NDEBUG
-    ImGuiMCP::Checkbox("Trace", &LogSettings::log_trace);
+    MCP_API::Checkbox("Trace", &LogSettings::log_trace);
 #endif
-    ImGuiMCP::SameLine();
-    ImGuiMCP::Checkbox("Info", &LogSettings::log_info);
-    ImGuiMCP::SameLine();
-    ImGuiMCP::Checkbox("Warning", &LogSettings::log_warning);
-    ImGuiMCP::SameLine();
-    ImGuiMCP::Checkbox("Error", &LogSettings::log_error);
+    MCP_API::SameLine();
+    MCP_API::Checkbox("Info", &LogSettings::log_info);
+    MCP_API::SameLine();
+    MCP_API::Checkbox("Warning", &LogSettings::log_warning);
+    MCP_API::SameLine();
+    MCP_API::Checkbox("Error", &LogSettings::log_error);
 
     // if "Generate Log" button is pressed, read the log file
-    if (ImGuiMCP::Button("Generate Log")) logLines = ReadLogFile();
+    if (MCP_API::Button("Generate Log")) logLines = ReadLogFile();
 
     // Display each line in a new ImGui::Text() element
     for (const auto& line : logLines) {
@@ -128,7 +105,7 @@ void __stdcall MCP::RenderLog()
         if (!LogSettings::log_info && line.find("info") != std::string::npos) continue;
         if (!LogSettings::log_warning && line.find("warning") != std::string::npos) continue;
         if (!LogSettings::log_error && line.find("error") != std::string::npos) continue;
-        ImGuiMCP::Text(line.c_str());
+        MCP_API::Text(line.c_str());
     }
 }
 
@@ -144,48 +121,6 @@ void MCP::Register()
     SKSEMenuFramework::AddSectionItem("Settings", RenderSettings);
 	SKSEMenuFramework::AddSectionItem("Controls", RenderControls);
 	SKSEMenuFramework::AddSectionItem("Log", RenderLog);
-}
-
-
-float MCP::Settings::to_seconds(const UpdateSpeed a_speed) {
-    switch (a_speed) {
-        case kSlow:
-            return 2.f;
-        case kNormal:
-            return 1.f;
-        case kFast:
-            return 0.5f;
-        case kFaster:
-            return 0.3f;
-        case kFastest:
-            return 0.1f;
-        case kTotal:
-			return 0.f;
-        default:
-            return 1.f;
-    }
-}
-
-std::string MCP::Settings::to_string(const UpdateSpeed a_speed)
-{
-	switch (a_speed) {
-	case kSlow:
-		return "Slow";
-	case kNormal:
-		return "Normal";
-	case kFast:
-		return "Fast";
-	case kFaster:
-		return "Faster";
-	case kFastest:
-		return "Fastest";
-#ifndef NDEBUG
-	case UpdateSpeed::kTotal:
-		return "Every Frame";
-#endif
-	default:
-		return "Unknown";
-	}
 }
 
 bool MCP::Settings::IsEnabled(const Input::DEVICE a_device)
@@ -230,7 +165,6 @@ void MCP::Settings::to_json()
 	root.AddMember("icon2font_ratio", icon2font_ratio, allocator);
 	root.AddMember("progress_speed", progress_speed, allocator);
 	root.AddMember("lifetime", lifetime, allocator);
-	root.AddMember("update_speed", static_cast<int>(update_speed), allocator);
 
 	// special commands
 	Value special_commands(kObjectType);
@@ -328,10 +262,6 @@ void MCP::Settings::from_json()
 	if (mcp.HasMember("lifetime")) {
 		lifetime = mcp["lifetime"].GetFloat();
 	}
-	if (mcp.HasMember("update_speed")) {
-		update_speed = static_cast<UpdateSpeed>(mcp["update_speed"].GetInt());
-		update_interval = to_seconds(update_speed);
-	}
 
 	// enabled devices
 	if (mcp.HasMember("enabled_devices")) {
@@ -395,7 +325,7 @@ namespace {
 	     //dropdown with keys for selected device
 	    const auto device_str = std::string(device_to_string(selected_device));
 	    const auto converted_key = Input::Manager::Convert(selected_key, selected_device);
-	    if (ImGuiMCP::BeginCombo(label, SKSE::InputMap::GetKeyName(converted_key).c_str())) {
+	    if (MCP_API::BeginCombo(label, SKSE::InputMap::GetKeyName(converted_key).c_str())) {
 		    for (const auto& key_code : Input::Manager::GetKeys(selected_device)) {
 			    const auto converted_keycode = Input::Manager::Convert(key_code, selected_device);
 			    const auto key_name = SKSE::InputMap::GetKeyName(converted_keycode);
@@ -403,14 +333,14 @@ namespace {
 				    continue;
 			    }
 			    const bool isSelected = converted_key == converted_keycode;
-			    if (ImGuiMCP::Selectable((key_name+std::format("##{}",converted_key)).c_str(), isSelected)) {
+			    if (MCP_API::Selectable((key_name+std::format("##{}",converted_key)).c_str(), isSelected)) {
 				    if (!isSelected) {
 					    selected_key = key_code;
 				    }
 			    }
-			    if (isSelected) ImGuiMCP::SetItemDefaultFocus();
+			    if (isSelected) MCP_API::SetItemDefaultFocus();
 		    }
-		    ImGuiMCP::EndCombo();
+		    MCP_API::EndCombo();
 	    }
 
     }
@@ -428,32 +358,32 @@ namespace {
 			MCP::current_device = it->first;
 			++index;
 		}
-	    if (ImGuiMCP::BeginCombo(label, device_to_string(MCP::current_device).data())) {
+	    if (MCP_API::BeginCombo(label, device_to_string(MCP::current_device).data())) {
 		    for (const auto& device : MCP::Settings::prompt_keys | std::views::keys) {
 				if (!MCP::Settings::IsEnabled(device)) {
 					continue;
 				}
 			    const bool isSelected = MCP::current_device == device;
-			    if (ImGuiMCP::Selectable(device_to_string(device).data(), isSelected)) {
+			    if (MCP_API::Selectable(device_to_string(device).data(), isSelected)) {
 				    if (!isSelected) {
                         MCP::current_device = device;
 				    }
 			    }
-			    if (isSelected) ImGuiMCP::SetItemDefaultFocus();
+			    if (isSelected) MCP_API::SetItemDefaultFocus();
 		    }
-		    ImGuiMCP::EndCombo();
+		    MCP_API::EndCombo();
 	    }
     }
 
     void RenderControl(std::map<Input::DEVICE, uint32_t>& curr_controls, const char* label, const char* help=nullptr)
     {
-	    ImGuiMCP::Text(label);
-	    ImGuiMCP::SameLine();
-	    ImGuiMCP::SetCursorPosX(200.f);
-	    ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.30f);
+	    MCP_API::Text(label);
+	    MCP_API::SameLine();
+	    MCP_API::SetCursorPosX(200.f);
+	    MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.30f);
 	    ControlBox(("##"+std::string(label)).c_str(), MCP::current_device, curr_controls.at(MCP::current_device));
 		if (help) {
-		    ImGuiMCP::SameLine();    
+		    MCP_API::SameLine();    
             HelpMarker(help);
 		}
     }
@@ -465,17 +395,17 @@ void __stdcall MCP::RenderControls()
 	bool settingsChanged = false;
 	for (const auto& device : Settings::enabled_devices | std::views::keys) {
 		const auto device_str = device_to_string(device);
-		if (ImGuiMCP::Checkbox((device_str+"##enabled").c_str(), &Settings::enabled_devices.at(device))) {
+		if (MCP_API::Checkbox((device_str+"##enabled").c_str(), &Settings::enabled_devices.at(device))) {
 			settingsChanged = true;
 		}
 		if (device != Settings::enabled_devices.rbegin()->first) {
-		    ImGuiMCP::SameLine();
+		    MCP_API::SameLine();
 		}
 	}
 
 	// need max number of buttons slider
-	if (!ImGuiMCP::SliderInt("Max Buttons", &Settings::n_max_buttons, 1, 4)) {
-		if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
+	if (!MCP_API::SliderInt("Max Buttons", &Settings::n_max_buttons, 1, 4)) {
+		if (MCP_API::IsItemDeactivatedAfterEdit()) {
 			settingsChanged = true;
 		}
 	}
@@ -483,10 +413,10 @@ void __stdcall MCP::RenderControls()
 	const auto prompt_keys_before = Settings::prompt_keys;
 
 
-	ImGuiMCP::Text("Device Selection:");
-	ImGuiMCP::SameLine();
-	ImGuiMCP::SetCursorPosX(200.f);
-    ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.25f);
+	MCP_API::Text("Device Selection:");
+	MCP_API::SameLine();
+	MCP_API::SetCursorPosX(200.f);
+    MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.25f);
 	DeviceBox("##device_selection");
 
 	if (current_device != Input::DEVICE::kUnknown) {
@@ -507,7 +437,7 @@ void __stdcall MCP::RenderControls()
 		Settings::to_json();
 	}
 
-	ImGuiMCP::Text("");
+	MCP_API::Text("");
 	Settings::SpecialCommands::Render();
 }
 
@@ -518,23 +448,23 @@ void MCP::Settings::SpecialCommands::Render()
 	// triple press and hold: delete all prompts
 	// explain what special commands are
 
-	ImGuiMCP::Text("Special Commands");
-	ImGuiMCP::SameLine();
+	MCP_API::Text("Special Commands");
+	MCP_API::SameLine();
 	HelpMarker("Double press: delete current prompt\nTriple press: cycle through prompts\nTriple press and hold: delete all prompts");
 
-	if (ImGuiMCP::Checkbox("Visualize", &visualize)) {
+	if (MCP_API::Checkbox("Visualize", &visualize)) {
 		to_json();
 	}
-	ImGuiMCP::SameLine();
+	MCP_API::SameLine();
 	HelpMarker("Visualization of the special commands");
 
-	if (!ImGuiMCP::SliderFloat("Responsiveness", &responsiveness, 0.0f, 1.0f)) {
-		if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
+	if (!MCP_API::SliderFloat("Responsiveness", &responsiveness, 0.0f, 1.0f)) {
+		if (MCP_API::IsItemDeactivatedAfterEdit()) {
 			to_json();
             ImGui::Renderer::UpdateMaxIntervalBetweenPresses();
 		}
 	}
-	ImGuiMCP::SameLine();
+	MCP_API::SameLine();
 	HelpMarker("Higher values gives you less time to press the next key in return for faster response");
 
 }
