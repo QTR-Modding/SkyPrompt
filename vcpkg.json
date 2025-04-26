@@ -1,0 +1,41 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "skyprompt",
+  "version-string": "0.1.0.0",
+  "dependencies": [
+    "rapidjson",
+    "fast-cpp-csv-parser",
+    "rsm-binary-io",
+    "simpleini",
+    "spdlog",
+    "xbyak",
+    "rapidcsv",
+    "rapidjson",
+    "directxmath",
+    "directxtk",
+    "boost-stl-interfaces",
+    "clib-util",
+    "skse-mcp",
+    "magic-enum",
+    "directxtex",
+    "freetype",
+    {
+      "name": "imgui",
+      "features": [ "dx11-binding", "win32-binding", "freetype", "wchar32" ]
+    },
+    "rapidfuzz",
+    "rsm-binary-io",
+    "spdlog",
+    "srell",
+    "unordered-dense",
+    "boost-lockfree",
+    "glm"
+  ],
+  "overrides": [
+    {
+      "name": "fmt",
+      "version": "9.1.0"
+    }
+  ],
+  "builtin-baseline": "f06267da58f3c06b3a1aff9cbf5c2906e595ebc9"
+}

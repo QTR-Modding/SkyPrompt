@@ -1,0 +1,21 @@
+set(headers ${headers}
+	include/API.h
+	include/Utils.h
+	include/PCH.h
+	include/Settings.h
+	include/Hooks.h
+	include/MCP.h
+	include/Input.h
+	include/Renderer.h
+	include/Logger.h
+	include/Service.h
+    include/Tasker.h
+    include/Interaction.h
+	src/ImGui/Graphics.h
+    src/ImGui/Widgets.h
+    src/ImGui/Util.h
+    src/ImGui/Styles.h
+    src/ImGui/IconsFonts.h
+    src/ImGui/IconsFontAwesome6.h
+    src/ImGui/FormComboBox.h
+)
