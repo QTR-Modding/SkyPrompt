@@ -4,7 +4,7 @@
   "port-version": 1,
   "description": "Bloat-free Immediate Mode Graphical User interface for C++ with minimal dependencies.",
   "homepage": "https://github.com/ocornut/imgui",
-  "license": "All Rights Reserved Quantumyilmaz & SkyrimThiago",
+  "license": "MIT",
   "dependencies": [
     {
       "name": "vcpkg-cmake",
