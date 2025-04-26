@@ -347,27 +347,30 @@ bool ImGui::Renderer::Manager::IsGameFrozen()
 
 void ImGui::Renderer::SubManager::SendEvent(const Interaction& a_interaction, const int event_type)
 {
-	std::shared_lock lock(sink_mutex_);
-	if (const auto it = sinks.find(a_interaction); it != sinks.end()) {
-		for (const auto& a_sink : it->second) {
-            SkyPromptAPI::Prompt prompt;
+	std::vector<SkyPromptAPI::PromptSink*> sinks_copy;
 
-			for (const auto a_prompt : a_sink->GetPrompts()) {
-				if (a_prompt.text == a_interaction.name()) {
-					prompt = a_prompt;
-					break;
-				}
-			}
-			if (prompt.text.empty()) {
-				logger::error("Prompt not found for interaction {}", a_interaction.name());
-				return;
-			}
+    {
+        std::shared_lock lock(sink_mutex_);
+        if (const auto it = sinks.find(a_interaction); it != sinks.end()) {
+            sinks_copy = it->second;
+        }
+    }
 
-			lock.unlock();
-			a_sink->ProcessEvent({prompt,event_type});
-			lock.lock();
-		}
-	}
+	for (const auto& a_sink : sinks_copy) {
+        SkyPromptAPI::Prompt prompt;
+        for (const auto a_prompt : a_sink->GetPrompts()) {
+            if (a_prompt.text == a_interaction.name()) {
+                prompt = a_prompt;
+                break;
+            }
+        }
+        if (prompt.text.empty()) {
+            logger::error("Prompt not found for interaction {}", a_interaction.name());
+            continue;
+        }
+
+        a_sink->ProcessEvent({ prompt, event_type });
+    }
 }
 
 void ImGui::Renderer::SubManager::RemoveFromSinks(SkyPromptAPI::PromptSink* a_prompt_sink)
@@ -474,6 +477,10 @@ void SubManager::ResetQueue() {
 }
 
 void SubManager::ShowQueue() {
+
+	bool needSendEvent = false;
+    Interaction interaction;
+
 	if (std::shared_lock lock(q_mutex_); !interactQueue.IsEmpty()) {
 		if (const auto curr_ = interactQueue.current_button; !curr_ || curr_->IsHidden()) {
             {
@@ -481,10 +488,14 @@ void SubManager::ShowQueue() {
 			    progress_circle = 0.0f;
             }
 			if (curr_ && curr_->expired()) {
-			    SendEvent(curr_->iButton.interaction, 2);
+				needSendEvent = true;
+				interaction = curr_->iButton.interaction;
 			}
 		}
 		interactQueue.Show(progress_circle,nullptr,buttonState);
+	}
+	if (needSendEvent) {
+		SendEvent(interaction, 2);
 	}
 }
 
