@@ -272,7 +272,7 @@ const Button2Show* ButtonQueue::Next() const {
 }
 
 void ImGui::Renderer::Manager::ReArrange() {
-	std::map<SCENES::Events,std::vector<Interaction>> interactions;
+	std::map<SCENES::Event,std::vector<Interaction>> interactions;
 	std::map<Interaction,std::vector<SkyPromptAPI::PromptSink*>> sinks;
 
 	{
@@ -351,25 +351,6 @@ void ImGui::Renderer::SubManager::SendEvent(const Interaction& a_interaction, co
 	if (const auto it = sinks.find(a_interaction); it != sinks.end()) {
 		for (const auto& a_sink : it->second) {
             SkyPromptAPI::Prompt prompt;
-			const auto current_device = Input::Manager::GetSingleton()->GetInputDevice();
-			RE::INPUT_DEVICE device;
-			switch (current_device) {
-			case Input::DEVICE::kKeyboard:
-				device = RE::INPUT_DEVICE::kKeyboard;
-				break;
-			case Input::DEVICE::kMouse:
-				device = RE::INPUT_DEVICE::kMouse;
-				break;
-			case Input::DEVICE::kGamepadDirectX:
-				device = RE::INPUT_DEVICE::kGamepad;
-				break;
-			case Input::DEVICE::kGamepadOrbis:
-				device = RE::INPUT_DEVICE::kGamepad;
-				break;
-			default:
-				device = RE::INPUT_DEVICE::kKeyboard;
-				break;
-			}
 
 			for (const auto a_prompt : a_sink->GetPrompts()) {
 				if (a_prompt.text == a_interaction.name()) {
@@ -541,33 +522,20 @@ std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(const Interaction& 
 	return managers.back();
 }
 
-bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink)
+bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID)
 {
-	static std::vector<Interaction> custom_interactions = {
-		Interaction(SCENES::Events::kPrompt1, ACTIONS::Actions::kPrompt1),
-		Interaction(SCENES::Events::kPrompt2, ACTIONS::Actions::kPrompt2),
-		Interaction(SCENES::Events::kPrompt3, ACTIONS::Actions::kPrompt3),
-		Interaction(SCENES::Events::kPrompt4, ACTIONS::Actions::kPrompt4),
-	};
-
     for (const auto& prompts = a_prompt_sink->GetPrompts();
-		const auto& [text, button_key] : prompts) {
+		const auto& [text, button_key, a_event, a_action] : prompts) {
 	    if (text.empty()) {
 		    logger::warn("Empty prompt text");
 		    return false;
 	    }
 
-	    auto index = 0;
-	    while (IsInQueue(custom_interactions[index])) {
-		    ++index;
-		    if (index >= custom_interactions.size()) {
-			    logger::warn("No more custom interactions available");
-			    return false;
-		    }
-	    }
-
-	    const auto& interaction = custom_interactions[index];
-        ACTIONS::action_strings.at(interaction.action.action) = text;
+        const SkyPromptAPI::EventID start_index = a_clientID * std::numeric_limits<SkyPromptAPI::ClientID>::max();
+		const SkyPromptAPI::EventID event_id = start_index + a_event;
+		const SkyPromptAPI::ActionID action_id = start_index + a_action;
+		auto interaction = Interaction(event_id, action_id);
+		interaction.text = text;
 
 		if (const auto& submanager = Add2Q(interaction)) {
 			submanager->AddSink(interaction, a_prompt_sink);
