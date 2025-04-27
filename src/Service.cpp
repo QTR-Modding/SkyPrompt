@@ -1,7 +1,7 @@
 #include "Service.h"
 #include "Renderer.h"
 
-bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, const bool a_force, const SkyPromptAPI::ClientID a_clientID) {
+bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, const bool a_force, const SkyPromptAPI::ClientID a_clientID, const uint32_t a_refid) {
 
 	if (!a_sink) {
 		return false;
@@ -22,10 +22,10 @@ bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, const bool a_force, con
 		else return false;
 	}
 
-	return manager->Add2Q(a_sink, a_clientID);
+	return manager->Add2Q(a_sink, a_clientID, false, a_refid);
 }
 
-DLLEXPORT bool ProcessSendHint(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID)
+DLLEXPORT bool ProcessSendHint(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID, const uint32_t a_refid)
 {
 	if (!a_sink) {
 		return false;
@@ -40,7 +40,7 @@ DLLEXPORT bool ProcessSendHint(SkyPromptAPI::PromptSink* a_sink, const SkyPrompt
 	}
 	manager->Clear();
 
-	return manager->Add2Q(a_sink, a_clientID, true);
+	return manager->Add2Q(a_sink, a_clientID, true, a_refid);
 }
 
 void ProcessRemovePrompt(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID) {

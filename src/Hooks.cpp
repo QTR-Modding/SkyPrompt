@@ -91,14 +91,11 @@ void DrawHook::thunk(std::uint32_t a_timer) {
     }
     ImGui::NewFrame();
     {
-        RenderUI();
+        RenderPrompts();
     }
     ImGui::EndFrame();
     ImGui::Render();
-
-
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
 }
 
 
@@ -184,7 +181,12 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
                 if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
 					submanager->buttonState.isPressing = button_event->IsPressed();
                     if (button_event->IsDown()) {
-                        submanager->buttonState.pressCount++;
+                        if (submanager->IsInHintMode()) {
+                            submanager->buttonState.pressCount = 1;
+                        }
+                        else {
+                            submanager->buttonState.pressCount++;
+                        }
                         submanager->buttonState.lastPressTime = now;
                     }
                     if (submanager->buttonState.isPressing) {

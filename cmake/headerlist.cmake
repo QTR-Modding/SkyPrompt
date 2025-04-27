@@ -11,6 +11,7 @@ set(headers ${headers}
 	include/Service.h
     include/Tasker.h
     include/Interaction.h
+    include/Geometry.h
 	src/ImGui/Graphics.h
     src/ImGui/Widgets.h
     src/ImGui/Util.h

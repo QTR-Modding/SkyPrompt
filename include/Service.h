@@ -3,8 +3,8 @@
 
 #define DLLEXPORT __declspec(dllexport)
 
-extern "C" DLLEXPORT bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, bool a_force, SkyPromptAPI::ClientID a_clientID);
-extern "C" DLLEXPORT bool ProcessSendHint(SkyPromptAPI::PromptSink* a_sink, SkyPromptAPI::ClientID a_clientID);
+extern "C" DLLEXPORT bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, bool a_force, SkyPromptAPI::ClientID a_clientID, uint32_t a_refid);
+extern "C" DLLEXPORT bool ProcessSendHint(SkyPromptAPI::PromptSink* a_sink, SkyPromptAPI::ClientID a_clientID, uint32_t a_refid);
 extern "C" DLLEXPORT void ProcessRemovePrompt(SkyPromptAPI::PromptSink* a_sink, SkyPromptAPI::ClientID a_clientID);
 extern "C" DLLEXPORT SkyPromptAPI::ClientID ProcessRequestClientID();
 

@@ -1,6 +1,6 @@
 #pragma once
 #include <shared_mutex>
-
+#include "imgui.h"
 #include "API.h"
 #include "MCP.h"
 #include "Settings.h"
@@ -85,8 +85,7 @@ namespace ImGui::Renderer
 	}
 
 	float GetResolutionScale();
-	static void RenderPrompt();
-	void RenderUI(); // starts here
+	void RenderPrompts(); // starts here
 
 	struct ButtonState {
 		bool isPressing = false;
@@ -111,6 +110,8 @@ namespace ImGui::Renderer
 
 		void RemoveFromSinks(SkyPromptAPI::PromptSink* a_prompt_sink);
 		void ButtonStateActions();
+
+		RE::ObjectRefHandle attached_object;
 
 	public:
 
@@ -149,6 +150,10 @@ namespace ImGui::Renderer
 
 		bool IsInHintMode() const { return progress_circle_max == 0.0f; }
 		void ToggleHintMode();
+		bool Attach2Object(RefID a_refid);
+		bool IsAttached2Object() const { return attached_object.get().get(); }
+		ImVec2 GetAttachedObjectPos() const;
+		RefID GetAttachedObjectID() const { return attached_object ? attached_object.get()->GetFormID() : 0; }
 	};
 
 	class Manager : public clib_util::singleton::ISingleton<Manager>
@@ -169,7 +174,7 @@ namespace ImGui::Renderer
 		mutable std::shared_mutex mutex_;
 
         std::unique_ptr<SubManager>& Add2Q(const Interaction& a_interaction, bool show = true);
-        bool Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID, bool is_hint=false);
+        bool Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID, bool is_hint=false, uint32_t a_refid=0);
 		bool IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink) const;
 		void RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) const;
 		[[nodiscard]] bool HasTask() const;

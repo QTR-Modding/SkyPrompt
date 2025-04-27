@@ -1,4 +1,5 @@
 #include "Utils.h"
+#include "imgui.h"
 
 std::filesystem::path GetLogPath()
 {
@@ -28,4 +29,35 @@ std::vector<std::string> ReadLogFile() {
     file.close();
 
     return logLines;
+}
+
+void BeginImGuiWindow(const char* window_name)
+{
+    
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f)); // Padding for cleaner layout
+
+    ImGui::Begin(window_name, nullptr,
+#ifndef NDEBUG
+        ImGuiWindowFlags_AlwaysAutoResize
+#else
+        ImGuiWindowFlags_NoTitleBar |
+        //ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoBackground|
+		ImGuiWindowFlags_NoNavFocus | 
+		ImGuiWindowFlags_NoDecoration | 
+		ImGuiWindowFlags_NoMove | 
+		ImGuiWindowFlags_NoInputs |
+	    ImGuiWindowFlags_NoNav |
+	    ImGuiWindowFlags_NoBringToFrontOnFocus |
+	    ImGuiWindowFlags_NoFocusOnAppearing
+#endif
+	);
+}
+
+void EndImGuiWindow()
+{
+	ImGui::End();
+	ImGui::PopStyleVar(2);
 }

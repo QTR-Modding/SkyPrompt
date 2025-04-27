@@ -20,3 +20,6 @@ public:
 		logger::info("{}: Elapsed time: {}", name, elapsed_seconds.count());
 	}
 };
+
+void BeginImGuiWindow(const char* window_name);
+void EndImGuiWindow();

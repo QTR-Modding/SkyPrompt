@@ -68,8 +68,8 @@ namespace SkyPromptAPI {
         "ProcessSendPrompt",                     /* hostName */
         bool,                                       /* returnType */
         false,                                      /* defaultValue */
-        (PromptSink* a_sink, bool a_force, uint16_t a_clientID), /* signature */
-        (a_sink, a_force, a_clientID)         /* callArgs */
+        (PromptSink* a_sink, bool a_force, uint16_t a_clientID, uint32_t a_refid), /* signature */
+        (a_sink, a_force, a_clientID, a_refid)         /* callArgs */
     );
 
     DECLARE_API_FUNC_EX(
@@ -77,8 +77,8 @@ namespace SkyPromptAPI {
         "ProcessSendHint",                     /* hostName */
         bool,                                       /* returnType */
         false,                                      /* defaultValue */
-        (PromptSink* a_sink, uint16_t a_clientID), /* signature */
-        (a_sink, a_clientID)         /* callArgs */
+        (PromptSink* a_sink, uint16_t a_clientID, uint32_t a_refid), /* signature */
+        (a_sink, a_clientID, a_refid)         /* callArgs */
     );
 
     // 1) The macro name:       RemovePrompt

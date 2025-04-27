@@ -5,6 +5,8 @@
 #include "MCP.h"
 #include "Settings.h"
 #include "Styles.h"
+#include "Utils.h"
+#include "Geometry.h"
 
 using namespace ImGui::Renderer;
 
@@ -14,40 +16,9 @@ float ImGui::Renderer::GetResolutionScale()
 	return DisplayTweaks::borderlessUpscale ? DisplayTweaks::resolutionScale : static_cast<float>(height)/ 1080.0f;
 }
 
-void ImGui::Renderer::RenderPrompt()
-{
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f)); // Padding for cleaner layout
-
-    ImGui::Begin("ContextualPrompt", nullptr,
-#ifndef NDEBUG
-        ImGuiWindowFlags_AlwaysAutoResize
-#else
-        ImGuiWindowFlags_NoTitleBar |
-        //ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_AlwaysAutoResize |
-        ImGuiWindowFlags_NoBackground|
-		ImGuiWindowFlags_NoNavFocus | 
-		ImGuiWindowFlags_NoDecoration | 
-		ImGuiWindowFlags_NoMove | 
-		ImGuiWindowFlags_NoInputs |
-	    ImGuiWindowFlags_NoNav |
-	    ImGuiWindowFlags_NoBringToFrontOnFocus |
-	    ImGuiWindowFlags_NoFocusOnAppearing
-#endif
-	);
-
-	MANAGER(ImGui::Renderer)->ShowQueue();
-
-    ImGui::End();
-
-    ImGui::PopStyleVar(2);
-}
-
-void ImGui::Renderer::RenderUI() {
+void ImGui::Renderer::RenderPrompts() {
     
-	const auto manager = MANAGER(ImGui::Renderer)->GetSingleton();
+	const auto manager = MANAGER(ImGui::Renderer);
 	manager->SendEvents();
 	manager->CleanUpQueue();
 
@@ -66,19 +37,7 @@ void ImGui::Renderer::RenderUI() {
 		return;
 	}
 
-    // Get the screen size
-    const auto [width, height] = RE::BSGraphics::Renderer::GetScreenSize();
-
-    // Calculate position
-    const ImVec2 bottomRightPos(
-        width * MCP::Settings::xPercent - MCP::Settings::marginX,
-        height * MCP::Settings::yPercent - MCP::Settings::marginY
-    );
-
-    // Set the window position
-    ImGui::SetNextWindowPos(bottomRightPos, ImGuiCond_Always, ImVec2(1.0f, 1.0f)); // Pivot at the bottom-right
-
-    RenderPrompt();
+	manager->ShowQueue();
 }
 
 void Button2Show::Update(const float a_timeStep) const
@@ -385,6 +344,53 @@ void ImGui::Renderer::SubManager::ToggleHintMode()
 	}
 }
 
+bool ImGui::Renderer::SubManager::Attach2Object(const RefID a_refid)
+{
+	if (const auto a_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_refid)) {
+		attached_object = a_ref->GetHandle();
+		return true;
+	}
+	return false;
+}
+
+static ImVec2 WorldToScreenLoc(RE::NiPoint3 position) {
+    static uintptr_t g_worldToCamMatrix = RELOCATION_ID(519579, 406126).address();         // 2F4C910, 2FE75F0
+    static auto g_viewPort = (RE::NiRect<float>*)RELOCATION_ID(519618, 406160).address();  // 2F4DED0, 2FE8B98
+
+    ImVec2 screenLocOut;
+    const RE::NiPoint3 niWorldLoc(position.x, position.y, position.z);
+
+    float zVal;
+
+    RE::NiCamera::WorldPtToScreenPt3((float(*)[4])g_worldToCamMatrix, *g_viewPort, niWorldLoc, screenLocOut.x,
+                                     screenLocOut.y, zVal, 1e-5f);
+    const ImVec2 rect = ImGui::GetIO().DisplaySize;
+
+    screenLocOut.x = rect.x * screenLocOut.x;
+    screenLocOut.y = 1.0f - screenLocOut.y;
+    screenLocOut.y = rect.y * screenLocOut.y;
+
+    return screenLocOut;
+}
+
+ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
+{
+	if (const auto ref = attached_object.get().get()) {
+        auto geo = Geometry(ref);
+
+        const auto bound = geo.GetBoundingBox(ref->GetAngle(), ref->GetScale());
+
+        const RE::NiPoint3 center = (bound.first + bound.second) / 2;
+
+        const RE::NiPoint3 pos = ref->GetPosition() + RE::NiPoint3{center.x, center.y, bound.second.z + 16};
+
+        const ImVec2 pos2d = WorldToScreenLoc(pos);
+
+		return pos2d;
+	}
+	return {};
+}
+
 void ImGui::Renderer::SubManager::RemoveFromSinks(SkyPromptAPI::PromptSink* a_prompt_sink)
 {
 	std::unique_lock lock(sink_mutex_);
@@ -530,7 +536,7 @@ std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(const Interaction& 
 	return managers.back();
 }
 
-bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID, bool is_hint)
+bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID, const bool is_hint, uint32_t a_refid)
 {
     for (const auto& prompts = a_prompt_sink->GetPrompts();
 		const auto& [text, button_key, a_event, a_action] : prompts) {
@@ -548,6 +554,9 @@ bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, co
 		if (const auto& submanager = Add2Q(interaction)) {
 			if (is_hint && !submanager->IsInHintMode()) {
 				submanager->ToggleHintMode();
+			}
+			if (const auto a_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_refid)) {
+				submanager->Attach2Object(a_ref->GetFormID());
 			}
 			submanager->AddSink(interaction, a_prompt_sink);
 		}
@@ -876,10 +885,44 @@ void ImGui::Renderer::Manager::ShowQueue() const {
 	if (IsPaused()) {
 		return;
 	}
+	
+    // Get the screen size
+    const auto [width, height] = RE::BSGraphics::Renderer::GetScreenSize();
+
+    // Calculate position
+    const ImVec2 bottomRightPos(
+        width * MCP::Settings::xPercent - MCP::Settings::marginX,
+        height * MCP::Settings::yPercent - MCP::Settings::marginY
+    );
+
+    // Set the window position
+    ImGui::SetNextWindowPos(bottomRightPos, ImGuiCond_Always, ImVec2(1.0f, 1.0f)); // Pivot at the bottom-right
+
+	BeginImGuiWindow("SkyPrompt");
+
+	std::map<RefID,std::vector<SubManager*>> object_managers;
 	std::shared_lock lock(mutex_);
 	for (auto& a_manager : managers) {
+		if (a_manager->IsAttached2Object()) {
+			object_managers[a_manager->GetAttachedObjectID()].push_back(a_manager.get());
+		    continue;
+		}
 		a_manager->ShowQueue();
 	}
+
+	EndImGuiWindow();
+
+	int i = 0;
+	for (const auto& managers_ : object_managers | std::views::values) {
+		auto window_pos = managers_[0]->GetAttachedObjectPos();
+		SetNextWindowPos(window_pos, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+		BeginImGuiWindow(std::format("SkyPromptHover{}",i++).c_str());
+		for (const auto a_manager : managers_) {
+		    a_manager->ShowQueue();
+		}
+	    EndImGuiWindow();
+	}
+
 }
 
 void ImGui::Renderer::Manager::Clear()
