@@ -81,7 +81,7 @@ namespace SkyPromptAPI {
         "ProcessSendPrompt",                     /* hostName */
         bool,                                       /* returnType */
         false,                                      /* defaultValue */
-        (PromptSink* a_sink, bool a_force, uint16_t a_clientID, RE::FormID a_refid), /* signature */
+        (PromptSink* a_sink, bool a_force, ClientID a_clientID, RE::FormID a_refid), /* signature */
         (a_sink, a_force, a_clientID, a_refid)         /* callArgs */
     );
 
@@ -90,7 +90,7 @@ namespace SkyPromptAPI {
         "ProcessSendHint",                     /* hostName */
         bool,                                       /* returnType */
         false,                                      /* defaultValue */
-        (PromptSink* a_sink, uint16_t a_clientID, RE::FormID a_refid), /* signature */
+        (PromptSink* a_sink, ClientID a_clientID, RE::FormID a_refid), /* signature */
         (a_sink, a_clientID, a_refid)         /* callArgs */
     );
 
