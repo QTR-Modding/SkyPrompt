@@ -25,6 +25,6 @@ struct Interaction {
 
 	[[nodiscard]] std::string name() const { return text; }
 
-    bool operator<(const Interaction& a_rhs) const {return action == a_rhs.action ? event < a_rhs.event : action < a_rhs.action;};
+    bool operator<(const Interaction& a_rhs) const {return event == a_rhs.event ? action == a_rhs.action ? text < a_rhs.text : action < a_rhs.action : event < a_rhs.event;};
 	bool operator==(const Interaction & a_rhs) const {return action == a_rhs.action && event == a_rhs.event;}
 };

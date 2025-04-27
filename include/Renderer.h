@@ -20,7 +20,7 @@ struct InteractionButton
 	// constructor
     explicit InteractionButton(const Interaction& a_interaction) : interaction(a_interaction) {text=interaction.name();}
 	bool operator==(const InteractionButton& a_rhs) const { return text == a_rhs.text; }
-	bool operator<(const InteractionButton& a_rhs) const { return text < a_rhs.text; }
+	bool operator<(const InteractionButton& a_rhs) const { return interaction < a_rhs.interaction; }
 };
 
 struct Button2Show {
@@ -153,6 +153,9 @@ namespace ImGui::Renderer
 		void ReArrange();
 		bool IsInQueue(const Interaction& a_interaction) const;
 
+		std::shared_mutex events_to_send_mutex;
+		std::map<SkyPromptAPI::PromptSink*, std::vector<std::pair<SkyPromptAPI::Prompt,int>>> events_to_send_;
+
 	public:
 
 		static bool IsGameFrozen();
@@ -164,7 +167,6 @@ namespace ImGui::Renderer
         std::unique_ptr<SubManager>& Add2Q(const Interaction& a_interaction, bool show = true);
         bool Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID);
 		bool IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink) const;
-		void RemoveFromQ(const Interaction& a_interaction);
 		void RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) const;
 		[[nodiscard]] bool HasTask() const;
 		void Start();
@@ -180,5 +182,7 @@ namespace ImGui::Renderer
 		std::vector<uint32_t> GetPromptKeys() const;
 
 		void ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func);
+		void AddEventToSend(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::Prompt& a_prompt, int event_type);
+		void SendEvents();
 	};
 }
