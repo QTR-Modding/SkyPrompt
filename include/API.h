@@ -24,7 +24,7 @@ namespace SkyPromptAPI {
         return defaultValue;                                   \
     }
 
-	using ClientID = uint8_t;
+	using ClientID = uint16_t;
 	using EventID = uint16_t;
 	using ActionID = uint16_t;
 	using ButtonID = uint32_t; // RE::BSWin32KeyboardDevice::Key, RE::BSWin32MouseDevice::Key, RE::BSWin32GamepadDevice::Key, RE::BSPCOrbisGamepadDevice::Key
@@ -81,7 +81,7 @@ namespace SkyPromptAPI {
         "ProcessSendPrompt",                     /* hostName */
         bool,                                       /* returnType */
         false,                                      /* defaultValue */
-        (PromptSink* a_sink, bool a_force, uint16_t a_clientID, uint32_t a_refid), /* signature */
+        (PromptSink* a_sink, bool a_force, uint16_t a_clientID, RE::FormID a_refid), /* signature */
         (a_sink, a_force, a_clientID, a_refid)         /* callArgs */
     );
 
@@ -90,7 +90,7 @@ namespace SkyPromptAPI {
         "ProcessSendHint",                     /* hostName */
         bool,                                       /* returnType */
         false,                                      /* defaultValue */
-        (PromptSink* a_sink, uint16_t a_clientID, uint32_t a_refid), /* signature */
+        (PromptSink* a_sink, uint16_t a_clientID, RE::FormID a_refid), /* signature */
         (a_sink, a_clientID, a_refid)         /* callArgs */
     );
 

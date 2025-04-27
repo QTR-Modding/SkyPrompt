@@ -212,7 +212,7 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 			if (prompt_key != 0 && prompt_key == key) {
 				block = true;
 				if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
-                    submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove, {mouse_event->mouseInputX,mouse_event->mouseInputY});
+                    submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove, {static_cast<float>(mouse_event->mouseInputX),static_cast<float>(mouse_event->mouseInputY)});
 				}
 			}
 		}
