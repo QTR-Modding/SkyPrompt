@@ -188,7 +188,11 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
                             submanager->buttonState.pressCount++;
                         }
                         submanager->buttonState.lastPressTime = now;
-                    }
+                        submanager->SendEvent(submanager->GetCurrentInteraction(),SkyPromptAPI::PromptEventType::kDown);
+					}
+					else if (button_event->IsUp()) {
+						submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kUp);
+					}
                     if (submanager->buttonState.isPressing) {
                         if (const auto held_dur = button_event->HeldDuration() * 1000.f; 
                             now - submanager->buttonState.lastPressTime < std::chrono::milliseconds(100+static_cast<int>(held_dur))) {
@@ -202,6 +206,29 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 		    }
 		}
 	}
+	else if (const auto mouse_event = event->AsMouseMoveEvent()) {
+        constexpr auto key = SkyPromptAPI::kMouseMove;
+		for (const auto prompt_keys = render_manager->GetPromptKeys(); const auto & prompt_key : prompt_keys) {
+			if (prompt_key != 0 && prompt_key == key) {
+				block = true;
+				if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
+                    submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove, {mouse_event->mouseInputX,mouse_event->mouseInputY});
+				}
+			}
+		}
+	}
+	else if (const auto thumbstick_event = event->AsThumbstickEvent()) {
+		constexpr auto key = SkyPromptAPI::kThumbstickMove;
+		for (const auto prompt_keys = render_manager->GetPromptKeys(); const auto & prompt_key : prompt_keys) {
+			if (prompt_key != 0 && prompt_key == key) {
+				block = true;
+				if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
+					submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove, { thumbstick_event->xValue,thumbstick_event->yValue });
+				}
+			}
+		}
+	}
+
 	return block;
 }
 

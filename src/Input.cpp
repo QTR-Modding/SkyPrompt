@@ -391,6 +391,9 @@ namespace Input
 
 	uint32_t Manager::Convert(const uint32_t button_key, const RE::INPUT_DEVICE a_device)
 	{
+		if (button_key > 282) {
+			return button_key;
+		}
 		if (a_device == RE::INPUT_DEVICE::kKeyboard) {
 			return button_key;
 		}

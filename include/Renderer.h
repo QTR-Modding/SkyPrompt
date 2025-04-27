@@ -146,7 +146,7 @@ namespace ImGui::Renderer
 		std::map<Interaction, std::vector<SkyPromptAPI::PromptSink*>> GetSinks() const { return sinks; }
 		bool IsInQueue(SkyPromptAPI::PromptSink* a_sink) const;
 		bool IsInQueue(const Interaction& a_interaction) const;
-		void SendEvent(const Interaction& a_interaction, int event_type);
+		void SendEvent(const Interaction& a_interaction, SkyPromptAPI::PromptEventType event_type, std::pair<float,float> delta = {0.f,0.f});
 
 		bool IsInHintMode() const { return progress_circle_max == 0.0f; }
 		void ToggleHintMode();
@@ -163,7 +163,7 @@ namespace ImGui::Renderer
 		bool IsInQueue(const Interaction& a_interaction) const;
 
 		std::shared_mutex events_to_send_mutex;
-		std::map<SkyPromptAPI::PromptSink*, std::vector<std::pair<SkyPromptAPI::Prompt,int>>> events_to_send_;
+		std::map<SkyPromptAPI::PromptSink*, std::vector<SkyPromptAPI::PromptEvent>> events_to_send_;
 
 	public:
 
@@ -191,7 +191,8 @@ namespace ImGui::Renderer
 		std::vector<uint32_t> GetPromptKeys() const;
 
 		void ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func);
-		void AddEventToSend(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::Prompt& a_prompt, int event_type);
+		void AddEventToSend(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::Prompt& a_prompt, SkyPromptAPI::PromptEventType event_type, std::
+                            pair<float, float> a_delta);
 		void SendEvents();
 	};
 }

@@ -27,17 +27,30 @@ namespace SkyPromptAPI {
 	using ClientID = uint8_t;
 	using EventID = uint16_t;
 	using ActionID = uint16_t;
+	using ButtonID = uint32_t; // RE::BSWin32KeyboardDevice::Key, RE::BSWin32MouseDevice::Key, RE::BSWin32GamepadDevice::Key, RE::BSPCOrbisGamepadDevice::Key
+
+    constexpr ButtonID kMouseMove = 283;
+    constexpr ButtonID kThumbstickMove = 284;
 
 	struct Prompt {
 		std::string_view text;
-        std::span<std::pair<RE::INPUT_DEVICE, uint32_t>> button_key;
+        std::span<std::pair<RE::INPUT_DEVICE, ButtonID>> button_key;
         EventID a_eventID;
 		ActionID a_actionID;
 	};
 
+	enum PromptEventType {
+		kAccepted,
+		kDeclined,
+		kTimeout,
+		kDown,
+        kUp,
+		kMove
+	};
     struct PromptEvent {
 		Prompt prompt;
-		int type; // 0 = accepted, 1 = declined, 2 = timeout
+		PromptEventType type;
+        std::pair<float,float> delta;
 	};
 
     class PromptSink {
