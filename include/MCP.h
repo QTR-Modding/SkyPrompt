@@ -31,12 +31,7 @@ namespace MCP {
 #endif
 
         inline int n_max_buttons = 4;
-		inline std::map<Input::DEVICE,std::vector<uint32_t>> prompt_keys = {
-			{ Input::DEVICE::kKeyboard, {KEY::kNum1,KEY::kNum2,KEY::kNum3,KEY::kNum4} },
-			{ Input::DEVICE::kMouse, {MOUSE::kMiddleButton,MOUSE::kButton3,MOUSE::kButton4,MOUSE::kButton5} },
-			{ Input::DEVICE::kGamepadDirectX, {GAMEPAD_DIRECTX::kA,GAMEPAD_DIRECTX::kB,GAMEPAD_DIRECTX::kX,GAMEPAD_DIRECTX::kY} },
-			{ Input::DEVICE::kGamepadOrbis, {GAMEPAD_ORBIS::kPS3_A, GAMEPAD_ORBIS::kPS3_B, GAMEPAD_ORBIS::kPS3_X, GAMEPAD_ORBIS::kPS3_Y} },
-        };
+		inline std::map<Input::DEVICE,std::vector<uint32_t>> prompt_keys;
 
         inline std::atomic shouldReloadPromptSize=true;
         inline std::atomic shouldReloadLifetime=true;
@@ -44,8 +39,7 @@ namespace MCP {
 
 
 		inline std::map<Input::DEVICE, bool> enabled_devices = {
-			{Input::DEVICE::kKeyboard, true },
-			{Input::DEVICE::kMouse, false },
+			{Input::DEVICE::kKeyboardMouse, true },
 			{Input::DEVICE::kGamepadDirectX, true },
 			{Input::DEVICE::kGamepadOrbis, true }	
 		};
@@ -64,13 +58,14 @@ namespace MCP {
 	    inline float font_shadow = 0.5f;
 
 		bool FontSettings();
+		void LoadDefaultPromptKeys();
 
         void to_json();
         void from_json();
 
     };
 
-	inline auto current_device = Input::DEVICE::kKeyboard;
+	inline auto current_device = Input::DEVICE::kKeyboardMouse;
 };
 
 

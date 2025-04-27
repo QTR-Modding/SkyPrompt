@@ -155,7 +155,7 @@ namespace IconFont
 			return &rightKey;
 		default:
 			{
-				if (const auto inputDevice = MANAGER(Input)->GetInputDevice(); inputDevice == Input::DEVICE::kKeyboard || inputDevice == Input::DEVICE::kMouse) {
+				if (const auto inputDevice = MANAGER(Input)->GetInputDevice(); inputDevice == Input::DEVICE::kKeyboardMouse) {
 					if (key >= SKSE::InputMap::kMacro_MouseButtonOffset) {
 						if (const auto it = mouse.find(key); it != mouse.end()) {
 							return &it->second;

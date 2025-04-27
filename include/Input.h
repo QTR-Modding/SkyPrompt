@@ -5,8 +5,7 @@ namespace Input
 	enum class DEVICE
 	{
 		kUnknown = 0,
-		kKeyboard,
-		kMouse,
+		kKeyboardMouse,
 		kGamepadDirectX,  // xbox
 		kGamepadOrbis     // ps4
 	};
@@ -21,12 +20,10 @@ namespace Input
 
 		[[nodiscard]] DEVICE GetInputDevice() const;
 		void UpdateInputDevice(RE::InputEvent* event);
-		[[nodiscard]] uint32_t Convert(uint32_t button_key) const;
-		[[nodiscard]] static uint32_t Convert(uint32_t button_key, DEVICE a_device);
+		[[nodiscard]] static uint32_t Convert(uint32_t button_key, RE::INPUT_DEVICE a_device);
         static std::vector<uint32_t> GetKeys(DEVICE a_device);
 
 	private:
-		void SendKeyEvent(std::uint32_t a_key, float a_value, bool a_keyPressed) const;
 
 		// members
 		bool screenshotQueued{ false };
@@ -38,6 +35,6 @@ namespace Input
 		std::uint32_t screenshotMouse{ 0 };
 		std::uint32_t screenshotGamepad{ 0 };
 
-		DEVICE inputDevice{ DEVICE::kKeyboard };
+		DEVICE inputDevice{ DEVICE::kKeyboardMouse };
 	};
 }

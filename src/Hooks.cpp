@@ -173,7 +173,7 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 	input_manager->UpdateInputDevice(event);
 
 	if (const auto button_event = event->AsButtonEvent()) {
-		const auto key = input_manager->Convert(button_event->GetIDCode());
+		const auto key = input_manager->Convert(button_event->GetIDCode(),button_event->GetDevice());
         for (const auto prompt_keys = render_manager->GetPromptKeys(); const auto& prompt_key : prompt_keys) {
             if (prompt_key!=0 && prompt_key == key) {
 			    block = true;
@@ -214,7 +214,7 @@ bool ImGui::Renderer::InputHook::IsOtherButtonPressed(RE::InputEvent* const* a_e
 	for (auto current = *a_event; current; current = current->next) {
 		if (const auto button_event = current->AsButtonEvent()) {
             if (!button_event->IsPressed()) continue;
-            const auto key = input_manager->Convert(button_event->GetIDCode());
+            const auto key = input_manager->Convert(button_event->GetIDCode(),button_event->GetDevice());
 			if (prompt_keys.contains(key)) {
 				continue;
 			}

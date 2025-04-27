@@ -186,6 +186,30 @@ bool MCP::Settings::FontSettings()
 	return changed;
 }
 
+void MCP::Settings::LoadDefaultPromptKeys()
+{
+	prompt_keys = {
+    { Input::DEVICE::kKeyboardMouse, {
+        Input::Manager::Convert(KEY::kNum1, RE::INPUT_DEVICE::kKeyboard),
+        Input::Manager::Convert(KEY::kNum2, RE::INPUT_DEVICE::kKeyboard),
+        Input::Manager::Convert(KEY::kNum3, RE::INPUT_DEVICE::kKeyboard),
+        Input::Manager::Convert(KEY::kNum4, RE::INPUT_DEVICE::kKeyboard)
+    }},
+    { Input::DEVICE::kGamepadDirectX, {
+        Input::Manager::Convert(GAMEPAD_DIRECTX::kA, RE::INPUT_DEVICE::kGamepad),
+        Input::Manager::Convert(GAMEPAD_DIRECTX::kB, RE::INPUT_DEVICE::kGamepad),
+        Input::Manager::Convert(GAMEPAD_DIRECTX::kX, RE::INPUT_DEVICE::kGamepad),
+        Input::Manager::Convert(GAMEPAD_DIRECTX::kY, RE::INPUT_DEVICE::kGamepad)
+    }},
+    { Input::DEVICE::kGamepadOrbis, {
+        Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_A, RE::INPUT_DEVICE::kGamepad),
+        Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_B, RE::INPUT_DEVICE::kGamepad),
+        Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_X, RE::INPUT_DEVICE::kGamepad),
+        Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_Y, RE::INPUT_DEVICE::kGamepad)
+    }}
+    };
+}
+
 void MCP::Settings::to_json()
 {
 	using namespace rapidjson;
@@ -379,10 +403,10 @@ namespace {
 
 	     //dropdown with keys for selected device
 	    const auto device_str = std::string(device_to_string(selected_device));
-	    const auto converted_key = Input::Manager::Convert(selected_key, selected_device);
+	    const auto converted_key = selected_key; // Input::Manager::Convert(selected_key, selected_device);
 	    if (MCP_API::BeginCombo(label, SKSE::InputMap::GetKeyName(converted_key).c_str())) {
 		    for (const auto& key_code : Input::Manager::GetKeys(selected_device)) {
-			    const auto converted_keycode = Input::Manager::Convert(key_code, selected_device);
+			    const auto converted_keycode = key_code; // Input::Manager::Convert(key_code, selected_device);
 			    const auto key_name = SKSE::InputMap::GetKeyName(converted_keycode);
 			    if (key_name.empty()) {
 				    continue;
@@ -397,7 +421,6 @@ namespace {
 		    }
 		    MCP_API::EndCombo();
 	    }
-
     }
 
     void DeviceBox(const char* label)

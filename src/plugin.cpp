@@ -17,6 +17,11 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kPostLoad) {
 
     }
+	if (message->type == SKSE::MessagingInterface::kInputLoaded) {
+		if (MCP::Settings::prompt_keys.empty()) {
+			MCP::Settings::LoadDefaultPromptKeys();
+		}
+	}
 }
 
 SKSEPluginLoad(const SKSE::LoadInterface *skse) {

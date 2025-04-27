@@ -333,41 +333,6 @@ namespace Input
 		return inputDevice;
 	}
 
-	void Manager::SendKeyEvent(std::uint32_t a_key, const float a_value, const bool a_keyPressed) const
-	{
-		auto& io = ImGui::GetIO();
-
-		if (inputDevice == DEVICE::kMouse) {
-			switch (const auto mouseKey = static_cast<MOUSE>(a_key)) {
-			case MOUSE::kWheelUp:
-				io.AddMouseWheelEvent(0, a_value);
-				break;
-			case MOUSE::kWheelDown:
-				io.AddMouseWheelEvent(0, a_value * -1);
-				break;
-			default:
-				io.AddMouseButtonEvent(mouseKey, a_keyPressed);
-				break;
-			}
-		} else {
-			ImGuiKey key{ ImGuiKey_None };
-			switch (inputDevice) {
-			case DEVICE::kKeyboard:
-				key = ToImGuiKey(static_cast<KEY>(a_key));
-				break;
-			case DEVICE::kGamepadDirectX:
-				key = ToImGuiKey(static_cast<GAMEPAD_DIRECTX>(a_key));
-				break;
-			case DEVICE::kGamepadOrbis:
-				key = ToImGuiKey(static_cast<GAMEPAD_ORBIS>(a_key));
-				break;
-			default:
-				break;
-			}
-			io.AddKeyEvent(key, a_keyPressed);
-		}
-	}
-
 	void Manager::UpdateInputDevice(RE::InputEvent* event)
 	{
 		if (!event) return;
@@ -375,37 +340,35 @@ namespace Input
 			if (buttonEvent->IsUp()) {
 				return;
 			}
-			const auto device = event->GetDevice();
 
-			// get input type
-			switch (device) {
+			switch (const auto device = event->GetDevice()) {
 			    case RE::INPUT_DEVICE::kKeyboard:
-					if (MCP::Settings::IsEnabled(DEVICE::kKeyboard)) {
-						inputDevice = DEVICE::kKeyboard;
+					if (MCP::Settings::IsEnabled(DEVICE::kKeyboardMouse)) {
+						inputDevice = DEVICE::kKeyboardMouse;
 					}
-				break;
-			case RE::INPUT_DEVICE::kMouse:
-				{
-				    if (MCP::Settings::IsEnabled(DEVICE::kMouse)) {
-					    inputDevice = DEVICE::kMouse;
+				    break;
+			    case RE::INPUT_DEVICE::kMouse:
+				    {
+				        if (MCP::Settings::IsEnabled(DEVICE::kKeyboardMouse)) {
+					        inputDevice = DEVICE::kKeyboardMouse;
+				        }
 				    }
-				}
-				break;
-			case RE::INPUT_DEVICE::kGamepad:
-				{
-					if (RE::ControlMap::GetSingleton()->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis) {
-						if (MCP::Settings::IsEnabled(DEVICE::kGamepadOrbis)) {
-							inputDevice = DEVICE::kGamepadOrbis;
-						}
-					} else {
-						if (MCP::Settings::IsEnabled(DEVICE::kGamepadDirectX)) {
-						    inputDevice = DEVICE::kGamepadDirectX;
-						}
-					}
-				}
-				break;
-			default:
-				break;
+				    break;
+			    case RE::INPUT_DEVICE::kGamepad:
+				    {
+					    if (RE::ControlMap::GetSingleton()->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis) {
+						    if (MCP::Settings::IsEnabled(DEVICE::kGamepadOrbis)) {
+							    inputDevice = DEVICE::kGamepadOrbis;
+						    }
+					    } else {
+						    if (MCP::Settings::IsEnabled(DEVICE::kGamepadDirectX)) {
+						        inputDevice = DEVICE::kGamepadDirectX;
+						    }
+					    }
+				    }
+				    break;
+			    default:
+				    break;
 			}
 		}
 		else if (event->AsThumbstickEvent()) {
@@ -419,36 +382,22 @@ namespace Input
 				}
 			}
 		}
+		else if (event->AsMouseMoveEvent()) {
+			if (MCP::Settings::IsEnabled(DEVICE::kKeyboardMouse)) {
+				inputDevice = DEVICE::kKeyboardMouse;
+			}
+		}
 	}
 
-	uint32_t Manager::Convert(const uint32_t button_key) const {
-		const auto device = GetInputDevice();
-	    if (device == Input::DEVICE::kKeyboard) {
-		    return button_key;
-	    }
-	    if (device == Input::DEVICE::kMouse) {
-		    return button_key + SKSE::InputMap::kMacro_MouseButtonOffset;
-	    }
-	    if (device == Input::DEVICE::kGamepadDirectX) {
-		    return SKSE::InputMap::GamepadMaskToKeycode(button_key);
-	    }
-	    if (device == Input::DEVICE::kGamepadOrbis) {
-		    return SKSE::InputMap::GamepadMaskToKeycode(button_key);
-	    }
-		return 0;
-	}
-	uint32_t Manager::Convert(const uint32_t button_key, const DEVICE a_device)
+	uint32_t Manager::Convert(const uint32_t button_key, const RE::INPUT_DEVICE a_device)
 	{
-		if (a_device == DEVICE::kKeyboard) {
+		if (a_device == RE::INPUT_DEVICE::kKeyboard) {
 			return button_key;
 		}
-		if (a_device == DEVICE::kMouse) {
+		if (a_device == RE::INPUT_DEVICE::kMouse) {
 			return button_key + SKSE::InputMap::kMacro_MouseButtonOffset;
 		}
-		if (a_device == DEVICE::kGamepadDirectX) {
-			return SKSE::InputMap::GamepadMaskToKeycode(button_key);
-		}
-		if (a_device == DEVICE::kGamepadOrbis) {
+		if (a_device == RE::INPUT_DEVICE::kGamepad) {
 			return SKSE::InputMap::GamepadMaskToKeycode(button_key);
 		}
 		return 0;
@@ -457,21 +406,19 @@ namespace Input
 	std::vector<uint32_t> Manager::GetKeys(const DEVICE a_device) {
 		std::vector<uint32_t> keys;
 		switch (a_device) {
-		    case DEVICE::kKeyboard:
+		    case DEVICE::kKeyboardMouse:
 				for (const auto key : magic_enum::enum_values<KEY>()) {
-					keys.push_back(key);
+					keys.push_back(Convert(key,RE::INPUT_DEVICE::kKeyboard));
 				}
-			break;
-		case DEVICE::kMouse:
-			for (const auto key : magic_enum::enum_values<MOUSE>()) {
-				if (key == MOUSE::kWheelDown ||
-					key == MOUSE::kWheelUp ||
-					key == MOUSE::kButton4 // We don't have an icon for it
-					) {
-					continue;
-				}
-				keys.push_back(key);
-			}
+			    for (const auto key : magic_enum::enum_values<MOUSE>()) {
+				    if (key == MOUSE::kWheelDown ||
+					    key == MOUSE::kWheelUp ||
+					    key == MOUSE::kButton4 // We don't have an icon for it
+					    ) {
+					    continue;
+				    }
+				    keys.push_back(Convert(key,RE::INPUT_DEVICE::kMouse));
+			    }
 			break;
 		case DEVICE::kGamepadDirectX:
 			for (const auto key : magic_enum::enum_values<GAMEPAD_DIRECTX>()) {
@@ -479,7 +426,7 @@ namespace Input
 					key == GAMEPAD_DIRECTX::kRightStick) {
 					continue;
 				}
-				keys.push_back(key);
+				keys.push_back(Convert(key,RE::INPUT_DEVICE::kGamepad));
 			}
 			break;
 		case DEVICE::kGamepadOrbis:
@@ -489,7 +436,7 @@ namespace Input
 					) {
 					continue;
 				}
-				keys.push_back(key);
+				keys.push_back(Convert(key,RE::INPUT_DEVICE::kGamepad));
 			}
 			break;
 		default:
@@ -501,10 +448,8 @@ namespace Input
 	std::string device_to_string(const DEVICE a_device)
 	{
 		switch (a_device) {
-		case DEVICE::kKeyboard:
-			return "Keyboard";
-		case DEVICE::kMouse:
-			return "Mouse";
+		case DEVICE::kKeyboardMouse:
+			return "Keyboard & Mouse";
 		case DEVICE::kGamepadDirectX:
 			return "Gamepad (Xbox)";
 		case DEVICE::kGamepadOrbis:
@@ -515,11 +460,8 @@ namespace Input
 	}
 	DEVICE from_string_to_device(const std::string& a_device)
 	{
-		if (a_device == "Keyboard") {
-			return DEVICE::kKeyboard;
-		}
-		if (a_device == "Mouse") {
-			return DEVICE::kMouse;
+		if (a_device == "Keyboard & Mouse") {
+			return DEVICE::kKeyboardMouse;
 		}
 		if (a_device == "Gamepad (Xbox)") {
 			return DEVICE::kGamepadDirectX;

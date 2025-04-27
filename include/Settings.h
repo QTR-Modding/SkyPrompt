@@ -25,7 +25,7 @@ namespace ButtonSettings {
 	using namespace MCP::Settings;
     inline std::map<Interaction, std::map<Input::DEVICE,uint32_t>> interactionKeys;
 
-	void SetInteractionKey(const Interaction& a_interaction, Input::DEVICE a_device, uint32_t a_key);
+	void SetInteractionKey(const Interaction& a_interaction, Input::DEVICE a_device, uint32_t converted_key);
 	uint32_t GetInteractionKey(const Interaction& a_interaction, Input::DEVICE a_device);
 }
 

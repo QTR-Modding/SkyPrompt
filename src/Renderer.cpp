@@ -570,10 +570,10 @@ bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, co
 			    Input::DEVICE device;
 			    switch (a_device) {
 			    case RE::INPUT_DEVICE::kKeyboard:
-				    device = Input::DEVICE::kKeyboard;
+				    device = Input::DEVICE::kKeyboardMouse;
 				    break;
 			    case RE::INPUT_DEVICE::kMouse:
-				    device = Input::DEVICE::kMouse;
+				    device = Input::DEVICE::kKeyboardMouse;
 				    break;
 			    case RE::INPUT_DEVICE::kGamepad:
 				    device = RE::ControlMap::GetSingleton()->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis ? Input::DEVICE::kGamepadOrbis : Input::DEVICE::kGamepadDirectX;
@@ -581,7 +581,7 @@ bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, co
 			    default:
 				    continue;
 			    }
-			    ButtonSettings::SetInteractionKey(interaction, device, key);
+			    ButtonSettings::SetInteractionKey(interaction, device, Input::Manager::GetSingleton()->Convert(key,a_device));
 		    }
 	    }
 	}
@@ -829,11 +829,9 @@ uint32_t InteractionButton::button_key() const
 {
 	using namespace ButtonSettings;
 	const auto manager = MANAGER(Input)->GetSingleton();
+	auto a_device = manager->GetInputDevice();
 	std::shared_lock lock(button_key_lock);
-	const auto result = GetInteractionKey(interaction, manager->GetInputDevice());
-	lock.unlock();
-    return manager->Convert(result);
-    
+	return GetInteractionKey(interaction, a_device);
 }
 
 void ImGui::Renderer::Manager::Start()
