@@ -48,6 +48,14 @@ namespace SkyPromptAPI {
         virtual ~PromptSink() = default;
     };
 
+    DECLARE_API_FUNC_EX(
+        RequestClientID,                          /* localName */
+        "ProcessRequestClientID",                     /* hostName */
+        ClientID,                                       /* returnType */
+        0,                                      /* defaultValue */
+        (), /* signature */
+        ()         /* callArgs */
+    );
 
     // 1) The macro name:       SendPrompt
     // 2) The return type:      bool
@@ -62,6 +70,15 @@ namespace SkyPromptAPI {
         false,                                      /* defaultValue */
         (PromptSink* a_sink, bool a_force, uint16_t a_clientID), /* signature */
         (a_sink, a_force, a_clientID)         /* callArgs */
+    );
+
+    DECLARE_API_FUNC_EX(
+        SendHint,                          /* localName */
+        "ProcessSendHint",                     /* hostName */
+        bool,                                       /* returnType */
+        false,                                      /* defaultValue */
+        (PromptSink* a_sink, uint16_t a_clientID), /* signature */
+        (a_sink, a_clientID)         /* callArgs */
     );
 
     // 1) The macro name:       RemovePrompt
@@ -79,12 +96,4 @@ namespace SkyPromptAPI {
         (a_sink, a_clientID)         /* callArgs */
     );
 
-    DECLARE_API_FUNC_EX(
-        RequestClientID,                          /* localName */
-        "ProcessRequestClientID",                     /* hostName */
-        ClientID,                                       /* returnType */
-        0,                                      /* defaultValue */
-        (), /* signature */
-        ()         /* callArgs */
-    );
 };

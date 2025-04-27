@@ -197,7 +197,8 @@ namespace {
     void DrawCircle(ImDrawList* drawList, const ImVec2 a_center, const float a_radius, const float progress, const float thickness,
         const std::optional<uint32_t> a_color = std::nullopt, const std::optional<float> start_angle = std::nullopt)
     {
-        const auto startColor = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 60);
+        //const auto startColor = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 60);
+        const auto startColor = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 255);
         const auto endColor = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 255);
 
         constexpr int numSegments = 64;
@@ -229,7 +230,17 @@ namespace {
             drawList->PathArcTo(a_center, a_radius, startAngle, endAngle, numSegments);
             drawList->PathStroke(endColor, false, thickness);
 		}
+    }
 
+	void DrawTriangle(ImDrawList* drawList, const ImVec2 iconCenter, const float outer_radius, const float inner_radius,const std::optional<uint32_t> a_color = std::nullopt) {
+        const float triangle_width = inner_radius * 0.5f;
+        const float triangle_height = inner_radius * 0.25f;
+
+        const auto p1 = ImVec2(iconCenter.x, iconCenter.y - outer_radius + triangle_height); // Tip (bottom, closer to center)
+        const auto p2 = ImVec2(iconCenter.x - triangle_width * 0.5f, iconCenter.y - outer_radius - triangle_height); // Top left
+        const auto p3 = ImVec2(iconCenter.x + triangle_width * 0.5f, iconCenter.y - outer_radius - triangle_height); // Top right
+		auto color = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 200);
+        drawList->AddTriangleFilled(p1, p2, p3, color);
     }
 }
 
@@ -243,7 +254,7 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const IconFont:
     // Calculate sizes
     const ImVec2 textSize = ImGui::CalcTextSize(a_text);
 
-    const float circleDiameter = MCP::Settings::prompt_size * MCP::Settings::icon2font_ratio * 1.2f;
+    const float circleDiameter = MCP::Settings::prompt_size * MCP::Settings::icon2font_ratio * 1.25f;
     const float rowHeight = std::max(circleDiameter, textSize.y);
 
     // Record the "start" cursor Y.
@@ -277,20 +288,38 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const IconFont:
 		const auto a_radius = circle_radius * 0.6f;
 		const ImVec2 topLeft = iconCenter + ImVec2(-a_radius, -a_radius);
 		const ImVec2 bottomRight = iconCenter + ImVec2(a_radius, a_radius);
-		if (MCP::Settings::SpecialCommands::visualize && button_state < 3.f) a_drawlist->AddLine(topLeft, bottomRight, a_red, radius / 6.f);
+		if (MCP::Settings::SpecialCommands::visualize && button_state < 3.f) {
+            a_drawlist->AddLine(topLeft, bottomRight, a_red, radius / 6.f);
+		}
 	}
 	if (button_state > 1.f) {
         //DrawCircle(a_drawlist, iconCenter, circle_radius, 0.5f, radius / 6.f,a_red);
 		const auto a_radius = circle_radius * 0.6f;
 		const ImVec2 topRight = iconCenter + ImVec2(a_radius, -a_radius);
         const ImVec2 bottomLeft = iconCenter + ImVec2(-a_radius, a_radius);
-		if (MCP::Settings::SpecialCommands::visualize && button_state < 3.f) a_drawlist->AddLine(topRight, bottomLeft, a_red, radius / 6.f);
+		if (MCP::Settings::SpecialCommands::visualize && button_state < 3.f) {
+	        a_drawlist->AddLine(topRight, bottomLeft, a_red, radius / 6.f);
+		}
 	}
 	if (button_state > 3.f) {
-        if (MCP::Settings::SpecialCommands::visualize) DrawCircle(a_drawlist, iconCenter, circle_radius, progress > 0.f ? progress : 1.f, radius / 6.f,outer_color);
+        if (MCP::Settings::SpecialCommands::visualize) {
+			DrawCircle(a_drawlist, iconCenter, circle_radius, progress > 0.f ? progress : 1.f, radius / 6.f,outer_color);
+        }
 	}
-	else {
-        DrawCircle(a_drawlist, iconCenter, circle_radius, progress, radius / 6.f);
+	else if (button_state > 0.f) {
+        constexpr auto aColor = IM_COL32(255, 255, 255, 180);
+        DrawCircle(a_drawlist, iconCenter, circle_radius, std::max(progress-1.f/12.f,0.f), radius / 6.f,aColor,RE::deg_to_rad(15));
+	}
+
+	if (button_state > 0.f) {
+        constexpr auto aColor = IM_COL32(255, 255, 255, 30);
+        constexpr auto aColor2 = IM_COL32(255, 255, 255, 180);
+        //DrawCircle(a_drawlist, iconCenter, circle_radius-radius / 20.f, 1.f, radius / 20.f,aColor);
+        //DrawCircle(a_drawlist, iconCenter, circle_radius+radius / 6.f - radius / 20.f, 1.f, radius / 20.f,aColor);
+        DrawCircle(a_drawlist, iconCenter, circle_radius, 1.0, radius / 6.f, aColor);
+
+		//DrawTriangle(a_drawlist, iconCenter, circle_radius*1.1f, (radius / 6.f)*1.1f,aColor);
+		DrawTriangle(a_drawlist, iconCenter, circle_radius, radius*0.6f,aColor2);
 	}
 
     // 4) Move horizontally for the text
@@ -301,6 +330,8 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const IconFont:
     ImGui::SetCursorPosY(startY + textOffset);
     ImGui::SetCursorPosX(GetCursorPosX() + circle_radius - radius);
     ImGui::TextUnformatted(a_text);
+
+	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset * MCP::Settings::linespacing*5);
 
 	return iconCenter;
 }

@@ -20,6 +20,7 @@ namespace MCP {
         inline float yPercent = 0.97f;
         inline float prompt_size = 40;
 		inline float icon2font_ratio = 1.f;
+		inline float linespacing = 0.3f;
 	    inline float progress_speed = 1.f;
 	    inline float lifetime = 20.f;
 #ifndef NDEBUG
@@ -33,8 +34,6 @@ namespace MCP {
 			{ Input::DEVICE::kGamepadDirectX, {GAMEPAD_DIRECTX::kA,GAMEPAD_DIRECTX::kB,GAMEPAD_DIRECTX::kX,GAMEPAD_DIRECTX::kY} },
 			{ Input::DEVICE::kGamepadOrbis, {GAMEPAD_ORBIS::kPS3_A, GAMEPAD_ORBIS::kPS3_B, GAMEPAD_ORBIS::kPS3_X, GAMEPAD_ORBIS::kPS3_Y} },
         };
-
-		inline std::atomic multi_threaded = true;
 
         inline std::atomic shouldReloadPromptSize=true;
         inline std::atomic shouldReloadLifetime=true;

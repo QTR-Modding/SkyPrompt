@@ -90,6 +90,7 @@ namespace ImGui::Renderer
 
 	struct ButtonState {
 		bool isPressing = false;
+		bool is_hint = false;
         int pressCount = 0;
         std::chrono::steady_clock::time_point lastPressTime;
     };
@@ -145,6 +146,9 @@ namespace ImGui::Renderer
 		bool IsInQueue(SkyPromptAPI::PromptSink* a_sink) const;
 		bool IsInQueue(const Interaction& a_interaction) const;
 		void SendEvent(const Interaction& a_interaction, int event_type);
+
+		bool IsInHintMode() const { return progress_circle_max == 0.0f; }
+		void ToggleHintMode();
 	};
 
 	class Manager : public clib_util::singleton::ISingleton<Manager>
@@ -165,7 +169,7 @@ namespace ImGui::Renderer
 		mutable std::shared_mutex mutex_;
 
         std::unique_ptr<SubManager>& Add2Q(const Interaction& a_interaction, bool show = true);
-        bool Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID);
+        bool Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID, bool is_hint=false);
 		bool IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink) const;
 		void RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) const;
 		[[nodiscard]] bool HasTask() const;

@@ -25,6 +25,24 @@ bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, const bool a_force, con
 	return manager->Add2Q(a_sink, a_clientID);
 }
 
+DLLEXPORT bool ProcessSendHint(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID)
+{
+	if (!a_sink) {
+		return false;
+	}
+	if (a_clientID == 0) {
+		return false;
+	}
+
+	const auto manager = MANAGER(ImGui::Renderer);
+	if (manager->IsInQueue(a_sink)) {
+		return false;
+	}
+	manager->Clear();
+
+	return manager->Add2Q(a_sink, a_clientID, true);
+}
+
 void ProcessRemovePrompt(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID) {
 
 	if (!a_sink) {

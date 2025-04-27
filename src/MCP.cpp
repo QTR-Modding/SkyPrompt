@@ -63,6 +63,13 @@ void __stdcall MCP::RenderSettings()
 		}
 	}
 
+	// Slider for Line Spacing
+	if (!MCP_API::SliderFloat("Line Spacing", &Settings::linespacing, 0.0f, 1.0f)) {
+		if (MCP_API::IsItemDeactivatedAfterEdit()) {
+			settingsChanged = true;
+		}
+	}
+
     // Slider for Progress Speed
     if (!MCP_API::SliderFloat("Progress Speed", &Settings::progress_speed, 0.0f, 1.0f)) {
         if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
@@ -163,6 +170,7 @@ void MCP::Settings::to_json()
 	root.AddMember("yPercent", yPercent, allocator);
 	root.AddMember("prompt_size", prompt_size, allocator);
 	root.AddMember("icon2font_ratio", icon2font_ratio, allocator);
+	root.AddMember("linespacing", linespacing, allocator);
 	root.AddMember("progress_speed", progress_speed, allocator);
 	root.AddMember("lifetime", lifetime, allocator);
 
@@ -255,6 +263,9 @@ void MCP::Settings::from_json()
 	}
 	if (mcp.HasMember("icon2font_ratio")) {
 		icon2font_ratio = mcp["icon2font_ratio"].GetFloat();
+	}
+	if (mcp.HasMember("linespacing")) {
+		linespacing = mcp["linespacing"].GetFloat();
 	}
 	if (mcp.HasMember("progress_speed")) {
 		progress_speed = mcp["progress_speed"].GetFloat();

@@ -30,7 +30,6 @@ void ImGui::Renderer::RenderPrompt()
         ImGuiWindowFlags_NoBackground|
 		ImGuiWindowFlags_NoNavFocus | 
 		ImGuiWindowFlags_NoDecoration | 
-		ImGuiWindowFlags_NoResize | 
 		ImGuiWindowFlags_NoMove | 
 		ImGuiWindowFlags_NoInputs |
 	    ImGuiWindowFlags_NoNav |
@@ -176,11 +175,14 @@ void ButtonQueue::WakeUp() const {
 
 namespace {
     float ButtonStateToFloat(const ButtonState& a_button_state) {
+		if (a_button_state.is_hint) {
+			return -1.f;
+		}
 		auto a_press_count = a_button_state.pressCount;
 		if (a_button_state.isPressing && a_button_state.pressCount < 3) {
             a_press_count--;
 		}
-	    return a_press_count == 0 ? -1.f : static_cast<float>(a_press_count) + 0.1f;
+	    return static_cast<float>(a_press_count) + 0.1f;
     }
 }
 
@@ -274,7 +276,7 @@ const Button2Show* ButtonQueue::Next() const {
 
 void ImGui::Renderer::Manager::ReArrange() {
 	std::map<SCENES::Event,std::vector<Interaction>> interactions;
-	std::map<Interaction,std::vector<SkyPromptAPI::PromptSink*>> sinks;
+	std::map<Interaction,std::pair<std::vector<SkyPromptAPI::PromptSink*>,bool>> sinks;
 
 	{
         std::shared_lock lock(mutex_);
@@ -288,8 +290,14 @@ void ImGui::Renderer::Manager::ReArrange() {
 	{
 		std::shared_lock lock(mutex_);
 		for (const auto& a_manager : managers) {
+			bool is_hint = a_manager->IsInHintMode();
 			for (const auto& [interaction, a_sinks] : a_manager->GetSinks()) {
-				sinks[interaction].insert(sinks[interaction].end(), a_sinks.begin(), a_sinks.end());
+				if (const auto it = sinks.find(interaction); it != sinks.end()) {
+					it->second.first.insert(it->second.first.end(), a_sinks.begin(), a_sinks.end());
+				}
+				else {
+					sinks[interaction] = { a_sinks, is_hint };
+				}
 			}
 		}
 	}
@@ -308,7 +316,11 @@ void ImGui::Renderer::Manager::ReArrange() {
 	{
 		std::shared_lock lock(mutex_);
 		for (const auto& a_manager : managers) {
-			for (const auto& [interaction, a_sinks] : sinks) {
+			for (const auto& [interaction, is_hint_a_sinks] : sinks) {
+				const auto& [a_sinks, is_hint] = is_hint_a_sinks;
+				if (is_hint && !a_manager->IsInHintMode()) {
+					a_manager->ToggleHintMode();
+				}
 				if (a_manager->IsInQueue(interaction)) {
 					for (const auto& a_sink : a_sinks) {
 						a_manager->AddSink(interaction, a_sink);
@@ -317,7 +329,6 @@ void ImGui::Renderer::Manager::ReArrange() {
 			}
 		}
 	}
-
 }
 
 bool ImGui::Renderer::Manager::IsInQueue(const Interaction& a_interaction) const
@@ -358,6 +369,19 @@ void ImGui::Renderer::SubManager::SendEvent(const Interaction& a_interaction, co
 				}
 			}
 		}
+	}
+}
+
+void ImGui::Renderer::SubManager::ToggleHintMode()
+{
+	std::unique_lock lock(progress_mutex_);
+	if (IsInHintMode()) {
+		progress_circle_max = 1.f;
+		buttonState.is_hint = false;
+	}
+	else {
+		progress_circle_max = 0.f;
+		buttonState.is_hint = true;
 	}
 }
 
@@ -506,7 +530,7 @@ std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(const Interaction& 
 	return managers.back();
 }
 
-bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID)
+bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID, bool is_hint)
 {
     for (const auto& prompts = a_prompt_sink->GetPrompts();
 		const auto& [text, button_key, a_event, a_action] : prompts) {
@@ -522,6 +546,9 @@ bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, co
 		interaction.text = text;
 
 		if (const auto& submanager = Add2Q(interaction)) {
+			if (is_hint && !submanager->IsInHintMode()) {
+				submanager->ToggleHintMode();
+			}
 			submanager->AddSink(interaction, a_prompt_sink);
 		}
 		else {
@@ -683,7 +710,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 
 float ImGui::Renderer::SubManager::GetProgressCircle() const {
 	std::shared_lock lock(progress_mutex_);
-	return progress_circle;
+	return IsInHintMode() ? 0.f : progress_circle;
 }
 
 uint32_t ImGui::Renderer::SubManager::GetPromptKey() const {
@@ -703,8 +730,10 @@ void ImGui::Renderer::SubManager::OnProgressComplete()
 	const auto interaction = interactQueue.current_button
                            ? interactQueue.current_button->iButton.interaction
                            : Interaction();
-	Stop();
-    RemoveCurrentPrompt();
+	if (!IsInHintMode()) {
+	    Stop();
+	    RemoveCurrentPrompt();
+	}
 	SendEvent(interaction, 0);
 	Start();
 	blockProgress.store(true);
