@@ -2,7 +2,6 @@
 #include "IconsFonts.h"
 #include "MCP.h"
 #include "Renderer.h"
-#include "Settings.h"
 
 namespace ImGui
 {
@@ -68,9 +67,8 @@ namespace ImGui
 		}
 	}
 
-	void Styles::OnStyleRefresh()
-	{
-		if (!refreshStyle.exchange(false)) {
+	void Styles::OnStyleRefresh() const {
+		if (!MCP::refreshStyle.exchange(false)) {
 			return;
 		}
 		logger::info("Refreshing ImGui style");
@@ -123,7 +121,7 @@ namespace ImGui
 
 	void Styles::RefreshStyle()
 	{
-		refreshStyle.store(true);
+        MCP::refreshStyle.store(true);
 	}
 
 	ImU32 GetUserStyleColorU32(const USER_STYLE a_style)

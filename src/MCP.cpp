@@ -89,8 +89,6 @@ void __stdcall MCP::RenderSettings()
     }
 }
 
-
-
 void __stdcall MCP::RenderLog()
 {
 #ifndef NDEBUG
@@ -127,6 +125,7 @@ void MCP::Register()
     SKSEMenuFramework::SetSection(mod_name);
     SKSEMenuFramework::AddSectionItem("Settings", RenderSettings);
 	SKSEMenuFramework::AddSectionItem("Controls", RenderControls);
+	SKSEMenuFramework::AddSectionItem("Theme", RenderTheme);
 	SKSEMenuFramework::AddSectionItem("Log", RenderLog);
 }
 
@@ -152,6 +151,39 @@ bool MCP::Settings::IsEnabled(const Input::DEVICE a_device)
 		return enabled_devices.at(a_device);
 	}
 	return false;
+}
+
+bool MCP::Settings::FontSettings()
+{
+	auto changed = false;
+
+	MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.25f);
+	if (MCP_API::BeginCombo("Font", font_name.c_str())) {
+        for (const auto& font : Settings::font_names) {
+            const bool isSelected = font_name == font;
+            if (MCP_API::Selectable(font.c_str(), isSelected)) {
+                if (!isSelected) {
+                    font_name = font;
+                    changed = true;
+                }
+            }
+            if (isSelected) MCP_API::SetItemDefaultFocus();
+		}
+		MCP_API::EndCombo();
+	}
+
+	MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.25f);
+	if (!MCP_API::SliderFloat("Font Shadow", &font_shadow, 0.f, 1.f)) {
+		if (MCP_API::IsItemDeactivatedAfterEdit()) {
+			changed = true;
+		}
+	}
+
+	if (changed) {
+		refreshStyle.store(true);
+	}
+
+	return changed;
 }
 
 void MCP::Settings::to_json()
@@ -205,6 +237,13 @@ void MCP::Settings::to_json()
 		prompt_keys_json.AddMember(device_json, device_keys, allocator);
 	}
 	root.AddMember("keys", prompt_keys_json, allocator);
+
+	// theme
+	Value theme(kObjectType);
+	theme.AddMember("font_name", Value(font_name.c_str(), allocator).Move(), allocator);
+	theme.AddMember("font_shadow", font_shadow, allocator);
+	// theme:: file name for active icon, like font_name
+	root.AddMember("Theme", theme, allocator);
 
 	// version
 
@@ -327,6 +366,11 @@ void MCP::Settings::from_json()
 		}
 	}
 
+	if (mcp.HasMember("Theme")) {
+		const rapidjson::Value& theme = mcp["Theme"];
+		if (theme.HasMember("font_name")) font_name = theme["font_name"].GetString();
+		if (theme.HasMember("font_shadow")) font_shadow = theme["font_shadow"].GetFloat();
+	}
 }
 
 namespace {
@@ -450,6 +494,17 @@ void __stdcall MCP::RenderControls()
 
 	MCP_API::Text("");
 	Settings::SpecialCommands::Render();
+}
+
+void __stdcall MCP::RenderTheme()
+{
+	bool changed = false;
+
+	if (Settings::FontSettings()) changed = true;
+
+	if (changed) {
+		Settings::to_json();
+	}
 }
 
 void MCP::Settings::SpecialCommands::Render()

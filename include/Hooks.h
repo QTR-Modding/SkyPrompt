@@ -22,7 +22,6 @@ namespace ImGui::Renderer
         static inline REL::Relocation<decltype(thunk)> func;
 	};
 
-
     struct DrawHook {
 		static void thunk(std::uint32_t a_timer);
         static inline REL::Relocation<decltype(thunk)> func;

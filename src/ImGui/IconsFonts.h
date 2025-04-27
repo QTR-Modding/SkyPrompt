@@ -1,5 +1,6 @@
 #pragma once
 #include "Graphics.h"
+#include "Settings.h"
 #include "Util.h"
 
 
@@ -53,7 +54,7 @@ namespace IconFont
 			kPS4
 		};
 
-		[[nodiscard]] ImFont* LoadFontIconSet(float a_fontSize, float a_iconSize, const ImVector<ImWchar>& a_ranges) const;
+		[[nodiscard]] ImFont* LoadFontIconSet(float a_fontSize, const ImVector<ImWchar>& a_ranges) const;
 
 		// members
 		bool loadedFonts{ false };
@@ -64,6 +65,7 @@ namespace IconFont
 		float       largeFontSize{0.f};
 		float       largeIconSize{0.f};
 
+		const std::string fontPath{ R"(Data\Interface\ImGuiIcons\Fonts\)" };
 
 		ImFont* largeFont{ nullptr };
 
@@ -213,6 +215,17 @@ namespace IconFont
 
 namespace ImGui
 {
+	void AddTextWithShadow(
+        ImDrawList* draw_list,
+        ImFont* font,
+        float font_size,
+        ImVec2 position,
+        ImU32 text_color,
+        const char* text,
+        ImU32 shadow_color = IM_COL32(0, 0, 0, 255*MCP::Settings::font_shadow),
+        ImVec2 shadow_offset = ImVec2(2.5f, 2.5f));
+
     ImVec2 ButtonIconWithCircularProgress(const char* a_text, const IconFont::IconTexture* a_texture, float progress,float button_state=-1.f);
+
 
 }

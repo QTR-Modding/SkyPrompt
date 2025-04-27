@@ -64,6 +64,19 @@ namespace IconFont
 		auto& io = ImGui::GetIO();
 		io.Fonts->Clear();
 
+		MCP::Settings::font_names.clear();
+
+        for (const auto& entry : std::filesystem::directory_iterator(fontPath)) {
+            if (entry.path().extension() == ".ttf") {
+                MCP::Settings::font_names.insert(entry.path().filename().replace_extension("").string());
+            }
+        }
+
+		if (MCP::Settings::font_names.empty()) {
+			logger::error("No fonts found in {}", fontPath);
+			return;
+		}
+
 		ImVector<ImWchar> ranges;
 
 		ImFontGlyphRangesBuilder builder;
@@ -77,12 +90,12 @@ namespace IconFont
 
 		const auto resolutionScale = ImGui::Renderer::GetResolutionScale();
 		const auto a_fontsize = MCP::Settings::prompt_size * resolutionScale;
-		const auto a_iconsize = a_fontsize * 1.f;
+		//const auto a_iconsize = a_fontsize * 1.f;
 		const auto a_largefontsize = a_fontsize * 1.2f;
-		const auto a_largeiconsize = a_largefontsize * 1.f;
+		//const auto a_largeiconsize = a_largefontsize * 1.f;
 
-		io.FontDefault = LoadFontIconSet(a_fontsize, a_iconsize, ranges);
-		largeFont = LoadFontIconSet(a_largefontsize, a_largeiconsize, ranges);
+		io.FontDefault = LoadFontIconSet(a_fontsize, ranges);
+		largeFont = LoadFontIconSet(a_largefontsize, ranges);
 
 		io.Fonts->Build();
 
@@ -90,22 +103,17 @@ namespace IconFont
 		ImGui_ImplDX11_CreateDeviceObjects();
 	}
 
-	ImFont* Manager::LoadFontIconSet(const float a_fontSize, const float a_iconSize, const ImVector<ImWchar>& a_ranges) const
+	ImFont* Manager::LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges) const
 	{
 		const auto& io = ImGui::GetIO();
-		const auto font = io.Fonts->AddFontFromFileTTF(fontName.c_str(), a_fontSize, nullptr, a_ranges.Data);
-		if (!font) {
-			logger::error("Failed to load font: {}", fontName);
+		auto a_fontName = fontPath + (MCP::Settings::font_names.contains(MCP::Settings::font_name) ? MCP::Settings::font_name : *MCP::Settings::font_names.begin()) + ".ttf";
+		const auto a_font = io.Fonts->AddFontFromFileTTF(a_fontName.c_str(), a_fontSize, nullptr, a_ranges.Data);
+		if (!a_font) {
+			logger::error("Failed to load font: {}", a_fontName);
 			return nullptr;
 		}
-		ImFontConfig icon_config;
-		icon_config.MergeMode = true;
-		icon_config.PixelSnapH = true;
-		icon_config.OversampleH = icon_config.OversampleV = 1;
 
-		io.Fonts->AddFontFromFileTTF(R"(Data\Interface\ImGuiIcons\Fonts\)" FONT_ICON_FILE_NAME_FAS, a_iconSize, &icon_config, a_ranges.Data);
-
-		return font;
+		return a_font;
 	}
 
 	ImFont* Manager::GetLargeFont() const
@@ -244,6 +252,13 @@ namespace {
     }
 }
 
+void ImGui::AddTextWithShadow(ImDrawList* draw_list, ImFont* font, const float font_size, const ImVec2 position, const ImU32 text_color, const char* text, const ImU32 shadow_color, const ImVec2 shadow_offset)
+{
+    if (!draw_list || !font || !text || !*text) return;
+	draw_list->AddText(font, font_size, position + shadow_offset, shadow_color, text);
+    draw_list->AddText(font, font_size, position, text_color, text);
+}
+
 ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const IconFont::IconTexture* a_texture, const float progress,const float button_state)
 {
     if (!a_texture || !a_texture->srView.Get()) {
@@ -329,7 +344,17 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const IconFont:
     const float textOffset = (rowHeight - textSize.y) * 0.5f;
     ImGui::SetCursorPosY(startY + textOffset);
     ImGui::SetCursorPosX(GetCursorPosX() + circle_radius - radius);
-    ImGui::TextUnformatted(a_text);
+
+    //ImGui::TextUnformatted(a_text);
+
+    const ImVec2 textScreenPos = ImGui::GetCursorScreenPos();
+
+    AddTextWithShadow(a_drawlist, ImGui::GetFont(), ImGui::GetFontSize(), 
+        textScreenPos, IM_COL32(255, 255, 255, 255), a_text);
+
+    // Move ImGui cursor manually to avoid overlap
+    ImGui::Dummy(textSize);  // Moves cursor forward horizontally
+
 
 	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset * MCP::Settings::linespacing*5);
 

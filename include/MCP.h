@@ -4,11 +4,14 @@
 
 namespace MCP {
 
+	inline std::atomic_bool refreshStyle{ false };
+
     inline std::string log_path;
     inline std::vector<std::string> logLines;
 
     void __stdcall RenderSettings();
 	void __stdcall RenderControls();
+	void __stdcall RenderTheme();
     void __stdcall RenderLog();
     void Register();
 
@@ -54,6 +57,13 @@ namespace MCP {
 			inline float responsiveness = 0.9f;
 			void Render();
 		};
+
+		// Settings::Theme
+	    inline std::string font_name = "Jost-Regular";
+	    inline std::set<std::string> font_names;
+	    inline float font_shadow = 0.5f;
+
+		bool FontSettings();
 
         void to_json();
         void from_json();

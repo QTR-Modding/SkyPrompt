@@ -26,7 +26,7 @@ namespace ImGui
 		ImVec4 GetColorVec4(USER_STYLE a_style) const;
 		float  GetVar(USER_STYLE a_style) const;
 
-		void OnStyleRefresh();
+		void OnStyleRefresh() const;
 		void RefreshStyle();
 
 	private:
@@ -95,7 +95,6 @@ namespace ImGui
 		ImU32 sliderBorderActiveU32;
 		ImU32 iconDisabledU32;
 
-		std::atomic<bool> refreshStyle{ false };
 	};
 
 	ImU32  GetUserStyleColorU32(USER_STYLE a_style);
