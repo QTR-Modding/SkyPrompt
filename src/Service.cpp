@@ -25,7 +25,7 @@ bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, const bool a_force, con
 	return manager->Add2Q(a_sink, a_clientID, false, a_refid);
 }
 
-DLLEXPORT bool ProcessSendHint(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID, const uint32_t a_refid)
+bool ProcessSendHint(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID, const uint32_t a_refid)
 {
 	if (!a_sink) {
 		return false;

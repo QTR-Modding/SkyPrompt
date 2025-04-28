@@ -1001,12 +1001,19 @@ void ImGui::Renderer::Manager::AddEventToSend(SkyPromptAPI::PromptSink* a_sink, 
 
 void ImGui::Renderer::Manager::SendEvents()
 {
-	std::unique_lock lock(events_to_send_mutex);
-	for (const auto& [a_sink, events] : events_to_send_) {
+	std::vector<std::pair<SkyPromptAPI::PromptSink*, std::vector<SkyPromptAPI::PromptEvent>>> events_copy;
+	{
+		std::unique_lock lock(events_to_send_mutex);
+		events_copy.reserve(events_to_send_.size());
+		for (const auto& [a_sink, events] : events_to_send_) {
+			events_copy.push_back({ a_sink, events });
+		}
+	    events_to_send_.clear();
+	}
+	for (const auto& [a_sink, events] : events_copy) {
 		for (const auto& prompt_event : events) {
 			if (!a_sink) continue;
 			a_sink->ProcessEvent(prompt_event);
 		}
 	}
-	events_to_send_.clear();
 }
