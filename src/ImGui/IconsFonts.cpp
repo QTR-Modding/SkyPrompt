@@ -7,7 +7,6 @@
 #include <imgui_impl_dx11.h>
 #include <numbers>
 #include "MCP.h"
-#include "Utils.h"
 
 
 namespace IconFont

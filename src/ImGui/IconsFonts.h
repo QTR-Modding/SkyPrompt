@@ -1,4 +1,5 @@
 #pragma once
+#include "API.h"
 #include "Graphics.h"
 #include "Settings.h"
 #include "Util.h"
@@ -196,6 +197,7 @@ namespace IconFont
 			{ SKSE::InputMap::kGamepadButtonOffset_Y, { IconTexture(L"360_Y"sv), IconTexture(L"PS3_Y"sv) } },
 			{ SKSE::InputMap::kGamepadButtonOffset_LT, { IconTexture(L"360_LT"sv), IconTexture(L"PS3_LT"sv) } },
 			{ SKSE::InputMap::kGamepadButtonOffset_RT, { IconTexture(L"360_RT"sv), IconTexture(L"PS3_RT"sv) } },
+			{ SkyPromptAPI::kThumbstickMove, { IconTexture(L"thumbstick"sv), IconTexture(L"thumbstick"sv) } },
 		};
 
 		Map<std::uint32_t, IconTexture> mouse{
@@ -207,6 +209,8 @@ namespace IconFont
 			{ 256 + +MOUSE::kButton5, IconTexture(L"Mouse6"sv) },
 			{ 256 + +MOUSE::kButton6, IconTexture(L"Mouse7"sv) },
 			{ 256 + +MOUSE::kButton7, IconTexture(L"Mouse8"sv) },
+			{ 256 + +MOUSE::kButton7, IconTexture(L"Mouse8"sv) },
+			{ SkyPromptAPI::kMouseMove, IconTexture(L"mouse"sv) },
 		};
 
 		BUTTON_SCHEME buttonScheme{ BUTTON_SCHEME::kAutoDetect };
