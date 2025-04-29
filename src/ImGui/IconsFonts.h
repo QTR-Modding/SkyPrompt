@@ -209,7 +209,6 @@ namespace IconFont
 			{ 256 + +MOUSE::kButton5, IconTexture(L"Mouse6"sv) },
 			{ 256 + +MOUSE::kButton6, IconTexture(L"Mouse7"sv) },
 			{ 256 + +MOUSE::kButton7, IconTexture(L"Mouse8"sv) },
-			{ 256 + +MOUSE::kButton7, IconTexture(L"Mouse8"sv) },
 			{ SkyPromptAPI::kMouseMove, IconTexture(L"mouse"sv) },
 		};
 
