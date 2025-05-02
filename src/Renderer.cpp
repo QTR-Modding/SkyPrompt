@@ -509,7 +509,7 @@ void ImGui::Renderer::SubManager::WakeUpQueue() const {
 
 std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(const Interaction& a_interaction, const bool show)
 {
-	WakeUpQueue();
+	//WakeUpQueue();
 	size_t index = 0;
     std::unique_lock lock(mutex_);
 	for (auto& a_manager : managers) {
@@ -518,6 +518,7 @@ std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(const Interaction& 
 			    ButtonSettings::SetInteractionKey(a_interaction,a_device,keys.at(index));
 			}
 			//logger::info("Index: {}, event {}, action {}", index, static_cast<int>(a_interaction.event), static_cast<int>(a_interaction.action.action));
+			a_manager->WakeUpQueue();
 		    a_manager->Add2Q(a_interaction, show);
 			return a_manager;
 		}
@@ -700,7 +701,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 
 	{
 	    std::unique_lock lock(progress_mutex_);
-	    progress_circle += RE::GetSecondsSinceLastFrame() * MCP::Settings::progress_speed*4.f;
+	    progress_circle += RE::GetSecondsSinceLastFrame() * MCP::Settings::progress_speed*4.f / (RE::BSTimer::GetSingleton()->QGlobalTimeMultiplier()+EPSILON);
 	}
 
     if (std::shared_lock lock(progress_mutex_); progress_circle > progress_circle_max) {
