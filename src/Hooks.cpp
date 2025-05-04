@@ -182,11 +182,6 @@ void ImGui::Renderer::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_di
 		return func(a_dispatcher, a_event);
 	}
 
-    if (IsOtherButtonPressed(a_event)) {
-		SendInputEvents(a_event);
-		return func(a_dispatcher, a_event);
-    }
-
     auto first = *a_event;
     auto last = *a_event;
     size_t length = 0;
