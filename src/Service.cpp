@@ -11,7 +11,7 @@ bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, const bool a_force, con
 	}
 
 	const auto manager = MANAGER(ImGui::Renderer);
-	if (manager->IsInQueue(a_sink)) {
+	if (manager->IsInQueue(a_sink, true)) {
 		return false;
 	}
 	const auto n_prompts = a_sink->GetPrompts().size();
@@ -35,7 +35,7 @@ bool ProcessSendHint(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::Clien
 	}
 
 	const auto manager = MANAGER(ImGui::Renderer);
-	if (manager->IsInQueue(a_sink)) {
+	if (manager->IsInQueue(a_sink,true)) {
 		return false;
 	}
 	manager->Clear();

@@ -175,7 +175,7 @@ namespace ImGui::Renderer
 
         std::unique_ptr<SubManager>& Add2Q(const Interaction& a_interaction, bool show = true);
         bool Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID, bool is_hint=false, uint32_t a_refid=0);
-		bool IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink) const;
+		bool IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink, bool wake_up=false) const;
 		void RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) const;
 		[[nodiscard]] bool HasTask() const;
 		void Start();
