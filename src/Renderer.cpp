@@ -592,16 +592,20 @@ bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, co
 
 bool ImGui::Renderer::Manager::IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink, bool wake_up) const
 {
+	bool result = false;
 	std::shared_lock lock(mutex_);
 	for (const auto& a_manager : managers) {
 		if (a_manager->IsInQueue(a_prompt_sink)) {
+			result = true;
 			if (wake_up) {
 				a_manager->WakeUpQueue();
 			}
-			return true;
+			else {
+				return result;
+			}
 		}
 	}
-	return false;
+	return result;
 }
 
 void ImGui::Renderer::Manager::RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) const {
