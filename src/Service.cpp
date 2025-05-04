@@ -14,7 +14,17 @@ bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, const bool a_force, con
 	if (manager->IsInQueue(a_sink, true)) {
 		return false;
 	}
-	const auto n_prompts = a_sink->GetPrompts().size();
+
+	std::set<SkyPromptAPI::EventID> event_ids;
+	auto new_prompts = a_sink->GetPrompts();
+	for (auto& prompt : new_prompts) {
+		event_ids.insert(prompt.a_eventID);
+		if (prompt.text.empty()) {
+			logger::warn("Empty prompt text");
+			return false;
+		}
+	}
+	const auto n_prompts = event_ids.size();
 
     if (const auto n_current_prompts = manager->GetPromptKeys().size();
 		n_current_prompts + n_prompts > MCP::Settings::n_max_buttons) {
