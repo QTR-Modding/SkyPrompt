@@ -172,7 +172,6 @@ void ButtonQueue::Show(const float progress, const Button2Show* button2show, con
 			pos.has_value()) {
 			position = pos.value();
 		}
-
 	}
 	else {
         current_button = Next();
@@ -489,14 +488,15 @@ void SubManager::ResetQueue() {
 void SubManager::ShowQueue() {
 
 	if (std::shared_lock lock(q_mutex_); !interactQueue.IsEmpty()) {
-		if (const auto curr_ = interactQueue.current_button; !curr_ || curr_->IsHidden()) {
+		const auto curr_ = interactQueue.current_button;
+		if (!curr_ || curr_->IsHidden()) {
             {
 			    std::unique_lock lock2(progress_mutex_);
 			    progress_circle = 0.0f;
             }
-			if (curr_ && curr_->expired()) {
-	            SendEvent(curr_->iButton.interaction, SkyPromptAPI::PromptEventType::kTimeout);
-			}
+		}
+		if (curr_ && curr_->expired()) {
+	        SendEvent(curr_->iButton.interaction, SkyPromptAPI::PromptEventType::kTimeout);
 		}
 		interactQueue.Show(progress_circle,nullptr,buttonState);
 	}
