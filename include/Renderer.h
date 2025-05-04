@@ -173,7 +173,8 @@ namespace ImGui::Renderer
 
 		mutable std::shared_mutex mutex_;
 
-        std::unique_ptr<SubManager>& Add2Q(const Interaction& a_interaction, bool show = true);
+        std::unique_ptr<SubManager>& Add2Q(const Interaction& a_interaction, bool show = true,
+                                           const std::map<Input::DEVICE, std::vector<uint32_t>>& buttonKeys = {});
         bool Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID, bool is_hint=false, uint32_t a_refid=0);
 		bool IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink, bool wake_up=false) const;
 		void RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) const;

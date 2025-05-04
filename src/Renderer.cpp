@@ -235,19 +235,22 @@ const Button2Show* ButtonQueue::Next() const {
 void ImGui::Renderer::Manager::ReArrange() {
 	std::map<SCENES::Event,std::vector<Interaction>> interactions;
 	std::map<Interaction,std::pair<std::vector<SkyPromptAPI::PromptSink*>,bool>> sinks;
-
-	{
-        std::shared_lock lock(mutex_);
-	    for (const auto& a_manager : managers) {
-		    for (const auto& interaction : a_manager->GetInteractions()) {
-			    interactions[interaction.event].push_back(interaction);
-		    }
-	    }
-	}
+    std::map<Input::DEVICE, std::vector<uint32_t>> keys;
 
 	{
 		std::shared_lock lock(mutex_);
 		for (const auto& a_manager : managers) {
+
+		    for (const auto& interaction : a_manager->GetInteractions()) {
+				
+				for (Input::DEVICE i = Input::DEVICE::kKeyboardMouse; i < Input::DEVICE::kTotal;
+                     i = static_cast<Input::DEVICE>(static_cast<int>(i) + 1)) {
+                    keys[i].push_back(ButtonSettings::GetInteractionKey(interaction, i));
+				}
+				
+                interactions[interaction.event].push_back(interaction);
+            }
+
 			bool is_hint = a_manager->IsInHintMode();
 			for (const auto& [interaction, a_sinks] : a_manager->GetSinks()) {
 				if (const auto it = sinks.find(interaction); it != sinks.end()) {
@@ -261,10 +264,11 @@ void ImGui::Renderer::Manager::ReArrange() {
 	}
 
 	Clear();
+
 	// distribute the interactions to the managers
 	for (const auto& interactions_ : interactions | std::views::values) {
 		for (const auto& interaction : interactions_) {
-			if (!Add2Q(interaction)) {
+            if (!Add2Q(interaction, true, keys)) {
 				logger::error("Failed to add interaction to the queue");
 			}
 		}
@@ -507,21 +511,23 @@ void ImGui::Renderer::SubManager::WakeUpQueue() const {
     interactQueue.WakeUp();
 }
 
-std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(const Interaction& a_interaction, const bool show)
-{
-	//WakeUpQueue();
-	size_t index = 0;
+std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(
+    const Interaction& a_interaction, const bool show,
+    const std::map<Input::DEVICE, std::vector<uint32_t>>& buttonKeys) {
+    // WakeUpQueue();
+    size_t index = 0;
     std::unique_lock lock(mutex_);
 	for (auto& a_manager : managers) {
-		if (a_manager->HasQueue() && a_manager->GetInteractions().front().event == a_interaction.event) {
-			for (const auto& [a_device,keys] : MCP::Settings::prompt_keys) {
-			    ButtonSettings::SetInteractionKey(a_interaction,a_device,keys.at(index));
-			}
-			//logger::info("Index: {}, event {}, action {}", index, static_cast<int>(a_interaction.event), static_cast<int>(a_interaction.action.action));
+        if (a_manager->HasQueue() && a_manager->GetInteractions().front().event == a_interaction.event) {
+            for (const auto& [a_device, keys] : buttonKeys.empty() ? MCP::Settings::prompt_keys : buttonKeys) {
+                ButtonSettings::SetInteractionKey(a_interaction, a_device, keys.at(index));
+            }
+            // logger::info("Index: {}, event {}, action {}", index, static_cast<int>(a_interaction.event),
+            // static_cast<int>(a_interaction.action.action));
 			a_manager->WakeUpQueue();
-		    a_manager->Add2Q(a_interaction, show);
+            a_manager->Add2Q(a_interaction, show);
 			return a_manager;
-		}
+        }
 		++index;
 	}
 	if (managers.size() < MCP::Settings::n_max_buttons) {
@@ -530,8 +536,8 @@ std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(const Interaction& 
 
 	}
     //logger::info("Index: {}, event {}, action {}", index, static_cast<int>(a_interaction.event), static_cast<int>(a_interaction.action.action));
-	for (const auto& [a_device,keys] : MCP::Settings::prompt_keys) {
-		ButtonSettings::SetInteractionKey(a_interaction,a_device,keys.at(index));
+    for (const auto& [a_device, keys] : buttonKeys.empty() ? MCP::Settings::prompt_keys : buttonKeys) {
+        ButtonSettings::SetInteractionKey(a_interaction, a_device, keys.at(index));
 	}
     managers.back()->Add2Q(a_interaction, show);
 	return managers.back();
@@ -552,9 +558,9 @@ bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, co
 		auto interaction = Interaction(event_id, action_id);
 		interaction.text = text;
 
-		if (const auto& submanager = Add2Q(interaction)) {
+		if (const auto& submanager = Add2Q(interaction, true, {})) {
 			if (is_hint && !submanager->IsInHintMode()) {
-				submanager->ToggleHintMode();
+                submanager->ToggleHintMode();
 			}
 			if (const auto a_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_refid)) {
 				submanager->Attach2Object(a_ref->GetFormID());
