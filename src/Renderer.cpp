@@ -236,6 +236,7 @@ void ImGui::Renderer::Manager::ReArrange() {
 	std::map<SCENES::Event,std::vector<Interaction>> interactions;
 	std::map<Interaction,std::pair<std::vector<SkyPromptAPI::PromptSink*>,bool>> sinks;
     std::map<Input::DEVICE, std::vector<uint32_t>> keys;
+    std::map<SCENES::Event, RefID> objects;
 
 	{
 		std::shared_lock lock(mutex_);
@@ -250,6 +251,8 @@ void ImGui::Renderer::Manager::ReArrange() {
 				
                 interactions[interaction.event].push_back(interaction);
             }
+
+            objects[a_manager->GetCurrentInteraction().event] = a_manager->GetAttachedObjectID();
 
 			bool is_hint = a_manager->IsInHintMode();
 			for (const auto& [interaction, a_sinks] : a_manager->GetSinks()) {
@@ -268,9 +271,15 @@ void ImGui::Renderer::Manager::ReArrange() {
 	// distribute the interactions to the managers
 	for (const auto& interactions_ : interactions | std::views::values) {
 		for (const auto& interaction : interactions_) {
-            if (!Add2Q(interaction, true, keys)) {
+            if (auto submanager = Add2Q(interaction, true, keys).get()) {
+                if (!submanager->GetAttachedObjectID() && objects.contains(interaction.event)) {
+                    submanager->Attach2Object(objects.at(interaction.event));
+				}
+			} 
+			else {
 				logger::error("Failed to add interaction to the queue");
 			}
+
 		}
 	}
 
