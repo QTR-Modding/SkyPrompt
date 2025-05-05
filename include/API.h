@@ -33,21 +33,31 @@ namespace SkyPromptAPI {
     constexpr ButtonID kMouseMove = 283;
     constexpr ButtonID kThumbstickMove = 284;
 
+    enum PromptType {
+		kSinglePress,
+		kHold,
+    };
+
 	struct Prompt {
 		std::string_view text;
         std::span<std::pair<RE::INPUT_DEVICE, ButtonID>> button_key;
-        EventID a_eventID;
-		ActionID a_actionID;
+        EventID eventID;
+		ActionID actionID;
+		PromptType type;
+		RE::FormID refid;
 	};
 
 	enum PromptEventType {
 		kAccepted,
 		kDeclined,
+        kRemovedByMod,
+		kTimingOut,
 		kTimeout,
 		kDown,
         kUp,
 		kMove
 	};
+
     struct PromptEvent {
 		Prompt prompt;
 		PromptEventType type;
@@ -71,35 +81,14 @@ namespace SkyPromptAPI {
         ()         /* callArgs */
     );
 
-    // 1) The macro name:       SendPrompt
-    // 2) The return type:      bool
-    // 3) The default value:    false
-    // 4) The parameter list:   (PromptSink* a_sink, bool a_force)
-    // 5) The call arguments:   (a_sink, a_force)
-
     DECLARE_API_FUNC_EX(
         SendPrompt,                          /* localName */
         "ProcessSendPrompt",                     /* hostName */
         bool,                                       /* returnType */
         false,                                      /* defaultValue */
-        (PromptSink* a_sink, bool a_force, ClientID a_clientID, RE::FormID a_refid), /* signature */
-        (a_sink, a_force, a_clientID, a_refid)         /* callArgs */
+        (PromptSink* a_sink, bool a_force, ClientID a_clientID), /* signature */
+        (a_sink, a_force, a_clientID)         /* callArgs */
     );
-
-    DECLARE_API_FUNC_EX(
-        SendHint,                          /* localName */
-        "ProcessSendHint",                     /* hostName */
-        bool,                                       /* returnType */
-        false,                                      /* defaultValue */
-        (PromptSink* a_sink, ClientID a_clientID, RE::FormID a_refid), /* signature */
-        (a_sink, a_clientID, a_refid)         /* callArgs */
-    );
-
-    // 1) The macro name:       RemovePrompt
-    // 2) The return type:      void
-    // 3) The default value:    
-    // 4) The parameter list:   (PromptSink* a_sink)
-    // 5) The call arguments:   (a_sink)
 
     DECLARE_API_FUNC_EX(
         RemovePrompt,                          /* localName */

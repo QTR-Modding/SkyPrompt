@@ -128,7 +128,7 @@ namespace ImGui::Renderer
         void ShowQueue();
         void WakeUpQueue() const;
 		void CleanUpQueue();
-		void ClearQueue();
+		void ClearQueue(SkyPromptAPI::PromptEventType a_type=SkyPromptAPI::kDeclined);
 		bool HasQueue() const;
 		void Start();
 		void Stop();
@@ -175,7 +175,7 @@ namespace ImGui::Renderer
 
         std::unique_ptr<SubManager>& Add2Q(const Interaction& a_interaction, bool show = true,
                                            const std::map<Input::DEVICE, std::vector<uint32_t>>& buttonKeys = {});
-        bool Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID, bool is_hint=false, uint32_t a_refid=0);
+        bool Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID);
 		bool IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink, bool wake_up=false) const;
 		void RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) const;
 		[[nodiscard]] bool HasTask() const;
@@ -183,7 +183,7 @@ namespace ImGui::Renderer
 		void Stop();
 		void CleanUpQueue();
         void ShowQueue() const;
-        void Clear();
+        void Clear(bool API_call=false);
         void ResetQueue() const;
         void WakeUpQueue() const;
 		bool IsPaused() const { return isPaused.load(); }
