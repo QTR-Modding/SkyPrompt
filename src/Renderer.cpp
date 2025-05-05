@@ -561,9 +561,9 @@ bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, co
 		    return false;
 	    }
 
-        const SkyPromptAPI::EventID start_index = a_clientID * std::numeric_limits<SkyPromptAPI::ClientID>::max();
-		const SkyPromptAPI::EventID event_id = start_index + a_event;
-		const SkyPromptAPI::ActionID action_id = start_index + a_action;
+        const uint32_t start_index = a_clientID * std::numeric_limits<SkyPromptAPI::ClientID>::max();
+		const uint32_t event_id = start_index + a_event;
+		const uint32_t action_id = start_index + a_action;
 		auto interaction = Interaction(event_id, action_id);
 		interaction.text = text;
 
