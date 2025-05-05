@@ -735,10 +735,6 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 		return true;
     }
 
-    if (std::unique_lock lock(q_mutex_); interactQueue.current_button) {
-		interactQueue.current_button->elapsed = 0.0f;
-    }
-
 	return false;
 }
 
