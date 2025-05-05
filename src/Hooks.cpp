@@ -124,58 +124,6 @@ void ImGui::Renderer::Install()
     MenuHook<RE::LoadingMenu>::InstallHook(RE::VTABLE_LoadingMenu[0]);
 }
 
-namespace {
-    void SendInputEvent(RE::InputEvent* event) {
-        const auto render_manager = MANAGER(ImGui::Renderer);
-	    if (render_manager->IsPaused()) return;
-	    if (render_manager->IsHidden()) return;
-
-        const auto input_manager = MANAGER(Input);
-	    input_manager->UpdateInputDevice(event);
-
-	    if (const auto button_event = event->AsButtonEvent()) {
-		    const auto key = input_manager->Convert(button_event->GetIDCode(),button_event->GetDevice());
-            for (const auto prompt_keys = render_manager->GetPromptKeys(); const auto& prompt_key : prompt_keys) {
-                if (prompt_key!=0 && prompt_key == key) {
-                    if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
-                        if (button_event->IsDown()) {
-                            submanager->SendEvent(submanager->GetCurrentInteraction(),SkyPromptAPI::PromptEventType::kDown);
-					    }
-					    else if (button_event->IsUp()) {
-						    submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kUp);
-					    }
-                    }
-		        }
-		    }
-	    }
-	    else if (const auto mouse_event = event->AsMouseMoveEvent()) {
-            constexpr auto key = SkyPromptAPI::kMouseMove;
-		    for (const auto prompt_keys = render_manager->GetPromptKeys(); const auto & prompt_key : prompt_keys) {
-			    if (prompt_key != 0 && prompt_key == key) {
-				    if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
-                        submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove, {static_cast<float>(mouse_event->mouseInputX),static_cast<float>(mouse_event->mouseInputY)});
-				    }
-			    }
-		    }
-	    }
-	    else if (const auto thumbstick_event = event->AsThumbstickEvent()) {
-		    constexpr auto key = SkyPromptAPI::kThumbstickMove;
-		    for (const auto prompt_keys = render_manager->GetPromptKeys(); const auto & prompt_key : prompt_keys) {
-			    if (prompt_key != 0 && prompt_key == key) {
-				    if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
-					    submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove, { thumbstick_event->xValue,thumbstick_event->yValue });
-				    }
-			    }
-		    }
-	    }
-    }
-    void SendInputEvents(RE::InputEvent* const* a_event) {
-        for (auto current = *a_event; current; current = current->next) {
-            SendInputEvent(current);
-        }
-    }
-}
-
 void ImGui::Renderer::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::InputEvent* const* a_event)
 {
 	if (!a_dispatcher || !a_event) {
