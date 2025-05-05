@@ -209,6 +209,7 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 				block = true;
 				if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
                     submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove, {static_cast<float>(mouse_event->mouseInputX),static_cast<float>(mouse_event->mouseInputY)});
+					submanager->UpdateProgressCircle(mouse_event->mouseInputX != 0 || mouse_event->mouseInputY != 0);
 				}
 			}
 		}
@@ -220,6 +221,7 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 				block = true;
 				if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
 					submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove, { thumbstick_event->xValue,thumbstick_event->yValue });
+					submanager->UpdateProgressCircle(thumbstick_event->xValue != 0.f || thumbstick_event->yValue != 0.f);
 				}
 			}
 		}
