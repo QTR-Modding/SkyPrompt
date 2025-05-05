@@ -1002,6 +1002,9 @@ std::vector<uint32_t> ImGui::Renderer::Manager::GetPromptKeys() const
 {
 	std::vector<uint32_t> keys;
 	for (std::shared_lock lock(mutex_); const auto& a_manager : managers) {
+		if (a_manager->IsHidden()) {
+			continue;
+		}
 		if (const auto key = a_manager->GetPromptKey(); key != 0) {
 			keys.push_back(key);
 		}
