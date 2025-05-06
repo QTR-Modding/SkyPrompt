@@ -113,7 +113,7 @@ void ButtonQueue::Show(const float progress, const InteractionButton* button2sho
 		current_button = button2show;
 	}
 	else if (current_button) {
-		if (!RE::Main::GetSingleton()->freezeTime) {
+		if (!Manager::IsGameFrozen()) {
 		    if (expired()/* && current_button->alpha>0.f*/) {
 				alpha = std::max(alpha - MCP::Settings::fadeSpeed, 0.0f);
 	        }
