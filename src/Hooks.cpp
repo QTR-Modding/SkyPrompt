@@ -177,12 +177,7 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
                 if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
 					submanager->buttonState.isPressing = button_event->IsPressed();
                     if (button_event->IsDown()) {
-                        if (submanager->IsInHintMode()) {
-                            submanager->buttonState.pressCount = 1;
-                        }
-                        else {
-                            submanager->buttonState.pressCount++;
-                        }
+                        submanager->buttonState.pressCount++;
                         submanager->buttonState.lastPressTime = now;
                         submanager->SendEvent(submanager->GetCurrentInteraction(),SkyPromptAPI::PromptEventType::kDown);
 					}
