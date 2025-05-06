@@ -131,7 +131,12 @@ namespace ImGui::Renderer
 		bool Attach2Object(RefID a_refid);
 		bool IsAttached2Object() const { return attached_object.get().get(); }
 		ImVec2 GetAttachedObjectPos() const;
-		RefID GetAttachedObjectID() const { return attached_object ? attached_object.get()->GetFormID() : 0; }
+		RefID GetAttachedObjectID() const {
+            if (auto obj = attached_object.get().get()) {
+				return obj->GetFormID(); 
+			}
+            return 0;
+		}
 	};
 
 	class Manager : public clib_util::singleton::ISingleton<Manager>
