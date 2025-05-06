@@ -684,7 +684,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 	}
 
     if (std::shared_lock lock(progress_mutex_); progress_circle > (a_type == SkyPromptAPI::kSinglePress ? 0.f : progress_circle_max)) {
-        progress_circle = 0.0f;
+        progress_circle = a_type == SkyPromptAPI::kHoldAndKeep ? progress_circle_max : 0.0f;
 		lock.unlock();
 
         if (buttonState.pressCount == 3) {
@@ -698,7 +698,9 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 	        }
 	        SendEvent(interaction, SkyPromptAPI::PromptEventType::kAccepted);
 	        Start();
-	        blockProgress.store(true);
+			if (a_type != SkyPromptAPI::kHoldAndKeep) {
+	            blockProgress.store(true);
+			}
 		}
 
 		return true;

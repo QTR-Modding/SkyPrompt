@@ -204,9 +204,8 @@ namespace {
     void DrawCircle(ImDrawList* drawList, const ImVec2 a_center, const float a_radius, const float progress, const float thickness,
         const std::optional<uint32_t> a_color = std::nullopt, const std::optional<float> start_angle = std::nullopt)
     {
-        //const auto startColor = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 60);
-        const auto startColor = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 255);
-        const auto endColor = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 255);
+        const auto startColor = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 60);
+        const auto endColor = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 180);
 
         constexpr int numSegments = 64;
         const float startAngle = start_angle.has_value() ? start_angle.value() - IM_PI / 2 : -IM_PI / 2; // Start at the top
@@ -258,7 +257,7 @@ void ImGui::AddTextWithShadow(ImDrawList* draw_list, ImFont* font, const float f
     draw_list->AddText(font, font_size, position, text_color, text);
 }
 
-ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const IconFont::IconTexture* a_texture, const float progress,const float button_state)
+ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const IconFont::IconTexture* a_texture, const float progress, const float button_state)
 {
     if (!a_texture || !a_texture->srView.Get()) {
         logger::error("Button icon texture not loaded.");
@@ -321,18 +320,14 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const IconFont:
         }
 	}
 	else if (button_state > 0.f) {
-        constexpr auto aColor = IM_COL32(255, 255, 255, 180);
+        const auto aColor = progress >= 1.f ? IM_COL32(228, 185, 76, 180) : IM_COL32(255, 255, 255, 180);
         DrawCircle(a_drawlist, iconCenter, circle_radius, std::max(progress-1.f/12.f,0.f), radius / 6.f,aColor,RE::deg_to_rad(15));
 	}
 
 	if (button_state > 0.f) {
         constexpr auto aColor = IM_COL32(255, 255, 255, 30);
         constexpr auto aColor2 = IM_COL32(255, 255, 255, 180);
-        //DrawCircle(a_drawlist, iconCenter, circle_radius-radius / 20.f, 1.f, radius / 20.f,aColor);
-        //DrawCircle(a_drawlist, iconCenter, circle_radius+radius / 6.f - radius / 20.f, 1.f, radius / 20.f,aColor);
         DrawCircle(a_drawlist, iconCenter, circle_radius, 1.0, radius / 6.f, aColor);
-
-		//DrawTriangle(a_drawlist, iconCenter, circle_radius*1.1f, (radius / 6.f)*1.1f,aColor);
 		DrawTriangle(a_drawlist, iconCenter, circle_radius, radius*0.6f,aColor2);
 	}
 

@@ -34,8 +34,9 @@ namespace SkyPromptAPI {
     constexpr ButtonID kThumbstickMove = 284;
 
     enum PromptType {
-		kSinglePress,
-		kHold,
+        kSinglePress,
+        kHold,
+        kHoldAndKeep,
     };
 
 	struct Prompt {
