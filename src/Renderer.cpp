@@ -40,42 +40,18 @@ void ImGui::Renderer::RenderPrompts() {
 	manager->ShowQueue();
 }
 
-void Button2Show::Update(const float a_timeStep) const
+
+std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha, const std::string& extra_text, const float progress, const float button_state) const
 {
-	elapsed += a_timeStep;
-}
-
-void Button2Show::Reset() const {
-    alpha = 0.0f; // Reset alpha to start fade-in
-	elapsed = 0.0f;
-}
-
-void Button2Show::WakeUp() const
-{
-	alpha = 1.0f;
-	elapsed = 0.0f;
-}
-
-std::optional<std::pair<float,float>> Button2Show::Show(const bool hiding, const std::string& extra_text, const float progress, const float button_state) const
-{
-
-	if (!RE::Main::GetSingleton()->freezeTime) {
-        if (hiding) {
-            alpha = std::max(alpha - MCP::Settings::fadeSpeed, 0.0f);
-        } else {
-            alpha = std::min(alpha + MCP::Settings::fadeSpeed, 1.0f);
-        }
-        Update(RE::GetSecondsSinceLastFrame());
-	}
-    const auto buttonKey = iButton.button_key();
+    const auto buttonKey = button_key();
 	const auto icon_manager = MANAGER(IconFont);
 	if (icon_manager->unavailable_keys.contains(buttonKey)) return std::nullopt;
-	const std::string base_text = iButton.text; // Cache the base text
-	std::string text;
-    text.reserve(base_text.size() + 1 + extra_text.size()); // Reserve memory to avoid reallocations
-	text.append(base_text);
+	const std::string base_text = text; // Cache the base text
+	std::string a_text;
+    a_text.reserve(base_text.size() + 1 + extra_text.size()); // Reserve memory to avoid reallocations
+	a_text.append(base_text);
     if (!extra_text.empty()) { // If extra_text is not empty
-        text.append(" ").append(extra_text);
+        a_text.append(" ").append(extra_text);
     }
 
     const IconFont::IconTexture* buttonIcon = icon_manager->GetIcon(buttonKey);
@@ -90,7 +66,7 @@ std::optional<std::pair<float,float>> Button2Show::Show(const bool hiding, const
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
 	std::optional<std::pair<float,float>> a_position;
     if (buttonIcon->srView.Get()) {
-        const auto position = ImGui::ButtonIconWithCircularProgress(text.c_str(), buttonIcon,progress,button_state);
+        const auto position = ImGui::ButtonIconWithCircularProgress(a_text.c_str(), buttonIcon,progress,button_state);
 		a_position = { position.x,position.y };
     } else {
         logger::error("Button icon texture not loaded for key {}", buttonKey);
@@ -102,34 +78,23 @@ std::optional<std::pair<float,float>> Button2Show::Show(const bool hiding, const
 	return a_position;
 }
 
-
-
-
-
-void Button2Show::Hide() const {
-    Show(true);
-}
-
-bool Button2Show::IsHidden() const
-{
-	return alpha <= 0.0f;
+void ButtonQueue::Clear() {
+	current_button = nullptr;
+	buttons.clear();
+	Reset();
 }
 
 void ButtonQueue::Reset() const {
-	// reset all buttons
-	//current_button = nullptr;
-	for (auto& button : buttons) {
-		button.Reset();
-		button.lifetime = MCP::Settings::lifetime;
-	}
+	lifetime = MCP::Settings::lifetime;
+	alpha = 0.0f; // Reset alpha to start fade-in
+	elapsed = 0.0f;
 }
 
 void ButtonQueue::WakeUp() const {
 	// wake up all buttons
-	for (auto& button : buttons) {
-		button.WakeUp();
-		button.lifetime = MCP::Settings::lifetime;
-	}
+	lifetime = MCP::Settings::lifetime;
+	alpha = 1.0f;
+	elapsed = 0.0f;
 }
 
 namespace {
@@ -142,16 +107,20 @@ namespace {
     }
 }
 
-void ButtonQueue::Show(const float progress, const Button2Show* button2show, const ButtonState& a_button_state) {
+void ButtonQueue::Show(const float progress, const InteractionButton* button2show, const ButtonState& a_button_state) {
 	if (button2show) {
-		// reset all buttons
 		Reset();
 		current_button = button2show;
 	}
 	else if (current_button) {
-		if (current_button->expired()/* && current_button->alpha>0.f*/) {
-			current_button->Hide();
-			return;
+		if (!RE::Main::GetSingleton()->freezeTime) {
+		    if (expired()/* && current_button->alpha>0.f*/) {
+				alpha = std::max(alpha - MCP::Settings::fadeSpeed, 0.0f);
+	        }
+			else {
+                alpha = std::min(alpha + MCP::Settings::fadeSpeed, 1.0f);
+			}
+			elapsed += RE::GetSecondsSinceLastFrame();
 		}
 		std::string extra_text;
 		if (const auto total = buttons.size(); total>1) {
@@ -165,7 +134,7 @@ void ButtonQueue::Show(const float progress, const Button2Show* button2show, con
 				if (!current_button) return;
 			}
 		}
-        if (const auto pos = current_button->Show(false,extra_text,progress,current_button->iButton.type == SkyPromptAPI::kSinglePress ? -1.f : ButtonStateToFloat(a_button_state)); 
+        if (const auto pos = current_button->Show(alpha,extra_text,progress,current_button->type == SkyPromptAPI::kSinglePress ? -1.f : ButtonStateToFloat(a_button_state)); 
 			pos.has_value()) {
 			position = pos.value();
 		}
@@ -176,7 +145,7 @@ void ButtonQueue::Show(const float progress, const Button2Show* button2show, con
 }
 
 
-const Button2Show* ButtonQueue::AddButton(const Button2Show& a_button)
+const InteractionButton* ButtonQueue::AddButton(const InteractionButton& a_button)
 {
 	// check if the button already exists
     if (const auto it = buttons.find(a_button); it != buttons.end()) {
@@ -192,14 +161,14 @@ const Button2Show* ButtonQueue::AddButton(const Button2Show& a_button)
 bool ButtonQueue::RemoveButton(const Interaction& a_interaction)
 {
 	bool erased = false;
-    if (current_button && current_button->iButton.interaction == a_interaction) {
+    if (current_button && current_button->interaction == a_interaction) {
 	    buttons.erase(*current_button);
 		erased = true;
 	}
 	// otherwise we need to find it in the Q.
 	else {
 		for (auto it = buttons.begin(); it != buttons.end(); ++it) {
-			if (it->iButton.interaction == a_interaction) {
+			if (it->interaction == a_interaction) {
 				buttons.erase(it);
 				erased = true;
 				break;
@@ -213,7 +182,7 @@ bool ButtonQueue::RemoveButton(const Interaction& a_interaction)
 	return erased;
 }
 
-const Button2Show* ButtonQueue::Next() const {
+const InteractionButton* ButtonQueue::Next() const {
     if (current_button) {
         if (auto it = buttons.find(*current_button); it != buttons.end()) {
             ++it;
@@ -420,9 +389,8 @@ ImGui::Renderer::SubManager::~SubManager()
 void ImGui::Renderer::SubManager::Add2Q(const Interaction& a_interaction, const SkyPromptAPI::PromptType a_type, const bool show)
 {
 	const InteractionButton iButton(a_interaction, a_type);
-	const Button2Show button2show(iButton);
 	std::unique_lock lock(q_mutex_);
-    if (const auto button = interactQueue.AddButton(button2show); button && show) {
+    if (const auto button = interactQueue.AddButton(iButton); button && show) {
 		std::shared_lock lock2(progress_mutex_);
 		if (!Manager::GetSingleton()->IsPaused() && progress_circle == 0.f) {
             interactQueue.Show(progress_circle,button,buttonState);
@@ -457,12 +425,12 @@ void ImGui::Renderer::SubManager::RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt
 void ImGui::Renderer::SubManager::RemoveCurrentPrompt()
 {
 	if (std::shared_lock lock(q_mutex_); interactQueue.current_button) {
-	    auto a_interaction = interactQueue.current_button->iButton.interaction;
+	    auto a_interaction = interactQueue.current_button->interaction;
 		lock.unlock();
 		std::unique_lock lock2(q_mutex_);
-		interactQueue.current_button->Reset();
+		interactQueue.Reset();
 		const auto* next_button = interactQueue.size() > 1 ? interactQueue.Next() : nullptr;
-		interactQueue.RemoveButton(interactQueue.current_button->iButton.interaction);
+		interactQueue.RemoveButton(interactQueue.current_button->interaction);
 		interactQueue.current_button = next_button;
 		progress_circle = 0.0f;
 	}
@@ -483,14 +451,16 @@ void SubManager::ShowQueue() {
 
 	if (std::shared_lock lock(q_mutex_); !interactQueue.IsEmpty()) {
 		const auto curr_ = interactQueue.current_button;
-		if (!curr_ || curr_->IsHidden()) {
+		if (!curr_ || interactQueue.IsHidden()) {
             {
 			    std::unique_lock lock2(progress_mutex_);
 			    progress_circle = 0.0f;
             }
 		}
-		if (curr_ && curr_->expired()) {
-	        SendEvent(curr_->iButton.interaction, SkyPromptAPI::PromptEventType::kTimingOut);
+		if (interactQueue.expired()) {
+			for (auto& button : interactQueue.buttons) {
+	            SendEvent(button.interaction, SkyPromptAPI::PromptEventType::kTimingOut);
+			}
 		}
 		interactQueue.Show(progress_circle,nullptr,buttonState);
 	}
@@ -502,7 +472,7 @@ void ImGui::Renderer::SubManager::WakeUpQueue() const {
 }
 
 std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(
-    const Interaction& a_interaction, SkyPromptAPI::PromptType a_type,
+    const Interaction& a_interaction, const SkyPromptAPI::PromptType a_type,
     const bool show, const std::map<Input::DEVICE, std::vector<uint32_t>>& buttonKeys) {
     // WakeUpQueue();
     size_t index = 0;
@@ -621,9 +591,8 @@ void ImGui::Renderer::SubManager::CleanUpQueue()
 {
 	// if everything has expired AND has alpha=0, clear the queue
 	if (std::unique_lock lock(q_mutex_);
-		std::ranges::all_of(interactQueue.buttons, [](const Button2Show& a_button) {
-		return a_button.expired() && a_button.alpha <= 0.0f;
-		})) {
+		interactQueue.expired() && interactQueue.alpha <= 0.f
+		) {
 		lock.unlock();
 		ClearQueue(SkyPromptAPI::kTimeout);
 	}
@@ -636,14 +605,13 @@ void ImGui::Renderer::SubManager::ClearQueue(const SkyPromptAPI::PromptEventType
     {
         std::shared_lock lock(q_mutex_);
         for (const auto& a_button : interactQueue.buttons) {
-			SendEvent(a_button.iButton.interaction, a_type);
+			SendEvent(a_button.interaction, a_type);
         }
     }
 
 	{
 	    std::unique_lock lock(q_mutex_);
-	    interactQueue.current_button = nullptr;
-	    interactQueue.buttons.clear();
+		interactQueue.Clear();
 	}
 	{
 		std::unique_lock lock(progress_mutex_);
@@ -709,9 +677,9 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 	{
 		std::shared_lock lock(q_mutex_);
 		if (interactQueue.current_button) {
-			auto interaction_button = interactQueue.current_button->iButton;
-			a_type = interaction_button.type;
-			interaction = interaction_button.interaction;
+			const auto interaction_button = interactQueue.current_button;
+			a_type = interaction_button->type;
+			interaction = interaction_button->interaction;
 		}
 	}
 
@@ -741,7 +709,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 
 uint32_t ImGui::Renderer::SubManager::GetPromptKey() const {
 	if (std::shared_lock lock(q_mutex_); interactQueue.current_button) {
-		return interactQueue.current_button->iButton.button_key();
+		return interactQueue.current_button->button_key();
 	}
 	return 0;
 }
@@ -765,14 +733,14 @@ bool ImGui::Renderer::SubManager::IsHidden() const
 		return true;
 	}
 	std::shared_lock lock(q_mutex_);
-	return interactQueue.current_button->IsHidden();
+	return interactQueue.IsHidden();
 }
 
 std::vector<Interaction> ImGui::Renderer::SubManager::GetInteractions() const {
 	std::shared_lock lock(q_mutex_);
 	std::vector<Interaction> interactions;
 	for (const auto& a_button : interactQueue.buttons) {
-		interactions.push_back(a_button.iButton.interaction);
+		interactions.push_back(a_button.interaction);
 	}
 	return interactions;
 }
@@ -781,7 +749,7 @@ Interaction ImGui::Renderer::SubManager::GetCurrentInteraction() const
 {
 	std::shared_lock lock(q_mutex_);
 	if (interactQueue.current_button) {
-		return interactQueue.current_button->iButton.interaction;
+		return interactQueue.current_button->interaction;
 	}
 	return {};
 }
@@ -791,7 +759,7 @@ std::vector<InteractionButton> ImGui::Renderer::SubManager::GetButtons() const
 	std::shared_lock lock(q_mutex_);
 	std::vector<InteractionButton> buttons;
 	for (const auto& a_button : interactQueue.buttons) {
-		buttons.push_back(a_button.iButton);
+		buttons.push_back(a_button);
 	}
 	return buttons;
 }
@@ -826,7 +794,7 @@ bool ImGui::Renderer::SubManager::IsInQueue(const Interaction& a_interaction) co
 {
 	std::shared_lock lock(q_mutex_);
 	for (const auto& a_button : interactQueue.buttons) {
-		if (a_button.iButton.interaction == a_interaction) {
+		if (a_button.interaction == a_interaction) {
 			return true;
 		}
 	}

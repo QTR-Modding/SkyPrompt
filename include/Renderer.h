@@ -22,34 +22,7 @@ struct InteractionButton
     explicit InteractionButton(const Interaction& a_interaction, SkyPromptAPI::PromptType a_type) : interaction(a_interaction), type(a_type) {text=interaction.name();}
 	bool operator==(const InteractionButton& a_rhs) const { return text == a_rhs.text; }
 	bool operator<(const InteractionButton& a_rhs) const { return interaction < a_rhs.interaction; }
-};
-
-struct Button2Show {
-	InteractionButton iButton;
-	mutable float alpha;
-	mutable float lifetime=MCP::Settings::lifetime;
-	mutable float elapsed = 0.0f;
-
-	void Update(float a_timeStep) const;
-	void Reset() const;
-	void WakeUp() const;
-	std::optional<std::pair<float,float>> Show(bool hiding=false, const std::string& extra_text="", float progress=0.f, float button_state = -1.f) const;
-	void Hide() const;
-	bool IsHidden() const;
-
-	[[nodiscard]] bool expired() const { return elapsed >= lifetime; }
-    explicit Button2Show(InteractionButton a_interaction_button, const float a_alpha = 0.0f) : iButton(std::move(
-        a_interaction_button)), alpha(a_alpha) {}
-
-	bool operator<(const Button2Show& a_rhs) const
-	{
-		return iButton < a_rhs.iButton;
-	}
-
-	bool operator==(const Button2Show& a_rhs) const
-	{
-		return iButton == a_rhs.iButton;
-	}
+	[[nodiscard]] std::optional<std::pair<float,float>> Show(float alpha = false, const std::string& extra_text="", float progress=0.f, float button_state = -1.f) const;
 };
 
 struct ButtonQueue {
@@ -57,15 +30,22 @@ struct ButtonQueue {
 	// default constructor
 	ButtonQueue() = default;
 
-	std::set<Button2Show> buttons;
-    const Button2Show* current_button=nullptr;
+	mutable float alpha;
+	mutable float lifetime=MCP::Settings::lifetime;
+	mutable float elapsed = 0.0f;
+	[[nodiscard]] bool expired() const { return elapsed >= lifetime; }
+	bool IsHidden() const { return alpha <= 0.f; }
+
+    std::set<InteractionButton> buttons;
+    const InteractionButton* current_button=nullptr;
+	void Clear();
 	void Reset() const;
 	void WakeUp() const;
-	void Show(float progress,const Button2Show* button2show, const ImGui::Renderer::ButtonState& a_button_state);
-	const Button2Show* AddButton(const Button2Show& a_button);
+	void Show(float progress,const InteractionButton* button2show, const ImGui::Renderer::ButtonState& a_button_state);
+	const InteractionButton* AddButton(const InteractionButton& a_button);
     bool RemoveButton(const Interaction& a_interaction);
 	[[nodiscard]] bool IsEmpty() const { return buttons.empty(); }
-	[[nodiscard]] const Button2Show* Next() const;
+	[[nodiscard]] const InteractionButton* Next() const;
 	[[nodiscard]] size_t size() const { return buttons.size(); }
 
 	mutable std::pair<float,float> position = { 0.0f, 0.0f };
