@@ -29,17 +29,17 @@ struct ButtonQueue {
 
     ButtonQueue() = default;
 
-    mutable float alpha;
-    mutable float lifetime=MCP::Settings::lifetime;
-    mutable float elapsed = 0.0f;
+    float alpha;
+    float lifetime=MCP::Settings::lifetime;
+    float elapsed = 0.0f;
     [[nodiscard]] bool expired() const { return elapsed >= lifetime; }
     bool IsHidden() const { return alpha <= 0.f; }
 
     std::set<InteractionButton> buttons;
     const InteractionButton* current_button=nullptr;
     void Clear();
-    void Reset() const;
-    void WakeUp() const;
+    void Reset();
+    void WakeUp();
     void Show(float progress,const InteractionButton* button2show, const ImGui::Renderer::ButtonState& a_button_state);
     const InteractionButton* AddButton(const InteractionButton& a_button);
     bool RemoveButton(const Interaction& a_interaction);
@@ -47,7 +47,7 @@ struct ButtonQueue {
     [[nodiscard]] const InteractionButton* Next() const;
     [[nodiscard]] size_t size() const { return buttons.size(); }
 
-    mutable std::pair<float,float> position = { 0.0f, 0.0f };
+    std::pair<float,float> position = { 0.0f, 0.0f };
 };
 
 namespace ImGui::Renderer
@@ -104,7 +104,7 @@ namespace ImGui::Renderer
         void RemoveCurrentPrompt();
         void ResetQueue();
         void ShowQueue();
-        void WakeUpQueue() const;
+        void WakeUpQueue();
         void CleanUpQueue();
         void ClearQueue(SkyPromptAPI::PromptEventType a_type=SkyPromptAPI::kDeclined);
         bool HasQueue() const;

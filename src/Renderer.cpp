@@ -84,13 +84,13 @@ void ButtonQueue::Clear() {
 	Reset();
 }
 
-void ButtonQueue::Reset() const {
+void ButtonQueue::Reset() {
 	lifetime = MCP::Settings::lifetime;
 	alpha = 0.0f; // Reset alpha to start fade-in
 	elapsed = 0.0f;
 }
 
-void ButtonQueue::WakeUp() const {
+void ButtonQueue::WakeUp() {
 	// wake up all buttons
 	lifetime = MCP::Settings::lifetime;
 	alpha = 1.0f;
@@ -244,7 +244,7 @@ void ImGui::Renderer::Manager::ReArrange() {
 
 	// distribute the sinks to the managers
 	{
-		std::shared_lock lock(mutex_);
+		std::unique_lock lock(mutex_);
 		for (const auto& a_manager : managers) {
 			for (const auto& [interaction, a_sinks] : sinks) {
 				if (a_manager->IsInQueue(interaction)) {
@@ -458,7 +458,7 @@ void SubManager::ShowQueue() {
 	}
 }
 
-void ImGui::Renderer::SubManager::WakeUpQueue() const {
+void ImGui::Renderer::SubManager::WakeUpQueue() {
     std::unique_lock lock(q_mutex_);
     interactQueue.WakeUp();
 }
