@@ -287,6 +287,10 @@ void MCP::Settings::to_json()
 	doc.Accept(writer);
 
 	// save to mod folder
+	if (!std::filesystem::exists(mod_folder)) {
+	    std::filesystem::create_directories(mod_folder);
+    }
+
 	std::ofstream file(mod_folder + "settings.json");
 	file << buffer.GetString();
 	file.close();
@@ -296,14 +300,16 @@ void MCP::Settings::from_json()
 {
 	auto json = mod_folder + "settings.json";
 	if (!std::filesystem::exists(json)) {
+		logger::info("settings.json not found, creating default settings.json");
 		return to_json();
 	}
 	std::ifstream file(json);
-	std::string str((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-	file.close();
+	std::string str((std::istreambuf_iterator(file)), std::istreambuf_iterator<char>());
+
 	rapidjson::Document doc;
 	doc.Parse(str.c_str());
-	if (doc.HasParseError()) {
+
+    if (doc.HasParseError()) {
 		logger::error("Failed to parse settings.json");
 		return;
 	}
@@ -312,6 +318,7 @@ void MCP::Settings::from_json()
 		return;
 	}
 	auto& mcp = doc["MCP"];
+
 	if (mcp.HasMember("fadeSpeed")) {
 		fadeSpeed = mcp["fadeSpeed"].GetFloat();
 	}
@@ -367,16 +374,22 @@ void MCP::Settings::from_json()
 				logger::error("Unknown device in settings.json");
 				continue;
 			}
-			std::vector<uint32_t> keys;
-			if (it->value.IsArray()) {
-			    for (auto& key : it->value.GetArray()) {
+            if (it->value.IsArray()) {
+                std::vector<uint32_t> keys;
+                for (auto& key : it->value.GetArray()) {
 				    keys.push_back(key.GetUint());
 			    }
 			    if (prompt_keys.contains(device)) {
 				    prompt_keys.at(device) = keys;
-			    }
+				}
+				else {
+					prompt_keys[device] = keys;
+				}
 			}
 		}
+	}
+	else {
+		logger::error("Failed to find keys in settings.json");
 	}
 
 	// special commands

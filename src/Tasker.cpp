@@ -1,14 +1,8 @@
 #include "Tasker.h"
 
-Tasker* Tasker::GetSingleton() {
-    static Tasker singleton;
-    return &singleton;
-}
-
 void Tasker::Start(const size_t num_threads) {
     std::lock_guard lock(mutex_);
     if (running_.load(std::memory_order_acquire)) {
-		logger::info("Tasker already running");
         return;
     }
 
@@ -46,8 +40,6 @@ void Tasker::Stop() {
 }
 
 
-
-Tasker::Tasker() = default;
 
 void Tasker::WorkerLoop() {
 	// At the top of WorkerLoop()

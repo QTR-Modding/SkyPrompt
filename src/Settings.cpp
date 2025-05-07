@@ -38,9 +38,6 @@ void Settings::LoadSettings() const
 
 void ButtonSettings::SetInteractionKey(const Interaction& a_interaction, Input::DEVICE a_device, const uint32_t converted_key)
 {
-	//auto a_device2 = a_device == RE::INPUT_DEVICE::kKeyboard || a_device == RE::INPUT_DEVICE::kMouse ? Input::DEVICE::kKeyboardMouse :
-	//	(RE::ControlMap::GetSingleton()->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis ? Input::DEVICE::kGamepadOrbis : Input::DEVICE::kGamepadDirectX);
-	//auto converted_key = Input::Manager::Convert(a_key, a_device);
     std::unique_lock lock(button_key_lock);
 	if (interactionKeys.contains(a_interaction)) {
 		interactionKeys.at(a_interaction)[a_device] = converted_key;
@@ -57,4 +54,12 @@ uint32_t ButtonSettings::GetInteractionKey(const Interaction& a_interaction, con
 		return interactionKeys.at(a_interaction)[a_device];
 	}
 	return 0;
+}
+
+void ButtonSettings::RemoveInteractionKey(const Interaction& a_interaction)
+{
+	std::unique_lock lock(button_key_lock);
+	if (interactionKeys.contains(a_interaction)) {
+		interactionKeys.erase(a_interaction);
+	}
 }

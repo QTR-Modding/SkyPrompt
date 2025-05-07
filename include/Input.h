@@ -7,7 +7,8 @@ namespace Input
 		kUnknown = 0,
 		kKeyboardMouse,
 		kGamepadDirectX,  // xbox
-		kGamepadOrbis     // ps4
+		kGamepadOrbis,     // ps4
+		kTotal
 	};
 
 	std::string device_to_string(DEVICE a_device);

@@ -40,42 +40,18 @@ void ImGui::Renderer::RenderPrompts() {
 	manager->ShowQueue();
 }
 
-void Button2Show::Update(const float a_timeStep) const
+
+std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha, const std::string& extra_text, const float progress, const float button_state) const
 {
-	elapsed += a_timeStep;
-}
-
-void Button2Show::Reset() const {
-    alpha = 0.0f; // Reset alpha to start fade-in
-	elapsed = 0.0f;
-}
-
-void Button2Show::WakeUp() const
-{
-	alpha = 1.0f;
-	elapsed = 0.0f;
-}
-
-std::optional<std::pair<float,float>> Button2Show::Show(const bool hiding, const std::string& extra_text, const float progress, const float button_state) const
-{
-
-	if (!RE::Main::GetSingleton()->freezeTime) {
-        if (hiding) {
-            alpha = std::max(alpha - MCP::Settings::fadeSpeed, 0.0f);
-        } else {
-            alpha = std::min(alpha + MCP::Settings::fadeSpeed, 1.0f);
-        }
-        Update(RE::GetSecondsSinceLastFrame());
-	}
-    const auto buttonKey = iButton.button_key();
+    const auto buttonKey = GetKey();
 	const auto icon_manager = MANAGER(IconFont);
 	if (icon_manager->unavailable_keys.contains(buttonKey)) return std::nullopt;
-	const std::string base_text = iButton.text; // Cache the base text
-	std::string text;
-    text.reserve(base_text.size() + 1 + extra_text.size()); // Reserve memory to avoid reallocations
-	text.append(base_text);
+	const std::string base_text = text; // Cache the base text
+	std::string a_text;
+    a_text.reserve(base_text.size() + 1 + extra_text.size()); // Reserve memory to avoid reallocations
+	a_text.append(base_text);
     if (!extra_text.empty()) { // If extra_text is not empty
-        text.append(" ").append(extra_text);
+        a_text.append(" ").append(extra_text);
     }
 
     const IconFont::IconTexture* buttonIcon = icon_manager->GetIcon(buttonKey);
@@ -90,7 +66,7 @@ std::optional<std::pair<float,float>> Button2Show::Show(const bool hiding, const
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
 	std::optional<std::pair<float,float>> a_position;
     if (buttonIcon->srView.Get()) {
-        const auto position = ImGui::ButtonIconWithCircularProgress(text.c_str(), buttonIcon,progress,button_state);
+        const auto position = ImGui::ButtonIconWithCircularProgress(a_text.c_str(), buttonIcon,progress,button_state);
 		a_position = { position.x,position.y };
     } else {
         logger::error("Button icon texture not loaded for key {}", buttonKey);
@@ -102,41 +78,27 @@ std::optional<std::pair<float,float>> Button2Show::Show(const bool hiding, const
 	return a_position;
 }
 
-
-
-
-
-void Button2Show::Hide() const {
-    Show(true);
+void ButtonQueue::Clear() {
+	current_button = nullptr;
+	buttons.clear();
+	Reset();
 }
 
-bool Button2Show::IsHidden() const
-{
-	return alpha <= 0.0f;
+void ButtonQueue::Reset() {
+	lifetime = MCP::Settings::lifetime;
+	alpha = 0.0f; // Reset alpha to start fade-in
+	elapsed = 0.0f;
 }
 
-void ButtonQueue::Reset() const {
-	// reset all buttons
-	//current_button = nullptr;
-	for (auto& button : buttons) {
-		button.Reset();
-		button.lifetime = MCP::Settings::lifetime;
-	}
-}
-
-void ButtonQueue::WakeUp() const {
+void ButtonQueue::WakeUp() {
 	// wake up all buttons
-	for (auto& button : buttons) {
-		button.WakeUp();
-		button.lifetime = MCP::Settings::lifetime;
-	}
+	lifetime = MCP::Settings::lifetime;
+	alpha = 1.0f;
+	elapsed = 0.0f;
 }
 
 namespace {
     float ButtonStateToFloat(const ButtonState& a_button_state) {
-		if (a_button_state.is_hint) {
-			return -1.f;
-		}
 		auto a_press_count = a_button_state.pressCount;
 		if (a_button_state.isPressing && a_button_state.pressCount < 3) {
             a_press_count--;
@@ -145,16 +107,20 @@ namespace {
     }
 }
 
-void ButtonQueue::Show(const float progress, const Button2Show* button2show, const ButtonState& a_button_state) {
+void ButtonQueue::Show(const float progress, const InteractionButton* button2show, const ButtonState& a_button_state) {
 	if (button2show) {
-		// reset all buttons
 		Reset();
 		current_button = button2show;
 	}
 	else if (current_button) {
-		if (current_button->expired()/* && current_button->alpha>0.f*/) {
-			current_button->Hide();
-			return;
+		if (!Manager::IsGameFrozen()) {
+		    if (expired()/* && current_button->alpha>0.f*/) {
+				alpha = std::max(alpha - MCP::Settings::fadeSpeed, 0.0f);
+	        }
+			else {
+                alpha = std::min(alpha + MCP::Settings::fadeSpeed, 1.0f);
+			}
+			elapsed += RE::GetSecondsSinceLastFrame();
 		}
 		std::string extra_text;
 		if (const auto total = buttons.size(); total>1) {
@@ -168,11 +134,10 @@ void ButtonQueue::Show(const float progress, const Button2Show* button2show, con
 				if (!current_button) return;
 			}
 		}
-        if (const auto pos = current_button->Show(false,extra_text,progress,ButtonStateToFloat(a_button_state)); 
+        if (const auto pos = current_button->Show(alpha,extra_text,progress,current_button->type == SkyPromptAPI::kSinglePress ? -1.f : ButtonStateToFloat(a_button_state)); 
 			pos.has_value()) {
 			position = pos.value();
 		}
-
 	}
 	else {
         current_button = Next();
@@ -180,7 +145,7 @@ void ButtonQueue::Show(const float progress, const Button2Show* button2show, con
 }
 
 
-const Button2Show* ButtonQueue::AddButton(const Button2Show& a_button)
+const InteractionButton* ButtonQueue::AddButton(const InteractionButton& a_button)
 {
 	// check if the button already exists
     if (const auto it = buttons.find(a_button); it != buttons.end()) {
@@ -195,15 +160,16 @@ const Button2Show* ButtonQueue::AddButton(const Button2Show& a_button)
 
 bool ButtonQueue::RemoveButton(const Interaction& a_interaction)
 {
+	ButtonSettings::RemoveInteractionKey(a_interaction);
 	bool erased = false;
-    if (current_button && current_button->iButton.interaction == a_interaction) {
+    if (current_button && current_button->interaction == a_interaction) {
 	    buttons.erase(*current_button);
 		erased = true;
 	}
 	// otherwise we need to find it in the Q.
 	else {
 		for (auto it = buttons.begin(); it != buttons.end(); ++it) {
-			if (it->iButton.interaction == a_interaction) {
+			if (it->interaction == a_interaction) {
 				buttons.erase(it);
 				erased = true;
 				break;
@@ -217,7 +183,7 @@ bool ButtonQueue::RemoveButton(const Interaction& a_interaction)
 	return erased;
 }
 
-const Button2Show* ButtonQueue::Next() const {
+const InteractionButton* ButtonQueue::Next() const {
     if (current_button) {
         if (auto it = buttons.find(*current_button); it != buttons.end()) {
             ++it;
@@ -234,52 +200,56 @@ const Button2Show* ButtonQueue::Next() const {
 }
 
 void ImGui::Renderer::Manager::ReArrange() {
-	std::map<SCENES::Event,std::vector<Interaction>> interactions;
-	std::map<Interaction,std::pair<std::vector<SkyPromptAPI::PromptSink*>,bool>> sinks;
-
-	{
-        std::shared_lock lock(mutex_);
-	    for (const auto& a_manager : managers) {
-		    for (const auto& interaction : a_manager->GetInteractions()) {
-			    interactions[interaction.event].push_back(interaction);
-		    }
-	    }
-	}
+	std::map<SCENES::Event,std::vector<InteractionButton>> interactions;
+	std::map<Interaction,std::vector<SkyPromptAPI::PromptSink*>> sinks;
+    std::map<Interaction,std::map<Input::DEVICE, uint32_t>> keys;
 
 	{
 		std::shared_lock lock(mutex_);
 		for (const auto& a_manager : managers) {
-			bool is_hint = a_manager->IsInHintMode();
+
+		    for (const auto& interaction_button : a_manager->GetButtons()) {
+				auto& interaction = interaction_button.interaction;
+				for (auto i = Input::DEVICE::kKeyboardMouse; i < Input::DEVICE::kTotal;
+                     i = static_cast<Input::DEVICE>(static_cast<int>(i) + 1)) {
+                    keys[interaction][i] = ButtonSettings::GetInteractionKey(interaction, i);
+				}
+				
+                interactions[interaction.event].push_back(interaction_button);
+            }
+
 			for (const auto& [interaction, a_sinks] : a_manager->GetSinks()) {
 				if (const auto it = sinks.find(interaction); it != sinks.end()) {
-					it->second.first.insert(it->second.first.end(), a_sinks.begin(), a_sinks.end());
+					it->second.insert(it->second.end(), a_sinks.begin(), a_sinks.end());
 				}
 				else {
-					sinks[interaction] = { a_sinks, is_hint };
+					sinks[interaction] = a_sinks;
 				}
 			}
 		}
 	}
 
 	Clear();
+
 	// distribute the interactions to the managers
-	for (const auto& interactions_ : interactions | std::views::values) {
-		for (const auto& interaction : interactions_) {
-			if (!Add2Q(interaction)) {
-				logger::error("Failed to add interaction to the queue");
-			}
+	int index = 0;
+	for (const auto& interaction_buttons : interactions | std::views::values) {
+		for (const auto& interaction_button : interaction_buttons) {
+			const auto& interaction = interaction_button.interaction;
+			const auto a_ref = interaction_button.attached_object.get().get();
+			const auto a_refid = a_ref ? a_ref->GetFormID() : 0;
+            if (!Add2Q(interaction, interaction_button.type, a_refid, true, keys.contains(interaction) ? keys.at(interaction) : std::map<Input::DEVICE, uint32_t>())) {  
+               logger::error("Failed to add interaction to the queue");  
+            }
 		}
+		++index;
 	}
 
 	// distribute the sinks to the managers
 	{
-		std::shared_lock lock(mutex_);
+		std::unique_lock lock(mutex_);
 		for (const auto& a_manager : managers) {
-			for (const auto& [interaction, is_hint_a_sinks] : sinks) {
-				const auto& [a_sinks, is_hint] = is_hint_a_sinks;
-				if (is_hint && !a_manager->IsInHintMode()) {
-					a_manager->ToggleHintMode();
-				}
+			for (const auto& [interaction, a_sinks] : sinks) {
 				if (a_manager->IsInQueue(interaction)) {
 					for (const auto& a_sink : a_sinks) {
 						a_manager->AddSink(interaction, a_sink);
@@ -316,7 +286,7 @@ bool ImGui::Renderer::Manager::IsGameFrozen()
 	return false;
 }
 
-void ImGui::Renderer::SubManager::SendEvent(const Interaction& a_interaction, const int event_type)
+void ImGui::Renderer::SubManager::SendEvent(const Interaction& a_interaction, const SkyPromptAPI::PromptEventType event_type, const std::pair<float,float> delta)
 {
 	std::shared_lock lock(sink_mutex_);
 	if (const auto it = sinks.find(a_interaction); it != sinks.end()) {
@@ -324,36 +294,14 @@ void ImGui::Renderer::SubManager::SendEvent(const Interaction& a_interaction, co
 			if (!a_sink) continue;
 			for (const auto& prompt : a_sink->GetPrompts()) {
 				if (prompt.text == a_interaction.name()) {
-					Manager::GetSingleton()->AddEventToSend(a_sink, prompt, event_type);
+					Manager::GetSingleton()->AddEventToSend(a_sink, prompt, event_type, delta);
 				}
 			}
 		}
 	}
 }
 
-void ImGui::Renderer::SubManager::ToggleHintMode()
-{
-	std::unique_lock lock(progress_mutex_);
-	if (IsInHintMode()) {
-		progress_circle_max = 1.f;
-		buttonState.is_hint = false;
-	}
-	else {
-		progress_circle_max = 0.f;
-		buttonState.is_hint = true;
-	}
-}
-
-bool ImGui::Renderer::SubManager::Attach2Object(const RefID a_refid)
-{
-	if (const auto a_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_refid)) {
-		attached_object = a_ref->GetHandle();
-		return true;
-	}
-	return false;
-}
-
-static ImVec2 WorldToScreenLoc(RE::NiPoint3 position) {
+static ImVec2 WorldToScreenLoc(const RE::NiPoint3 position) {
     static uintptr_t g_worldToCamMatrix = RELOCATION_ID(519579, 406126).address();         // 2F4C910, 2FE75F0
     static auto g_viewPort = (RE::NiRect<float>*)RELOCATION_ID(519618, 406160).address();  // 2F4DED0, 2FE8B98
 
@@ -375,7 +323,7 @@ static ImVec2 WorldToScreenLoc(RE::NiPoint3 position) {
 
 ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
 {
-	if (const auto ref = attached_object.get().get()) {
+	if (const auto ref = GetAttachedObject()) {
         auto geo = Geometry(ref);
 
         const auto bound = geo.GetBoundingBox(ref->GetAngle(), ref->GetScale());
@@ -389,6 +337,14 @@ ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
 		return pos2d;
 	}
 	return {};
+}
+
+RE::TESObjectREFR* ImGui::Renderer::SubManager::GetAttachedObject() const {
+	std::shared_lock lock(q_mutex_);
+	if (const auto curr_button = interactQueue.current_button) {
+		return curr_button->attached_object.get().get();
+	}
+	return nullptr;
 }
 
 void ImGui::Renderer::SubManager::RemoveFromSinks(SkyPromptAPI::PromptSink* a_prompt_sink)
@@ -410,7 +366,7 @@ void ImGui::Renderer::SubManager::ButtonStateActions()
 			if (buttonState.pressCount == 2) {
 			    const auto a_interaction = GetCurrentInteraction();
                 RemoveCurrentPrompt();
-			    SendEvent(a_interaction, 1);
+			    SendEvent(a_interaction, SkyPromptAPI::PromptEventType::kDeclined);
 			}
 			else if (buttonState.pressCount == 3) {
 				NextPrompt();
@@ -425,11 +381,11 @@ ImGui::Renderer::SubManager::~SubManager()
 	ClearQueue();
 }
 
-void ImGui::Renderer::SubManager::Add2Q(const Interaction& a_interaction, const bool show)
+void ImGui::Renderer::SubManager::Add2Q(const Interaction& a_interaction, const SkyPromptAPI::PromptType a_type, const RefID a_refid, const bool show)
 {
+	const InteractionButton iButton(a_interaction, a_type,a_refid);
 	std::unique_lock lock(q_mutex_);
-	const Button2Show button2show(a_interaction);
-    if (const auto button = interactQueue.AddButton(button2show); button && show) {
+    if (const auto button = interactQueue.AddButton(iButton); button && show) {
 		std::shared_lock lock2(progress_mutex_);
 		if (!Manager::GetSingleton()->IsPaused() && progress_circle == 0.f) {
             interactQueue.Show(progress_circle,button,buttonState);
@@ -464,12 +420,12 @@ void ImGui::Renderer::SubManager::RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt
 void ImGui::Renderer::SubManager::RemoveCurrentPrompt()
 {
 	if (std::shared_lock lock(q_mutex_); interactQueue.current_button) {
-	    auto a_interaction = interactQueue.current_button->iButton.interaction;
+	    auto a_interaction = interactQueue.current_button->interaction;
 		lock.unlock();
 		std::unique_lock lock2(q_mutex_);
-		interactQueue.current_button->Reset();
+		interactQueue.Reset();
 		const auto* next_button = interactQueue.size() > 1 ? interactQueue.Next() : nullptr;
-		interactQueue.RemoveButton(interactQueue.current_button->iButton.interaction);
+		interactQueue.RemoveButton(interactQueue.current_button->interaction);
 		interactQueue.current_button = next_button;
 		progress_circle = 0.0f;
 	}
@@ -489,75 +445,86 @@ void SubManager::ResetQueue() {
 void SubManager::ShowQueue() {
 
 	if (std::shared_lock lock(q_mutex_); !interactQueue.IsEmpty()) {
-		if (const auto curr_ = interactQueue.current_button; !curr_ || curr_->IsHidden()) {
+		const auto curr_ = interactQueue.current_button;
+		if (!curr_ || interactQueue.IsHidden()) {
             {
 			    std::unique_lock lock2(progress_mutex_);
 			    progress_circle = 0.0f;
             }
-			if (curr_ && curr_->expired()) {
-	            SendEvent(curr_->iButton.interaction, 2);
+		}
+		if (interactQueue.expired()) {
+			for (auto& button : interactQueue.buttons) {
+	            SendEvent(button.interaction, SkyPromptAPI::PromptEventType::kTimingOut);
 			}
 		}
 		interactQueue.Show(progress_circle,nullptr,buttonState);
 	}
 }
 
-void ImGui::Renderer::SubManager::WakeUpQueue() const {
+void ImGui::Renderer::SubManager::WakeUpQueue() {
     std::unique_lock lock(q_mutex_);
     interactQueue.WakeUp();
 }
 
-std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(const Interaction& a_interaction, const bool show)
-{
-	WakeUpQueue();
-	size_t index = 0;
+std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(
+    const Interaction& a_interaction, const SkyPromptAPI::PromptType a_type,
+    const RefID a_refid, const bool show, const std::map<Input::DEVICE, uint32_t>& buttonKeys) {
+
+    size_t index = 0;
     std::unique_lock lock(mutex_);
 	for (auto& a_manager : managers) {
-		if (a_manager->HasQueue() && a_manager->GetInteractions().front().event == a_interaction.event) {
-			for (const auto& [a_device,keys] : MCP::Settings::prompt_keys) {
-			    ButtonSettings::SetInteractionKey(a_interaction,a_device,keys.at(index));
+        if (a_manager->HasQueue() && a_manager->GetInteractions().front().event == a_interaction.event) {
+			for (auto [a_device,keys]: MCP::Settings::prompt_keys) {
+				if (!buttonKeys.contains(a_device) || buttonKeys.at(a_device) == 0) {
+                    ButtonSettings::SetInteractionKey(a_interaction, a_device, keys.at(index));
+				}
+				else {
+					ButtonSettings::SetInteractionKey(a_interaction, a_device, buttonKeys.at(a_device));
+				}
 			}
-			//logger::info("Index: {}, event {}, action {}", index, static_cast<int>(a_interaction.event), static_cast<int>(a_interaction.action.action));
-		    a_manager->Add2Q(a_interaction, show);
+			a_manager->WakeUpQueue();
+            a_manager->Add2Q(a_interaction, a_type, a_refid, show);
 			return a_manager;
-		}
+        }
 		++index;
 	}
-	if (managers.size() < MCP::Settings::n_max_buttons) {
+
+    if (managers.size() < MCP::Settings::n_max_buttons) {
 	    // if no manager has the event, make a new manager
 	    managers.emplace_back(std::make_unique<SubManager>());
+	}
+	else {
+		index = MCP::Settings::n_max_buttons - 1;
+	}
 
+    for (auto [a_device,keys]: MCP::Settings::prompt_keys) {
+		if (!buttonKeys.contains(a_device) || buttonKeys.at(a_device) == 0) {
+            ButtonSettings::SetInteractionKey(a_interaction, a_device, keys.at(index));
+		}
+		else {
+			ButtonSettings::SetInteractionKey(a_interaction, a_device, buttonKeys.at(a_device));
+		}
 	}
-    //logger::info("Index: {}, event {}, action {}", index, static_cast<int>(a_interaction.event), static_cast<int>(a_interaction.action.action));
-	for (const auto& [a_device,keys] : MCP::Settings::prompt_keys) {
-		ButtonSettings::SetInteractionKey(a_interaction,a_device,keys.at(index));
-	}
-    managers.back()->Add2Q(a_interaction, show);
+    managers.back()->Add2Q(a_interaction, a_type, a_refid, show);
 	return managers.back();
 }
 
-bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID, const bool is_hint, uint32_t a_refid)
+bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID)
 {
     for (const auto& prompts = a_prompt_sink->GetPrompts();
-		const auto& [text, button_key, a_event, a_action] : prompts) {
+		const auto& [text, button_key, a_event, a_action, a_type, a_refid] : prompts) {
 	    if (text.empty()) {
 		    logger::warn("Empty prompt text");
 		    return false;
 	    }
 
-        const SkyPromptAPI::EventID start_index = a_clientID * std::numeric_limits<SkyPromptAPI::ClientID>::max();
-		const SkyPromptAPI::EventID event_id = start_index + a_event;
-		const SkyPromptAPI::ActionID action_id = start_index + a_action;
+        const uint32_t start_index = a_clientID * std::numeric_limits<SkyPromptAPI::ClientID>::max();
+		const uint32_t event_id = start_index + a_event;
+		const uint32_t action_id = start_index + a_action;
 		auto interaction = Interaction(event_id, action_id);
 		interaction.text = text;
 
-		if (const auto& submanager = Add2Q(interaction)) {
-			if (is_hint && !submanager->IsInHintMode()) {
-				submanager->ToggleHintMode();
-			}
-			if (const auto a_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_refid)) {
-				submanager->Attach2Object(a_ref->GetFormID());
-			}
+		if (const auto& submanager = Add2Q(interaction, a_type, a_refid)) {
 			submanager->AddSink(interaction, a_prompt_sink);
 		}
 		else {
@@ -589,22 +556,30 @@ bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, co
 	return true;
 }
 
-bool ImGui::Renderer::Manager::IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink) const
+bool ImGui::Renderer::Manager::IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink, const bool wake_up) const
 {
+	bool result = false;
 	std::shared_lock lock(mutex_);
 	for (const auto& a_manager : managers) {
 		if (a_manager->IsInQueue(a_prompt_sink)) {
-			return true;
+			result = true;
+			if (wake_up) {
+				a_manager->WakeUpQueue();
+			}
+			else {
+				return result;
+			}
 		}
 	}
-	return false;
+	return result;
 }
 
-void ImGui::Renderer::Manager::RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) const {
-	std::unique_lock lock(mutex_);
-	for (const auto& a_manager : managers) {
+void ImGui::Renderer::Manager::RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) {
+	for (std::unique_lock lock(mutex_);
+		const auto& a_manager : managers) {
 		a_manager->RemoveFromQ(a_prompt_sink);
 	}
+	CleanUpQueue();
 }
 
 bool Manager::HasTask() const {
@@ -620,29 +595,27 @@ void ImGui::Renderer::SubManager::CleanUpQueue()
 {
 	// if everything has expired AND has alpha=0, clear the queue
 	if (std::unique_lock lock(q_mutex_);
-		std::ranges::all_of(interactQueue.buttons, [](const Button2Show& a_button) {
-		return a_button.expired() && a_button.alpha <= 0.0f;
-		})) {
+		interactQueue.expired() && interactQueue.alpha <= 0.f
+		) {
 		lock.unlock();
-		ClearQueue();
+		ClearQueue(SkyPromptAPI::kTimeout);
 	}
 
 	ButtonStateActions();
 }
 
-void ImGui::Renderer::SubManager::ClearQueue()
+void ImGui::Renderer::SubManager::ClearQueue(const SkyPromptAPI::PromptEventType a_type)
 {
     {
         std::shared_lock lock(q_mutex_);
         for (const auto& a_button : interactQueue.buttons) {
-            SendEvent(a_button.iButton.interaction, 1);
+			SendEvent(a_button.interaction, a_type);
         }
     }
 
 	{
 	    std::unique_lock lock(q_mutex_);
-	    interactQueue.current_button = nullptr;
-	    interactQueue.buttons.clear();
+		interactQueue.Clear();
 	}
 	{
 		std::unique_lock lock(progress_mutex_);
@@ -700,52 +673,51 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 
 	{
 	    std::unique_lock lock(progress_mutex_);
-	    progress_circle += RE::GetSecondsSinceLastFrame() * MCP::Settings::progress_speed*4.f;
+	    progress_circle += RE::GetSecondsSinceLastFrame() * MCP::Settings::progress_speed*4.f / (RE::BSTimer::GetSingleton()->QGlobalTimeMultiplier()+EPSILON);
 	}
 
-    if (std::shared_lock lock(progress_mutex_); progress_circle > progress_circle_max) {
-        progress_circle = 0.0f;
-		lock.unlock();
-		OnProgressComplete();
-		return true;
-    }
+	SkyPromptAPI::PromptType a_type = SkyPromptAPI::kSinglePress;
+	Interaction interaction;
+	{
+		std::shared_lock lock(q_mutex_);
+		if (interactQueue.current_button) {
+			const auto interaction_button = interactQueue.current_button;
+			a_type = interaction_button->type;
+			interaction = interaction_button->interaction;
+		}
+	}
 
-    if (std::unique_lock lock(q_mutex_); interactQueue.current_button) {
-		interactQueue.current_button->elapsed = 0.0f;
+    if (std::shared_lock lock(progress_mutex_); progress_circle > (a_type == SkyPromptAPI::kSinglePress ? 0.f : progress_circle_max)) {
+        progress_circle = a_type == SkyPromptAPI::kHoldAndKeep ? progress_circle_max : 0.0f;
+		lock.unlock();
+
+        if (buttonState.pressCount == 3) {
+		    buttonState.pressCount = 0;
+		    ClearQueue();
+	    }
+		else {
+	        if (a_type == SkyPromptAPI::kHold) {
+	            Stop();
+	            RemoveCurrentPrompt();
+	        }
+	        SendEvent(interaction, SkyPromptAPI::PromptEventType::kAccepted);
+	        Start();
+			if (a_type != SkyPromptAPI::kHoldAndKeep) {
+	            blockProgress.store(true);
+			}
+		}
+
+		return true;
     }
 
 	return false;
 }
 
-float ImGui::Renderer::SubManager::GetProgressCircle() const {
-	std::shared_lock lock(progress_mutex_);
-	return IsInHintMode() ? 0.f : progress_circle;
-}
-
 uint32_t ImGui::Renderer::SubManager::GetPromptKey() const {
 	if (std::shared_lock lock(q_mutex_); interactQueue.current_button) {
-		return interactQueue.current_button->iButton.button_key();
+		return interactQueue.current_button->GetKey();
 	}
 	return 0;
-}
-
-void ImGui::Renderer::SubManager::OnProgressComplete()
-{
-	if (buttonState.pressCount == 3) {
-		buttonState.pressCount = 0;
-		ClearQueue();
-		return;
-	}
-	const auto interaction = interactQueue.current_button
-                           ? interactQueue.current_button->iButton.interaction
-                           : Interaction();
-	if (!IsInHintMode()) {
-	    Stop();
-	    RemoveCurrentPrompt();
-	}
-	SendEvent(interaction, 0);
-	Start();
-	blockProgress.store(true);
 }
 
 void ImGui::Renderer::SubManager::NextPrompt() {
@@ -767,14 +739,14 @@ bool ImGui::Renderer::SubManager::IsHidden() const
 		return true;
 	}
 	std::shared_lock lock(q_mutex_);
-	return interactQueue.current_button->IsHidden();
+	return interactQueue.IsHidden();
 }
 
 std::vector<Interaction> ImGui::Renderer::SubManager::GetInteractions() const {
 	std::shared_lock lock(q_mutex_);
 	std::vector<Interaction> interactions;
 	for (const auto& a_button : interactQueue.buttons) {
-		interactions.push_back(a_button.iButton.interaction);
+		interactions.push_back(a_button.interaction);
 	}
 	return interactions;
 }
@@ -783,9 +755,27 @@ Interaction ImGui::Renderer::SubManager::GetCurrentInteraction() const
 {
 	std::shared_lock lock(q_mutex_);
 	if (interactQueue.current_button) {
-		return interactQueue.current_button->iButton.interaction;
+		return interactQueue.current_button->interaction;
 	}
 	return {};
+}
+
+std::vector<InteractionButton> ImGui::Renderer::SubManager::GetButtons() const
+{
+	std::shared_lock lock(q_mutex_);
+	std::vector<InteractionButton> buttons;
+	for (const auto& a_button : interactQueue.buttons) {
+		buttons.push_back(a_button);
+	}
+	return buttons;
+}
+
+const InteractionButton* ImGui::Renderer::SubManager::GetCurrentButton() const {
+	std::shared_lock lock(q_mutex_);
+	if (interactQueue.current_button) {
+		return interactQueue.current_button;
+	}
+	return nullptr;
 }
 
 void ImGui::Renderer::SubManager::AddSink(const Interaction& a_interaction, SkyPromptAPI::PromptSink* a_sink)
@@ -818,20 +808,29 @@ bool ImGui::Renderer::SubManager::IsInQueue(const Interaction& a_interaction) co
 {
 	std::shared_lock lock(q_mutex_);
 	for (const auto& a_button : interactQueue.buttons) {
-		if (a_button.iButton.interaction == a_interaction) {
+		if (a_button.interaction == a_interaction) {
 			return true;
 		}
 	}
 	return false;
 }
 
-uint32_t InteractionButton::button_key() const
+uint32_t InteractionButton::GetKey() const
 {
 	using namespace ButtonSettings;
 	const auto manager = MANAGER(Input)->GetSingleton();
-	auto a_device = manager->GetInputDevice();
-	std::shared_lock lock(button_key_lock);
+	const auto a_device = manager->GetInputDevice();
 	return GetInteractionKey(interaction, a_device);
+}
+
+InteractionButton::InteractionButton(const Interaction& a_interaction, const SkyPromptAPI::PromptType a_type, const RefID a_refid)
+{
+	interaction = a_interaction;
+	type = a_type;
+	text = a_interaction.name();
+	if (const auto a_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_refid)) {
+		attached_object = a_ref->GetHandle();
+	}
 }
 
 void ImGui::Renderer::Manager::Start()
@@ -901,8 +900,8 @@ void ImGui::Renderer::Manager::ShowQueue() const {
 	std::map<RefID,std::vector<SubManager*>> object_managers;
 	std::shared_lock lock(mutex_);
 	for (auto& a_manager : managers) {
-		if (a_manager->IsAttached2Object()) {
-			object_managers[a_manager->GetAttachedObjectID()].push_back(a_manager.get());
+		if (const auto a_ref = a_manager->GetAttachedObject()) {
+			object_managers[a_ref->GetFormID()].push_back(a_manager.get());
 		    continue;
 		}
 		a_manager->ShowQueue();
@@ -916,18 +915,22 @@ void ImGui::Renderer::Manager::ShowQueue() const {
 		SetNextWindowPos(window_pos, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 		BeginImGuiWindow(std::format("SkyPromptHover{}",i++).c_str());
 		for (const auto a_manager : managers_) {
-		    a_manager->ShowQueue();
+			a_manager->ShowQueue();
 		}
 	    EndImGuiWindow();
 	}
-
 }
 
-void ImGui::Renderer::Manager::Clear()
+void ImGui::Renderer::Manager::Clear(const bool API_call)
 {
     std::unique_lock lock(mutex_);
     for (const auto& a_manager : managers) {
-        a_manager->ClearQueue();
+		if (API_call) {
+            a_manager->ClearQueue(SkyPromptAPI::kRemovedByMod);
+		}
+		else {
+			a_manager->ClearQueue();
+		}
     }
     managers.clear();
 }
@@ -973,6 +976,9 @@ std::vector<uint32_t> ImGui::Renderer::Manager::GetPromptKeys() const
 {
 	std::vector<uint32_t> keys;
 	for (std::shared_lock lock(mutex_); const auto& a_manager : managers) {
+		if (a_manager->IsHidden()) {
+			continue;
+		}
 		if (const auto key = a_manager->GetPromptKey(); key != 0) {
 			keys.push_back(key);
 		}
@@ -987,25 +993,33 @@ void ImGui::Renderer::Manager::ForEachManager(const std::function<void(std::uniq
 	}
 }
 
-void ImGui::Renderer::Manager::AddEventToSend(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::Prompt& a_prompt, int event_type)
+void ImGui::Renderer::Manager::AddEventToSend(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::Prompt& a_prompt, const SkyPromptAPI::PromptEventType event_type, const std::
+                                              pair<float, float> a_delta)
 {
 	std::unique_lock lock(events_to_send_mutex);
 	if (const auto it = events_to_send_.find(a_sink); it != events_to_send_.end()) {
-		it->second.push_back({ a_prompt, event_type });
+		it->second.push_back({ a_prompt, event_type, a_delta });
 	}
 	else {
-		events_to_send_[a_sink] = { { a_prompt, event_type } };
+		events_to_send_[a_sink] = { { a_prompt, event_type, a_delta } };
 	}
 }
 
 void ImGui::Renderer::Manager::SendEvents()
 {
-	std::unique_lock lock(events_to_send_mutex);
-	for (const auto& [a_sink, events] : events_to_send_) {
-		for (const auto& [prompt, event_type] : events) {
+	std::vector<std::pair<SkyPromptAPI::PromptSink*, std::vector<SkyPromptAPI::PromptEvent>>> events_copy;
+	{
+		std::unique_lock lock(events_to_send_mutex);
+		events_copy.reserve(events_to_send_.size());
+		for (const auto& [a_sink, events] : events_to_send_) {
+			events_copy.push_back({ a_sink, events });
+		}
+	    events_to_send_.clear();
+	}
+	for (const auto& [a_sink, events] : events_copy) {
+		for (const auto& prompt_event : events) {
 			if (!a_sink) continue;
-			a_sink->ProcessEvent({ prompt, event_type });
+			a_sink->ProcessEvent(prompt_event);
 		}
 	}
-	events_to_send_.clear();
 }
