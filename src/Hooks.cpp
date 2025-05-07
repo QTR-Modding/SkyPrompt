@@ -196,6 +196,16 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
                 }
 		    }
 		}
+
+	    if (!block && button_event->IsDown()) {
+			const auto device = input_manager->GetInputDevice();
+            const bool is_L = key == MCP::Settings::cycle_L.at(device);
+			const bool is_R = key == MCP::Settings::cycle_R.at(device);
+		    if (is_L || is_R) {
+			    block = true;
+				Manager::GetSingleton()->CycleClient(is_L);
+		    }
+        }
 	}
 	else if (const auto mouse_event = event->AsMouseMoveEvent()) {
         constexpr auto key = SkyPromptAPI::kMouseMove;

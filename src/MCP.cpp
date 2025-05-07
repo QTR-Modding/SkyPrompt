@@ -208,6 +208,116 @@ void MCP::Settings::LoadDefaultPromptKeys()
         Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_Y, RE::INPUT_DEVICE::kGamepad)
     }}
     };
+	cycle_L = {
+		{ Input::DEVICE::kKeyboardMouse, Input::Manager::Convert(KEY::kLeft, RE::INPUT_DEVICE::kKeyboard) },
+		{ Input::DEVICE::kGamepadDirectX, Input::Manager::Convert(GAMEPAD_DIRECTX::kLeft, RE::INPUT_DEVICE::kGamepad) },
+		{ Input::DEVICE::kGamepadOrbis, Input::Manager::Convert(GAMEPAD_ORBIS::kLeft, RE::INPUT_DEVICE::kGamepad) }
+	};
+	cycle_R = {
+		{ Input::DEVICE::kKeyboardMouse, Input::Manager::Convert(KEY::kRight, RE::INPUT_DEVICE::kKeyboard) },
+		{ Input::DEVICE::kGamepadDirectX, Input::Manager::Convert(GAMEPAD_DIRECTX::kRight, RE::INPUT_DEVICE::kGamepad) },
+		{ Input::DEVICE::kGamepadOrbis, Input::Manager::Convert(GAMEPAD_ORBIS::kRight, RE::INPUT_DEVICE::kGamepad) }
+	};
+}
+namespace {
+    void ControlBox(const char* label, const Input::DEVICE selected_device, uint32_t& selected_key)
+    {
+
+	     //dropdown with keys for selected device
+	    const auto device_str = std::string(device_to_string(selected_device));
+	    const auto converted_key = selected_key; // Input::Manager::Convert(selected_key, selected_device);
+	    if (MCP_API::BeginCombo(label, SKSE::InputMap::GetKeyName(converted_key).c_str())) {
+		    for (const auto& key_code : Input::Manager::GetKeys(selected_device)) {
+			    const auto converted_keycode = key_code; // Input::Manager::Convert(key_code, selected_device);
+			    const auto key_name = SKSE::InputMap::GetKeyName(converted_keycode);
+			    if (key_name.empty()) {
+				    continue;
+			    }
+			    const bool isSelected = converted_key == converted_keycode;
+			    if (MCP_API::Selectable((key_name+std::format("##{}",converted_key)).c_str(), isSelected)) {
+				    if (!isSelected) {
+					    selected_key = key_code;
+				    }
+			    }
+			    if (isSelected) MCP_API::SetItemDefaultFocus();
+		    }
+		    MCP_API::EndCombo();
+	    }
+    }
+
+    void DeviceBox(const char* label)
+    {
+		size_t index = 0; 
+		while (!MCP::Settings::IsEnabled(MCP::current_device)) {
+			auto it = MCP::Settings::prompt_keys.begin();
+			std::advance(it, index);
+			if (it == MCP::Settings::prompt_keys.end()) {
+				MCP::current_device = Input::DEVICE::kUnknown;
+				break;
+			}
+			MCP::current_device = it->first;
+			++index;
+		}
+	    if (MCP_API::BeginCombo(label, device_to_string(MCP::current_device).data())) {
+		    for (const auto& device : MCP::Settings::prompt_keys | std::views::keys) {
+				if (!MCP::Settings::IsEnabled(device)) {
+					continue;
+				}
+			    const bool isSelected = MCP::current_device == device;
+			    if (MCP_API::Selectable(device_to_string(device).data(), isSelected)) {
+				    if (!isSelected) {
+                        MCP::current_device = device;
+				    }
+			    }
+			    if (isSelected) MCP_API::SetItemDefaultFocus();
+		    }
+		    MCP_API::EndCombo();
+	    }
+    }
+
+    void RenderControl(std::map<Input::DEVICE, uint32_t>& curr_controls, const char* label, const char* help=nullptr)
+    {
+	    MCP_API::Text(label);
+	    MCP_API::SameLine();
+	    MCP_API::SetCursorPosX(200.f);
+	    MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.30f);
+	    ControlBox(("##"+std::string(label)).c_str(), MCP::current_device, curr_controls.at(MCP::current_device));
+		if (help) {
+		    MCP_API::SameLine();    
+            HelpMarker(help);
+		}
+    }
+};
+bool MCP::Settings::CycleControls()
+{
+    bool settingsChanged = false;
+
+	auto temp = cycle_controls.load();
+	if (MCP_API::Checkbox("Cycle Controls", &temp)) {
+		cycle_controls.store(temp);
+		settingsChanged = true;
+	}
+	if (!cycle_controls) {
+		return settingsChanged ;
+	}
+	
+
+    if (current_device != Input::DEVICE::kUnknown) {
+
+		auto before = cycle_L;
+		RenderControl(cycle_L,"Cycle L");
+		if (before != cycle_L) {
+			settingsChanged = true;
+		}
+
+		before = cycle_R;
+		RenderControl(cycle_R,"Cycle R");
+		if (before != cycle_R) {
+			settingsChanged = true;
+		}
+	}
+
+    return settingsChanged;
 }
 
 void MCP::Settings::to_json()
@@ -240,7 +350,7 @@ void MCP::Settings::to_json()
 	Value enabled_devices_(kObjectType);
 	for (const auto& [device, enabled] : enabled_devices) {
 		const auto device_str = device_to_string(device);
-		Value device_json(device_str.c_str(), allocator); // Convert std::string to RapidJSON string
+		Value device_json(device_str.c_str(), allocator);
 		enabled_devices_.AddMember(device_json, enabled, allocator);
 	}
 	root.AddMember("enabled_devices", enabled_devices_, allocator);
@@ -257,10 +367,31 @@ void MCP::Settings::to_json()
 		for (const auto key : keys) {
 			device_keys.PushBack(key, allocator);
 		}
-		Value device_json(device_str.c_str(), allocator); // Convert std::string to RapidJSON string
+		Value device_json(device_str.c_str(), allocator);
 		prompt_keys_json.AddMember(device_json, device_keys, allocator);
 	}
 	root.AddMember("keys", prompt_keys_json, allocator);
+
+	// cycle enabled (std::atomic cycle_controls)
+	Value a_cycle_controls(kObjectType);
+	a_cycle_controls.AddMember("cycle_controls", cycle_controls.load(), allocator);
+
+	// cycle_L
+	Value a_cycle_L(kObjectType);
+	for (const auto& [device, key] : cycle_L) {
+		const auto device_str = Input::device_to_string(device);
+		Value device_json(device_str.c_str(), allocator);
+		a_cycle_L.AddMember(device_json, key, allocator);
+	}
+	root.AddMember("cycle_L", a_cycle_L, allocator);
+	// cycle_R
+	Value a_cycle_R(kObjectType);
+	for (const auto& [device, key] : cycle_R) {
+		const auto device_str = Input::device_to_string(device);
+		Value device_json(device_str.c_str(), allocator);
+		a_cycle_R.AddMember(device_json, key, allocator);
+	}
+	root.AddMember("cycle_R", a_cycle_R, allocator);
 
 	// theme
 	Value theme(kObjectType);
@@ -392,6 +523,33 @@ void MCP::Settings::from_json()
 		logger::error("Failed to find keys in settings.json");
 	}
 
+	if (mcp.HasMember("cycle_controls")) {
+		cycle_controls = mcp["cycle_controls"].GetBool();
+	}
+
+	if (mcp.HasMember("cycle_L")) {
+		auto& cycle_L_json = mcp["cycle_L"];
+		for (auto it = cycle_L_json.MemberBegin(); it != cycle_L_json.MemberEnd(); ++it) {
+			const auto device = Input::from_string_to_device(it->name.GetString());
+			if (device == Input::DEVICE::kUnknown) {
+				logger::error("Unknown device in settings.json");
+				continue;
+			}
+			cycle_L[device] = it->value.GetUint();
+		}
+	}
+	if (mcp.HasMember("cycle_R")) {
+		auto& cycle_R_json = mcp["cycle_R"];
+		for (auto it = cycle_R_json.MemberBegin(); it != cycle_R_json.MemberEnd(); ++it) {
+			const auto device = Input::from_string_to_device(it->name.GetString());
+			if (device == Input::DEVICE::kUnknown) {
+				logger::error("Unknown device in settings.json");
+				continue;
+			}
+			cycle_R[device] = it->value.GetUint();
+		}
+	}
+
 	// special commands
 	if (mcp.HasMember("special_commands")) {
 		auto& special_commands = mcp["special_commands"];
@@ -409,76 +567,6 @@ void MCP::Settings::from_json()
 		if (theme.HasMember("font_shadow")) font_shadow = theme["font_shadow"].GetFloat();
 	}
 }
-
-namespace {
-    void ControlBox(const char* label, const Input::DEVICE selected_device, uint32_t& selected_key)
-    {
-
-	     //dropdown with keys for selected device
-	    const auto device_str = std::string(device_to_string(selected_device));
-	    const auto converted_key = selected_key; // Input::Manager::Convert(selected_key, selected_device);
-	    if (MCP_API::BeginCombo(label, SKSE::InputMap::GetKeyName(converted_key).c_str())) {
-		    for (const auto& key_code : Input::Manager::GetKeys(selected_device)) {
-			    const auto converted_keycode = key_code; // Input::Manager::Convert(key_code, selected_device);
-			    const auto key_name = SKSE::InputMap::GetKeyName(converted_keycode);
-			    if (key_name.empty()) {
-				    continue;
-			    }
-			    const bool isSelected = converted_key == converted_keycode;
-			    if (MCP_API::Selectable((key_name+std::format("##{}",converted_key)).c_str(), isSelected)) {
-				    if (!isSelected) {
-					    selected_key = key_code;
-				    }
-			    }
-			    if (isSelected) MCP_API::SetItemDefaultFocus();
-		    }
-		    MCP_API::EndCombo();
-	    }
-    }
-
-    void DeviceBox(const char* label)
-    {
-		size_t index = 0; 
-		while (!MCP::Settings::IsEnabled(MCP::current_device)) {
-			auto it = MCP::Settings::prompt_keys.begin();
-			std::advance(it, index);
-			if (it == MCP::Settings::prompt_keys.end()) {
-				MCP::current_device = Input::DEVICE::kUnknown;
-				break;
-			}
-			MCP::current_device = it->first;
-			++index;
-		}
-	    if (MCP_API::BeginCombo(label, device_to_string(MCP::current_device).data())) {
-		    for (const auto& device : MCP::Settings::prompt_keys | std::views::keys) {
-				if (!MCP::Settings::IsEnabled(device)) {
-					continue;
-				}
-			    const bool isSelected = MCP::current_device == device;
-			    if (MCP_API::Selectable(device_to_string(device).data(), isSelected)) {
-				    if (!isSelected) {
-                        MCP::current_device = device;
-				    }
-			    }
-			    if (isSelected) MCP_API::SetItemDefaultFocus();
-		    }
-		    MCP_API::EndCombo();
-	    }
-    }
-
-    void RenderControl(std::map<Input::DEVICE, uint32_t>& curr_controls, const char* label, const char* help=nullptr)
-    {
-	    MCP_API::Text(label);
-	    MCP_API::SameLine();
-	    MCP_API::SetCursorPosX(200.f);
-	    MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.30f);
-	    ControlBox(("##"+std::string(label)).c_str(), MCP::current_device, curr_controls.at(MCP::current_device));
-		if (help) {
-		    MCP_API::SameLine();    
-            HelpMarker(help);
-		}
-    }
-};
 
 void __stdcall MCP::RenderControls()
 {
@@ -521,6 +609,10 @@ void __stdcall MCP::RenderControls()
 			    key.at(i) = curr_controls[device];
 		    }
 	    }
+	}
+
+	if (Settings::CycleControls()) {
+		settingsChanged = true;
 	}
 
 

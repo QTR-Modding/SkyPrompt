@@ -32,10 +32,13 @@ namespace MCP {
 
         inline int n_max_buttons = 4;
 		inline std::map<Input::DEVICE,std::vector<uint32_t>> prompt_keys;
+        inline std::map<Input::DEVICE, uint32_t> cycle_L;
+        inline std::map<Input::DEVICE, uint32_t> cycle_R;
 
         inline std::atomic shouldReloadPromptSize=true;
         inline std::atomic shouldReloadLifetime=true;
 	    inline std::atomic initialized{ false };
+		inline std::atomic cycle_controls = true;
 
 
 		inline std::map<Input::DEVICE, bool> enabled_devices = {
@@ -59,6 +62,7 @@ namespace MCP {
 
 		bool FontSettings();
 		void LoadDefaultPromptKeys();
+		bool CycleControls();
 
         void to_json();
         void from_json();

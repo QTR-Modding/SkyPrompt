@@ -33,6 +33,7 @@ namespace IconFont
 		void ReloadFonts();
 
 		[[nodiscard]] ImFont* GetLargeFont() const;
+		[[nodiscard]] ImFont* GetSmallFont() const;
 
 		[[nodiscard]] const IconTexture* GetStepperLeft() const;
 		[[nodiscard]] const IconTexture* GetStepperRight() const;
@@ -69,6 +70,7 @@ namespace IconFont
 		const std::string fontPath{ R"(Data\Interface\ImGuiIcons\Fonts\)" };
 
 		ImFont* largeFont{ nullptr };
+		ImFont* smallFont{ nullptr };
 
 		IconTexture stepperLeft{ L"StepperLeft"sv };
 		IconTexture stepperRight{ L"StepperRight"sv };
@@ -218,6 +220,10 @@ namespace IconFont
 
 namespace ImGui
 {
+    ImVec2 ButtonIcon(const IconFont::IconTexture* a_texture);
+
+	void DrawCycleIndicators(SkyPromptAPI::ClientID curr_index, SkyPromptAPI::ClientID queue_size);
+
 	void AddTextWithShadow(
         ImDrawList* draw_list,
         ImFont* font,

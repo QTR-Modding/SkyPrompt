@@ -87,8 +87,8 @@ namespace SkyPromptAPI {
         "ProcessSendPrompt",                     /* hostName */
         bool,                                       /* returnType */
         false,                                      /* defaultValue */
-        (PromptSink* a_sink, bool a_force, ClientID a_clientID), /* signature */
-        (a_sink, a_force, a_clientID)         /* callArgs */
+        (PromptSink* a_sink, ClientID a_clientID), /* signature */
+        (a_sink, a_clientID)         /* callArgs */
     );
 
     DECLARE_API_FUNC_EX(

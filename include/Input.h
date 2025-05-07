@@ -2,7 +2,7 @@
 
 namespace Input
 {
-	enum class DEVICE
+	enum DEVICE
 	{
 		kUnknown = 0,
 		kKeyboardMouse,
@@ -13,6 +13,8 @@ namespace Input
 
 	std::string device_to_string(DEVICE a_device);
 	DEVICE from_string_to_device(const std::string& a_device);
+	RE::INPUT_DEVICE to_RE_device(DEVICE a_device);
+	DEVICE from_RE_device(RE::INPUT_DEVICE a_device);
 
 	class Manager final :
 		public clib_util::singleton::ISingleton<Manager>

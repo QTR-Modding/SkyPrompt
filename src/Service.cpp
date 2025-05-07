@@ -1,7 +1,7 @@
 #include "Service.h"
 #include "Renderer.h"
 
-bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, const bool a_force, const SkyPromptAPI::ClientID a_clientID) {
+bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID) {
 
 	if (!a_sink) {
 		return false;
@@ -11,26 +11,16 @@ bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, const bool a_force, con
 	}
 
 	const auto manager = MANAGER(ImGui::Renderer);
-	if (manager->IsInQueue(a_sink, true)) {
+	if (manager->IsInQueue(a_clientID, a_sink, true)) {
 		return false;
 	}
 
-	std::set<SkyPromptAPI::EventID> event_ids;
     for (const auto new_prompts = a_sink->GetPrompts(); auto& prompt : new_prompts) {
-		event_ids.insert(prompt.eventID);
 		if (prompt.text.empty()) {
 			logger::warn("Empty prompt text");
 			return false;
 		}
 	}
-	const auto n_prompts = event_ids.size();
-
-    if (const auto n_current_prompts = manager->GetPromptKeys().size();
-		n_current_prompts + n_prompts > MCP::Settings::n_max_buttons) {
-		if (a_force) manager->Clear(true);
-		else return false;
-	}
-
 	return manager->Add2Q(a_sink, a_clientID);
 }
 
@@ -44,11 +34,11 @@ void ProcessRemovePrompt(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::C
 		return;
 	}
 	const auto manager = MANAGER(ImGui::Renderer);
-	if (!manager->IsInQueue(a_sink)) {
+	if (!manager->IsInQueue(a_clientID, a_sink)) {
 		return;
 	}
 
-	manager->RemoveFromQ(a_sink);
+	manager->RemoveFromQ(a_clientID, a_sink);
 }
 
 SkyPromptAPI::ClientID ProcessRequestClientID()
@@ -57,5 +47,6 @@ SkyPromptAPI::ClientID ProcessRequestClientID()
 	if (Interactions::last_clientID == std::numeric_limits<SkyPromptAPI::ClientID>::max()) {
 		return 0;
 	}
-	return ++Interactions::last_clientID;
+	const auto a_clientID = ++Interactions::last_clientID;
+	return MANAGER(ImGui::Renderer)->InitializeClient(a_clientID) ? a_clientID : 0;
 }

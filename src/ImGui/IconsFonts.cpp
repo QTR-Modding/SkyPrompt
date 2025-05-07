@@ -1,4 +1,4 @@
-#include "IconsFonts.h"
+﻿#include "IconsFonts.h"
 #include "IconsFontAwesome6.h"
 #include "Input.h"
 #include "Renderer.h"
@@ -92,9 +92,11 @@ namespace IconFont
 		//const auto a_iconsize = a_fontsize * 1.f;
 		const auto a_largefontsize = a_fontsize * 1.2f;
 		//const auto a_largeiconsize = a_largefontsize * 1.f;
+		const auto a_smallfontsize = a_fontsize * 0.65f;
 
 		io.FontDefault = LoadFontIconSet(a_fontsize, ranges);
 		largeFont = LoadFontIconSet(a_largefontsize, ranges);
+		smallFont = LoadFontIconSet(a_smallfontsize, ranges);
 
 		io.Fonts->Build();
 
@@ -120,7 +122,11 @@ namespace IconFont
 		return largeFont;
 	}
 
-	const IconTexture* Manager::GetStepperLeft() const
+	ImFont* Manager::GetSmallFont() const {
+		return smallFont;
+    }
+
+    const IconTexture* Manager::GetStepperLeft() const
 	{
 		return &stepperLeft;
 	}
@@ -192,15 +198,6 @@ namespace IconFont
 
 namespace {
 
-    ImVec2 ButtonIcon(const IconFont::IconTexture* a_texture)
-    {
-	    using namespace MCP::Settings;
-	    const ImVec2 a_size = {prompt_size*icon2font_ratio, prompt_size*icon2font_ratio};
-	    ImGui::Image(reinterpret_cast<ImTextureID>(a_texture->srView.Get()), a_size);
-
-	    return a_size;
-    }
-
     void DrawCircle(ImDrawList* drawList, const ImVec2 a_center, const float a_radius, const float progress, const float thickness,
         const std::optional<uint32_t> a_color = std::nullopt, const std::optional<float> start_angle = std::nullopt)
     {
@@ -247,6 +244,55 @@ namespace {
         const auto p3 = ImVec2(iconCenter.x + triangle_width * 0.5f, iconCenter.y - outer_radius - triangle_height); // Top right
 		auto color = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 200);
         drawList->AddTriangleFilled(p1, p2, p3, color);
+    }
+}
+
+
+ImVec2 ImGui::ButtonIcon(const IconFont::IconTexture* a_texture)
+{
+	using namespace MCP::Settings;
+	const ImVec2 a_size = {prompt_size*icon2font_ratio, prompt_size*icon2font_ratio};
+	ImGui::Image(reinterpret_cast<ImTextureID>(a_texture->srView.Get()), a_size);
+
+	return a_size;
+}
+
+void ImGui::DrawCycleIndicators(SkyPromptAPI::ClientID curr_index, SkyPromptAPI::ClientID queue_size)
+{
+	auto* iconMgr  = MANAGER(IconFont);
+    auto* inputMgr = MANAGER(Input);
+	auto curr_device = inputMgr->GetInputDevice();
+    const uint32_t keyL = MCP::Settings::cycle_L.at(curr_device);
+
+    const uint32_t keyR = MCP::Settings::cycle_R.at(curr_device);
+
+    const float iconSz = MCP::Settings::prompt_size *
+                         MCP::Settings::icon2font_ratio * 0.6f;
+
+	const float spacing = ImGui::GetFontSize() * 0.25f;
+    ImGui::Dummy(ImVec2(0.0f, spacing));
+
+    if (const auto* icoL = iconMgr->GetIcon(keyL))
+        ImGui::Image((ImTextureID)icoL->srView.Get(), {iconSz, iconSz});
+
+    ImGui::SameLine();
+
+    if (const auto* icoR = iconMgr->GetIcon(keyR))
+        ImGui::Image((ImTextureID)icoR->srView.Get(), {iconSz, iconSz});
+
+    ImGui::SameLine();
+
+	auto* smallFont = MANAGER(IconFont)->GetSmallFont();
+	if (smallFont) {
+        ImGui::PushFont(smallFont);
+        const std::string text = std::format("({}/{})", curr_index, queue_size);
+        const ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
+
+        const float textOffset = (iconSz - textSize.y) * 0.5f;
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset);
+
+        ImGui::TextUnformatted(text.c_str());
+		ImGui::PopFont();
     }
 }
 
@@ -297,7 +343,6 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const IconFont:
 	const auto outer_color = button_state > 3.f && progress > 0.f ? a_red : a_yellow;
 
     if (button_state > 2.f) {
-        //DrawCircle(a_drawlist, iconCenter, circle_radius, 1.f, radius / 6.f,a_red);
 		const auto a_radius = circle_radius * 0.6f;
 		const ImVec2 topLeft = iconCenter + ImVec2(-a_radius, -a_radius);
 		const ImVec2 bottomRight = iconCenter + ImVec2(a_radius, a_radius);
@@ -306,7 +351,6 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const IconFont:
 		}
 	}
 	if (button_state > 1.f) {
-        //DrawCircle(a_drawlist, iconCenter, circle_radius, 0.5f, radius / 6.f,a_red);
 		const auto a_radius = circle_radius * 0.6f;
 		const ImVec2 topRight = iconCenter + ImVec2(a_radius, -a_radius);
         const ImVec2 bottomLeft = iconCenter + ImVec2(-a_radius, a_radius);
@@ -338,8 +382,6 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const IconFont:
     const float textOffset = (rowHeight - textSize.y) * 0.5f;
     ImGui::SetCursorPosY(startY + textOffset);
     ImGui::SetCursorPosX(GetCursorPosX() + circle_radius - radius);
-
-    //ImGui::TextUnformatted(a_text);
 
     const ImVec2 textScreenPos = ImGui::GetCursorScreenPos();
 
