@@ -321,6 +321,26 @@ static ImVec2 WorldToScreenLoc(const RE::NiPoint3 position) {
     return screenLocOut;
 }
 
+constexpr float CLAMP_MAX_OVERSHOOT = -100;
+void FastClampToScreen(ImVec2& point) {
+    const ImVec2 rect = ImGui::GetIO().DisplaySize;
+    if (point.x < 0.0) {
+        const float overshootX = abs(point.x);
+        if (overshootX > CLAMP_MAX_OVERSHOOT) point.x += overshootX - CLAMP_MAX_OVERSHOOT;
+    } else if (point.x > rect.x) {
+        const float overshootX = point.x - rect.x;
+        if (overshootX > CLAMP_MAX_OVERSHOOT) point.x -= overshootX - CLAMP_MAX_OVERSHOOT;
+    }
+
+    if (point.y < 0.0) {
+        const float overshootY = abs(point.y);
+        if (overshootY > CLAMP_MAX_OVERSHOOT) point.y += overshootY - CLAMP_MAX_OVERSHOOT;
+    } else if (point.y > rect.y) {
+        const float overshootY = point.y - rect.y;
+        if (overshootY > CLAMP_MAX_OVERSHOOT) point.y -= overshootY - CLAMP_MAX_OVERSHOOT;
+    }
+}
+
 ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
 {
 	if (const auto ref = GetAttachedObject()) {
@@ -332,7 +352,9 @@ ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
 
         const RE::NiPoint3 pos = ref->GetPosition() + RE::NiPoint3{center.x, center.y, bound.second.z + 16};
 
-        const ImVec2 pos2d = WorldToScreenLoc(pos);
+        ImVec2 pos2d = WorldToScreenLoc(pos);
+
+        FastClampToScreen(pos2d);
 
 		return pos2d;
 	}
