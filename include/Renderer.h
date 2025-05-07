@@ -15,11 +15,12 @@ struct InteractionButton
 	Interaction interaction;
 	std::string text;
 	SkyPromptAPI::PromptType type = SkyPromptAPI::PromptType::kSinglePress;
+	RE::ObjectRefHandle attached_object;
 
 	[[nodiscard]] uint32_t button_key() const;
 
 	// constructor
-    explicit InteractionButton(const Interaction& a_interaction, SkyPromptAPI::PromptType a_type) : interaction(a_interaction), type(a_type) {text=interaction.name();}
+    explicit InteractionButton(const Interaction& a_interaction, SkyPromptAPI::PromptType a_type, RefID a_refid);
 	bool operator==(const InteractionButton& a_rhs) const { return text == a_rhs.text; }
 	bool operator<(const InteractionButton& a_rhs) const { return interaction < a_rhs.interaction; }
 	[[nodiscard]] std::optional<std::pair<float,float>> Show(float alpha = false, const std::string& extra_text="", float progress=0.f, float button_state = -1.f) const;
@@ -92,8 +93,6 @@ namespace ImGui::Renderer
 		void RemoveFromSinks(SkyPromptAPI::PromptSink* a_prompt_sink);
 		void ButtonStateActions();
 
-		RE::ObjectRefHandle attached_object;
-
 	public:
 
         SubManager() = default;
@@ -101,7 +100,7 @@ namespace ImGui::Renderer
 
         ButtonState buttonState;
 
-        void Add2Q(const Interaction& a_interaction, SkyPromptAPI::PromptType a_type, bool show=true);
+        void Add2Q(const Interaction& a_interaction, SkyPromptAPI::PromptType a_type, RefID a_refid, bool show=true);
         bool RemoveFromQ(const Interaction& a_interaction);
         void RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink);
 		void RemoveCurrentPrompt();
@@ -122,21 +121,15 @@ namespace ImGui::Renderer
 		std::vector<Interaction> GetInteractions() const;
 		Interaction GetCurrentInteraction() const;
 		std::vector<InteractionButton> GetButtons() const;
+        const InteractionButton* GetCurrentButton() const;
 		void AddSink(const Interaction& a_interaction, SkyPromptAPI::PromptSink* a_sink);
 		std::map<Interaction, std::vector<SkyPromptAPI::PromptSink*>> GetSinks() const { return sinks; }
 		bool IsInQueue(SkyPromptAPI::PromptSink* a_sink) const;
 		bool IsInQueue(const Interaction& a_interaction) const;
 		void SendEvent(const Interaction& a_interaction, SkyPromptAPI::PromptEventType event_type, std::pair<float,float> delta = {0.f,0.f});
 
-		bool Attach2Object(RefID a_refid);
-		bool IsAttached2Object() const { return attached_object.get().get(); }
-		ImVec2 GetAttachedObjectPos() const;
-		RefID GetAttachedObjectID() const {
-            if (auto obj = attached_object.get().get()) {
-				return obj->GetFormID(); 
-			}
-            return 0;
-		}
+        ImVec2 GetAttachedObjectPos() const;
+        RE::TESObjectREFR* GetAttachedObject() const;
 	};
 
 	class Manager : public clib_util::singleton::ISingleton<Manager>
@@ -157,7 +150,7 @@ namespace ImGui::Renderer
 		mutable std::shared_mutex mutex_;
 
         std::unique_ptr<SubManager>& Add2Q(const Interaction& a_interaction, SkyPromptAPI::PromptType a_type,
-                                           bool show = true, const std::map<Input::DEVICE, std::vector<uint32_t>>& buttonKeys = {});
+                                           RefID a_refid, bool show = true, const std::map<Input::DEVICE, std::vector<uint32_t>>& buttonKeys = {});
         bool Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID);
 		bool IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink, bool wake_up=false) const;
 		void RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) const;

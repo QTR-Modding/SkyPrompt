@@ -202,7 +202,6 @@ void ImGui::Renderer::Manager::ReArrange() {
 	std::map<SCENES::Event,std::vector<InteractionButton>> interactions;
 	std::map<Interaction,std::vector<SkyPromptAPI::PromptSink*>> sinks;
     std::map<Input::DEVICE, std::vector<uint32_t>> keys;
-    std::map<SCENES::Event, RefID> objects;
 
 	{
 		std::shared_lock lock(mutex_);
@@ -217,8 +216,6 @@ void ImGui::Renderer::Manager::ReArrange() {
 				
                 interactions[interaction.event].push_back(interaction_button);
             }
-
-            objects[a_manager->GetCurrentInteraction().event] = a_manager->GetAttachedObjectID();
 
 			for (const auto& [interaction, a_sinks] : a_manager->GetSinks()) {
 				if (const auto it = sinks.find(interaction); it != sinks.end()) {
@@ -237,15 +234,11 @@ void ImGui::Renderer::Manager::ReArrange() {
 	for (const auto& interaction_buttons : interactions | std::views::values) {
 		for (const auto& interaction_button : interaction_buttons) {
 			const auto& interaction = interaction_button.interaction;
-            if (const auto submanager = Add2Q(interaction, interaction_button.type, true, keys).get()) {
-                if (!submanager->GetAttachedObjectID() && objects.contains(interaction.event)) {
-                    submanager->Attach2Object(objects.at(interaction.event));
-				}
-			} 
-			else {
+			const auto a_ref = interaction_button.attached_object.get().get();
+			const auto a_refid = a_ref ? a_ref->GetFormID() : 0;
+            if (!Add2Q(interaction, interaction_button.type, a_refid, true, keys).get()) {
 				logger::error("Failed to add interaction to the queue");
-			}
-
+			} 
 		}
 	}
 
@@ -305,15 +298,6 @@ void ImGui::Renderer::SubManager::SendEvent(const Interaction& a_interaction, co
 	}
 }
 
-bool ImGui::Renderer::SubManager::Attach2Object(const RefID a_refid)
-{
-	if (const auto a_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_refid)) {
-		attached_object = a_ref->GetHandle();
-		return true;
-	}
-	return false;
-}
-
 static ImVec2 WorldToScreenLoc(const RE::NiPoint3 position) {
     static uintptr_t g_worldToCamMatrix = RELOCATION_ID(519579, 406126).address();         // 2F4C910, 2FE75F0
     static auto g_viewPort = (RE::NiRect<float>*)RELOCATION_ID(519618, 406160).address();  // 2F4DED0, 2FE8B98
@@ -336,7 +320,7 @@ static ImVec2 WorldToScreenLoc(const RE::NiPoint3 position) {
 
 ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
 {
-	if (const auto ref = attached_object.get().get()) {
+	if (const auto ref = GetAttachedObject()) {
         auto geo = Geometry(ref);
 
         const auto bound = geo.GetBoundingBox(ref->GetAngle(), ref->GetScale());
@@ -350,6 +334,14 @@ ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
 		return pos2d;
 	}
 	return {};
+}
+
+RE::TESObjectREFR* ImGui::Renderer::SubManager::GetAttachedObject() const {
+	std::shared_lock lock(q_mutex_);
+	if (const auto curr_button = interactQueue.current_button) {
+		return curr_button->attached_object.get().get();
+	}
+	return nullptr;
 }
 
 void ImGui::Renderer::SubManager::RemoveFromSinks(SkyPromptAPI::PromptSink* a_prompt_sink)
@@ -386,9 +378,9 @@ ImGui::Renderer::SubManager::~SubManager()
 	ClearQueue();
 }
 
-void ImGui::Renderer::SubManager::Add2Q(const Interaction& a_interaction, const SkyPromptAPI::PromptType a_type, const bool show)
+void ImGui::Renderer::SubManager::Add2Q(const Interaction& a_interaction, const SkyPromptAPI::PromptType a_type, const RefID a_refid, const bool show)
 {
-	const InteractionButton iButton(a_interaction, a_type);
+	const InteractionButton iButton(a_interaction, a_type,a_refid);
 	std::unique_lock lock(q_mutex_);
     if (const auto button = interactQueue.AddButton(iButton); button && show) {
 		std::shared_lock lock2(progress_mutex_);
@@ -473,8 +465,8 @@ void ImGui::Renderer::SubManager::WakeUpQueue() const {
 
 std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(
     const Interaction& a_interaction, const SkyPromptAPI::PromptType a_type,
-    const bool show, const std::map<Input::DEVICE, std::vector<uint32_t>>& buttonKeys) {
-    // WakeUpQueue();
+    const RefID a_refid, const bool show, const std::map<Input::DEVICE, std::vector<uint32_t>>& buttonKeys) {
+
     size_t index = 0;
     std::unique_lock lock(mutex_);
 	for (auto& a_manager : managers) {
@@ -482,10 +474,8 @@ std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(
             for (const auto& [a_device, keys] : buttonKeys.empty() ? MCP::Settings::prompt_keys : buttonKeys) {
                 ButtonSettings::SetInteractionKey(a_interaction, a_device, keys.at(index));
             }
-            // logger::info("Index: {}, event {}, action {}", index, static_cast<int>(a_interaction.event),
-            // static_cast<int>(a_interaction.action.action));
 			a_manager->WakeUpQueue();
-            a_manager->Add2Q(a_interaction, a_type, show);
+            a_manager->Add2Q(a_interaction, a_type, a_refid, show);
 			return a_manager;
         }
 		++index;
@@ -499,7 +489,7 @@ std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(
     for (const auto& [a_device, keys] : buttonKeys.empty() ? MCP::Settings::prompt_keys : buttonKeys) {
         ButtonSettings::SetInteractionKey(a_interaction, a_device, keys.at(index));
 	}
-    managers.back()->Add2Q(a_interaction, a_type, show);
+    managers.back()->Add2Q(a_interaction, a_type, a_refid, show);
 	return managers.back();
 }
 
@@ -518,10 +508,7 @@ bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, co
 		auto interaction = Interaction(event_id, action_id);
 		interaction.text = text;
 
-		if (const auto& submanager = Add2Q(interaction, a_type)) {
-			if (const auto a_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_refid)) {
-				submanager->Attach2Object(a_ref->GetFormID());
-			}
+		if (const auto& submanager = Add2Q(interaction, a_type, a_refid)) {
 			submanager->AddSink(interaction, a_prompt_sink);
 		}
 		else {
@@ -766,6 +753,14 @@ std::vector<InteractionButton> ImGui::Renderer::SubManager::GetButtons() const
 	return buttons;
 }
 
+const InteractionButton* ImGui::Renderer::SubManager::GetCurrentButton() const {
+	std::shared_lock lock(q_mutex_);
+	if (interactQueue.current_button) {
+		return interactQueue.current_button;
+	}
+	return nullptr;
+}
+
 void ImGui::Renderer::SubManager::AddSink(const Interaction& a_interaction, SkyPromptAPI::PromptSink* a_sink)
 {
 	{
@@ -810,6 +805,16 @@ uint32_t InteractionButton::button_key() const
 	const auto a_device = manager->GetInputDevice();
 	std::shared_lock lock(button_key_lock);
 	return GetInteractionKey(interaction, a_device);
+}
+
+InteractionButton::InteractionButton(const Interaction& a_interaction, const SkyPromptAPI::PromptType a_type, const RefID a_refid)
+{
+	interaction = a_interaction;
+	type = a_type;
+	text = a_interaction.name();
+	if (const auto a_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_refid)) {
+		attached_object = a_ref->GetHandle();
+	}
 }
 
 void ImGui::Renderer::Manager::Start()
@@ -879,8 +884,8 @@ void ImGui::Renderer::Manager::ShowQueue() const {
 	std::map<RefID,std::vector<SubManager*>> object_managers;
 	std::shared_lock lock(mutex_);
 	for (auto& a_manager : managers) {
-		if (a_manager->IsAttached2Object()) {
-			object_managers[a_manager->GetAttachedObjectID()].push_back(a_manager.get());
+		if (const auto a_ref = a_manager->GetAttachedObject()) {
+			object_managers[a_ref->GetFormID()].push_back(a_manager.get());
 		    continue;
 		}
 		a_manager->ShowQueue();
