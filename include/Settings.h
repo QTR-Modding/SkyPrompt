@@ -27,6 +27,7 @@ namespace ButtonSettings {
 
 	void SetInteractionKey(const Interaction& a_interaction, Input::DEVICE a_device, uint32_t converted_key);
 	uint32_t GetInteractionKey(const Interaction& a_interaction, Input::DEVICE a_device);
+	void RemoveInteractionKey(const Interaction& a_interaction);
 }
 
 namespace OtherSettings {

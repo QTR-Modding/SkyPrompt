@@ -17,7 +17,7 @@ struct InteractionButton
     SkyPromptAPI::PromptType type = SkyPromptAPI::PromptType::kSinglePress;
     RE::ObjectRefHandle attached_object;
 
-    [[nodiscard]] uint32_t button_key() const;
+    [[nodiscard]] uint32_t GetKey() const;
 
     explicit InteractionButton(const Interaction& a_interaction, SkyPromptAPI::PromptType a_type, RefID a_refid);
     bool operator==(const InteractionButton& a_rhs) const { return text == a_rhs.text; }
@@ -33,7 +33,7 @@ struct ButtonQueue {
     float lifetime=MCP::Settings::lifetime;
     float elapsed = 0.0f;
     [[nodiscard]] bool expired() const { return elapsed >= lifetime; }
-    bool IsHidden() const { return alpha <= 0.f; }
+    [[nodiscard]] bool IsHidden() const { return alpha <= 0.f; }
 
     std::set<InteractionButton> buttons;
     const InteractionButton* current_button=nullptr;
@@ -148,10 +148,10 @@ namespace ImGui::Renderer
         mutable std::shared_mutex mutex_;
 
         std::unique_ptr<SubManager>& Add2Q(const Interaction& a_interaction, SkyPromptAPI::PromptType a_type,
-                                           RefID a_refid, bool show = true, const std::map<Input::DEVICE, std::vector<uint32_t>>& buttonKeys = {});
+                                           RefID a_refid, bool show = true, const std::map<Input::DEVICE, uint32_t>& buttonKeys = {});
         bool Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID);
         bool IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink, bool wake_up=false) const;
-        void RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) const;
+        void RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink);
         [[nodiscard]] bool HasTask() const;
         void Start();
         void Stop();

@@ -43,7 +43,7 @@ void ImGui::Renderer::RenderPrompts() {
 
 std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha, const std::string& extra_text, const float progress, const float button_state) const
 {
-    const auto buttonKey = button_key();
+    const auto buttonKey = GetKey();
 	const auto icon_manager = MANAGER(IconFont);
 	if (icon_manager->unavailable_keys.contains(buttonKey)) return std::nullopt;
 	const std::string base_text = text; // Cache the base text
@@ -160,6 +160,7 @@ const InteractionButton* ButtonQueue::AddButton(const InteractionButton& a_butto
 
 bool ButtonQueue::RemoveButton(const Interaction& a_interaction)
 {
+	ButtonSettings::RemoveInteractionKey(a_interaction);
 	bool erased = false;
     if (current_button && current_button->interaction == a_interaction) {
 	    buttons.erase(*current_button);
@@ -201,7 +202,7 @@ const InteractionButton* ButtonQueue::Next() const {
 void ImGui::Renderer::Manager::ReArrange() {
 	std::map<SCENES::Event,std::vector<InteractionButton>> interactions;
 	std::map<Interaction,std::vector<SkyPromptAPI::PromptSink*>> sinks;
-    std::map<Input::DEVICE, std::vector<uint32_t>> keys;
+    std::map<Interaction,std::map<Input::DEVICE, uint32_t>> keys;
 
 	{
 		std::shared_lock lock(mutex_);
@@ -211,7 +212,7 @@ void ImGui::Renderer::Manager::ReArrange() {
 				auto& interaction = interaction_button.interaction;
 				for (auto i = Input::DEVICE::kKeyboardMouse; i < Input::DEVICE::kTotal;
                      i = static_cast<Input::DEVICE>(static_cast<int>(i) + 1)) {
-                    keys[i].push_back(ButtonSettings::GetInteractionKey(interaction, i));
+                    keys[interaction][i] = ButtonSettings::GetInteractionKey(interaction, i);
 				}
 				
                 interactions[interaction.event].push_back(interaction_button);
@@ -231,15 +232,17 @@ void ImGui::Renderer::Manager::ReArrange() {
 	Clear();
 
 	// distribute the interactions to the managers
+	int index = 0;
 	for (const auto& interaction_buttons : interactions | std::views::values) {
 		for (const auto& interaction_button : interaction_buttons) {
 			const auto& interaction = interaction_button.interaction;
 			const auto a_ref = interaction_button.attached_object.get().get();
 			const auto a_refid = a_ref ? a_ref->GetFormID() : 0;
-            if (!Add2Q(interaction, interaction_button.type, a_refid, true, keys).get()) {
-				logger::error("Failed to add interaction to the queue");
-			} 
+            if (!Add2Q(interaction, interaction_button.type, a_refid, true, keys.contains(interaction) ? keys.at(interaction) : std::map<Input::DEVICE, uint32_t>())) {  
+               logger::error("Failed to add interaction to the queue");  
+            }
 		}
+		++index;
 	}
 
 	// distribute the sinks to the managers
@@ -465,29 +468,42 @@ void ImGui::Renderer::SubManager::WakeUpQueue() {
 
 std::unique_ptr<SubManager>& ImGui::Renderer::Manager::Add2Q(
     const Interaction& a_interaction, const SkyPromptAPI::PromptType a_type,
-    const RefID a_refid, const bool show, const std::map<Input::DEVICE, std::vector<uint32_t>>& buttonKeys) {
+    const RefID a_refid, const bool show, const std::map<Input::DEVICE, uint32_t>& buttonKeys) {
 
     size_t index = 0;
     std::unique_lock lock(mutex_);
 	for (auto& a_manager : managers) {
         if (a_manager->HasQueue() && a_manager->GetInteractions().front().event == a_interaction.event) {
-            for (const auto& [a_device, keys] : buttonKeys.empty() ? MCP::Settings::prompt_keys : buttonKeys) {
-                ButtonSettings::SetInteractionKey(a_interaction, a_device, keys.at(index));
-            }
+			for (auto [a_device,keys]: MCP::Settings::prompt_keys) {
+				if (!buttonKeys.contains(a_device) || buttonKeys.at(a_device) == 0) {
+                    ButtonSettings::SetInteractionKey(a_interaction, a_device, keys.at(index));
+				}
+				else {
+					ButtonSettings::SetInteractionKey(a_interaction, a_device, buttonKeys.at(a_device));
+				}
+			}
 			a_manager->WakeUpQueue();
             a_manager->Add2Q(a_interaction, a_type, a_refid, show);
 			return a_manager;
         }
 		++index;
 	}
-	if (managers.size() < MCP::Settings::n_max_buttons) {
+
+    if (managers.size() < MCP::Settings::n_max_buttons) {
 	    // if no manager has the event, make a new manager
 	    managers.emplace_back(std::make_unique<SubManager>());
-
 	}
-    //logger::info("Index: {}, event {}, action {}", index, static_cast<int>(a_interaction.event), static_cast<int>(a_interaction.action.action));
-    for (const auto& [a_device, keys] : buttonKeys.empty() ? MCP::Settings::prompt_keys : buttonKeys) {
-        ButtonSettings::SetInteractionKey(a_interaction, a_device, keys.at(index));
+	else {
+		index = MCP::Settings::n_max_buttons - 1;
+	}
+
+    for (auto [a_device,keys]: MCP::Settings::prompt_keys) {
+		if (!buttonKeys.contains(a_device) || buttonKeys.at(a_device) == 0) {
+            ButtonSettings::SetInteractionKey(a_interaction, a_device, keys.at(index));
+		}
+		else {
+			ButtonSettings::SetInteractionKey(a_interaction, a_device, buttonKeys.at(a_device));
+		}
 	}
     managers.back()->Add2Q(a_interaction, a_type, a_refid, show);
 	return managers.back();
@@ -558,11 +574,12 @@ bool ImGui::Renderer::Manager::IsInQueue(SkyPromptAPI::PromptSink* a_prompt_sink
 	return result;
 }
 
-void ImGui::Renderer::Manager::RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) const {
-	std::unique_lock lock(mutex_);
-	for (const auto& a_manager : managers) {
+void ImGui::Renderer::Manager::RemoveFromQ(SkyPromptAPI::PromptSink* a_prompt_sink) {
+	for (std::unique_lock lock(mutex_);
+		const auto& a_manager : managers) {
 		a_manager->RemoveFromQ(a_prompt_sink);
 	}
+	CleanUpQueue();
 }
 
 bool Manager::HasTask() const {
@@ -698,7 +715,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 
 uint32_t ImGui::Renderer::SubManager::GetPromptKey() const {
 	if (std::shared_lock lock(q_mutex_); interactQueue.current_button) {
-		return interactQueue.current_button->button_key();
+		return interactQueue.current_button->GetKey();
 	}
 	return 0;
 }
@@ -798,12 +815,11 @@ bool ImGui::Renderer::SubManager::IsInQueue(const Interaction& a_interaction) co
 	return false;
 }
 
-uint32_t InteractionButton::button_key() const
+uint32_t InteractionButton::GetKey() const
 {
 	using namespace ButtonSettings;
 	const auto manager = MANAGER(Input)->GetSingleton();
 	const auto a_device = manager->GetInputDevice();
-	std::shared_lock lock(button_key_lock);
 	return GetInteractionKey(interaction, a_device);
 }
 
