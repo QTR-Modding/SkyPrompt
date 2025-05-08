@@ -19,4 +19,6 @@ set(headers ${headers}
     src/ImGui/IconsFonts.h
     src/ImGui/IconsFontAwesome6.h
     src/ImGui/FormComboBox.h
+    include/PapyrusAPI/Bindings.h
+    include/PapyrusAPI/Sinks.h
 )
