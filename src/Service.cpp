@@ -47,6 +47,8 @@ SkyPromptAPI::ClientID ProcessRequestClientID()
 	if (Interactions::last_clientID == std::numeric_limits<SkyPromptAPI::ClientID>::max()) {
 		return 0;
 	}
-	const auto a_clientID = ++Interactions::last_clientID;
-	return MANAGER(ImGui::Renderer)->InitializeClient(a_clientID) ? a_clientID : 0;
+	if (MANAGER(ImGui::Renderer)->InitializeClient(Interactions::last_clientID+1)) {
+	    return ++Interactions::last_clientID;
+	}
+	return 0;
 }
