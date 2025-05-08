@@ -650,24 +650,12 @@ bool ImGui::Renderer::Manager::Add2Q(SkyPromptAPI::PromptSink* a_prompt_sink, co
 			if (key == 0) {
 				continue;
 			}
-			Input::DEVICE device;
-			switch (a_device) {
-			case RE::INPUT_DEVICE::kKeyboard:
-				device = Input::DEVICE::kKeyboardMouse;
-				break;
-			case RE::INPUT_DEVICE::kMouse:
-				device = Input::DEVICE::kKeyboardMouse;
-				break;
-			case RE::INPUT_DEVICE::kGamepad:
-				device = RE::ControlMap::GetSingleton()->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis ? Input::DEVICE::kGamepadOrbis : Input::DEVICE::kGamepadDirectX;
-				break;
-			default:
+			Input::DEVICE device = Input::from_RE_device(a_device);
+			if (device == Input::DEVICE::kUnknown) {
 				continue;
 			}
 			temp_button_keys[device] = key;
 		}
-
-
 		if (const auto submanager = Add2Q(a_clientID, interaction, a_type, a_refid,true)) {
 			const auto a_list = GetManagerList(a_clientID);
 			if (!a_list) {
