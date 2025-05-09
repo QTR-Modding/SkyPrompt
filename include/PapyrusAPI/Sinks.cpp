@@ -1,6 +1,18 @@
 #include "Sinks.h"
 
-void PapyrusAPI::PapyrusSink::ProcessEvent(SkyPromptAPI::PromptEvent event) {
+PapyrusAPI::PapyrusSink::~PapyrusSink() {
+	std::unique_lock lock(prompt_mutex_);
+	prompt = {};
+	last_type = {};
+	clientID = 0;
+	text = "";
+	bindings.clear();
+	prompt.button_key = {};
+	prompt.text = "";
+	prompt.refid = 0;
+}
+
+void PapyrusAPI::PapyrusSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) {
 	auto* vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
     if (!vm) return;
 
@@ -28,44 +40,95 @@ void PapyrusAPI::PapyrusSink::ProcessEvent(SkyPromptAPI::PromptEvent event) {
     vm->SendEventAll("SkyPromptEvent", args);
 }
 
-PapyrusAPI::PapyrusSink* PapyrusAPI::AddPrompt(SkyPromptAPI::ClientID clientID, const std::string& text,
-    const SkyPromptAPI::EventID eventID, const SkyPromptAPI::ActionID actionID, const SkyPromptAPI::PromptType type,
-    const RE::TESForm* refForm, std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>>* buttonKeys) {
-
-	if (const auto a_sink = GetPrompt(clientID, eventID, actionID)) {
-		a_sink->prompt.text = text;
-		a_sink->prompt.type = type;
-		a_sink->prompt.refid = refForm ? refForm->GetFormID() : 0;
-		if (buttonKeys) {
-			a_sink->prompt.button_key = *buttonKeys;
-		}
-		return a_sink;
-	}
-
-	auto sink = std::make_unique<PapyrusSink>(clientID);
-	sink->prompt.text = text;
-	sink->prompt.eventID = eventID;
-	sink->prompt.actionID = actionID;
-	sink->prompt.type = type;
-	sink->prompt.refid = refForm ? refForm->GetFormID() : 0;
-	auto* sink_ptr = sink.get();
-	std::unique_lock lock(mutex_);
-	papyrusSinks[clientID][{eventID,actionID}] = std::move(sink);
-	return sink_ptr;
+std::span<const SkyPromptAPI::Prompt> PapyrusAPI::PapyrusSink::GetPrompts() {
+    std::shared_lock lock(prompt_mutex_);
+    return { &prompt, 1 };
 }
 
-PapyrusAPI::PapyrusSink* PapyrusAPI::GetPrompt(SkyPromptAPI::ClientID const clientID, SkyPromptAPI::EventID eventID, SkyPromptAPI::ActionID actionID)
+SkyPromptAPI::EventID PapyrusAPI::PapyrusSink::GetEventID() {
+    std::shared_lock lock(prompt_mutex_);
+    return prompt.eventID;
+}
+
+SkyPromptAPI::ActionID PapyrusAPI::PapyrusSink::GetActionID() {
+    std::shared_lock lock(prompt_mutex_);
+    return prompt.actionID;
+}
+
+void PapyrusAPI::PapyrusSink::SetKeys(const std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>>& buttonKeys)
 {
-	std::shared_lock lock(mutex_);
-	if (papyrusSinks.empty()) {
-		return nullptr;
+
+	std::unique_lock lock(prompt_mutex_);
+	prompt.button_key = {};
+    bindings = buttonKeys;
+	prompt.button_key = bindings;
+}
+
+void PapyrusAPI::PapyrusSink::SetText(const std::string& a_text)
+{
+	if (!a_text.empty()) {
+		logger::info("SetText: {}", a_text.c_str());
+		std::unique_lock lock(prompt_mutex_);
+		prompt.text = "";
+		text = a_text;
+		prompt.text = text;
 	}
-	if (!papyrusSinks.contains(clientID)) {
-		return nullptr;
+}
+
+void PapyrusAPI::PapyrusSink::SetType(const SkyPromptAPI::PromptType a_type)
+{
+	std::unique_lock lock(prompt_mutex_);
+	prompt.type = a_type;
+}
+
+void PapyrusAPI::PapyrusSink::SetRefID(const RE::FormID a_refid)
+{
+	std::unique_lock lock(prompt_mutex_);
+	prompt.refid = a_refid;
+}
+
+void PapyrusAPI::PapyrusSink::SetEventID(const SkyPromptAPI::EventID a_eventID)
+{
+	std::unique_lock lock(prompt_mutex_);
+	prompt.eventID = a_eventID;
+}
+
+void PapyrusAPI::PapyrusSink::SetActionID(const SkyPromptAPI::ActionID a_actionID)
+{
+	std::unique_lock lock(prompt_mutex_);
+	prompt.actionID = a_actionID;
+}
+
+bool PapyrusAPI::AddPrompt(SkyPromptAPI::ClientID clientID, const std::string& text,
+                           const SkyPromptAPI::EventID eventID, const SkyPromptAPI::ActionID actionID,
+                           const SkyPromptAPI::PromptType type,
+                           const RE::TESForm* refForm,
+                           const std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>>& buttonKeys) {
+    {
+        std::shared_lock lock(mutex_);
+        if (papyrusSinks.contains(clientID)) {
+			auto& sinks = papyrusSinks.at(clientID);
+            if (const auto it = sinks.find({ eventID, actionID }); it != sinks.end()) {
+				lock.unlock();
+				std::unique_lock lock2(mutex_);
+				it->second->SetKeys(buttonKeys);
+				it->second->SetText(text);
+				it->second->SetType(type);
+				it->second->SetRefID(refForm ? refForm->GetFormID() : 0);
+				return true;
+			}
+        }
     }
 
-	auto& sinks = papyrusSinks.at(clientID);
-	const auto it = sinks.find({ eventID, actionID });
-    return it != sinks.end() ? it->second.get() : nullptr;
-
+	std::unique_lock lock(mutex_);
+	papyrusSinks[clientID][{eventID,actionID}] = std::make_unique<PapyrusSink>(clientID);
+	const auto& sinks = papyrusSinks.at(clientID);
+	auto& sink = sinks.at({ eventID, actionID });
+	sink->SetKeys(buttonKeys);
+	sink->SetText(text);
+	sink->SetType(type);
+	sink->SetRefID(refForm ? refForm->GetFormID() : 0);
+	sink->SetEventID(eventID);
+	sink->SetActionID(actionID);
+	return true;
 }
