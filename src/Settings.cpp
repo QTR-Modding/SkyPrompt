@@ -35,31 +35,3 @@ void Settings::LoadSettings() const
 		logger::error("Failed to load settings: {}", e.what());
 	}
 }
-
-void ButtonSettings::SetInteractionKey(const Interaction& a_interaction, Input::DEVICE a_device, const uint32_t converted_key)
-{
-    std::unique_lock lock(button_key_lock);
-	if (interactionKeys.contains(a_interaction)) {
-		interactionKeys.at(a_interaction)[a_device] = converted_key;
-	}
-	else {
-		interactionKeys[a_interaction] = { {a_device, converted_key} };
-	}
-}
-
-uint32_t ButtonSettings::GetInteractionKey(const Interaction& a_interaction, const Input::DEVICE a_device)
-{
-	std::shared_lock lock(button_key_lock);
-	if (interactionKeys.contains(a_interaction)) {
-		return interactionKeys.at(a_interaction)[a_device];
-	}
-	return 0;
-}
-
-void ButtonSettings::RemoveInteractionKey(const Interaction& a_interaction)
-{
-	std::unique_lock lock(button_key_lock);
-	if (interactionKeys.contains(a_interaction)) {
-		interactionKeys.erase(a_interaction);
-	}
-}
