@@ -1,7 +1,7 @@
 #include "Service.h"
 #include "Renderer.h"
 
-bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID) {
+bool ProcessSendPrompt(const SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID) {
 
 	if (!a_sink) {
 		return false;
@@ -24,7 +24,7 @@ bool ProcessSendPrompt(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::Cli
 	return manager->Add2Q(a_sink, a_clientID);
 }
 
-void ProcessRemovePrompt(SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID) {
+void ProcessRemovePrompt(const SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID) {
 
 	if (!a_sink) {
 		return;

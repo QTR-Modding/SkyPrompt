@@ -10,9 +10,9 @@ namespace PapyrusAPI {
 
 		~PapyrusSink() override;
 
+        void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
+        std::span<const SkyPromptAPI::Prompt> GetPrompts() const override;
 
-        void ProcessEvent(SkyPromptAPI::PromptEvent event) override;
-        std::span<const SkyPromptAPI::Prompt> GetPrompts() override;
         [[nodiscard]] SkyPromptAPI::EventID GetEventID();
         [[nodiscard]] SkyPromptAPI::ActionID GetActionID();
         void SetKeys(const std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>>& buttonKeys);
@@ -21,10 +21,9 @@ namespace PapyrusAPI {
 		void SetRefID(RE::FormID a_refid);
 		void SetEventID(SkyPromptAPI::EventID a_eventID);
 		void SetActionID(SkyPromptAPI::ActionID a_actionID);
-	protected:
-        std::shared_mutex prompt_mutex_;
-        SkyPromptAPI::PromptEventType last_type;
 	private:
+        mutable SkyPromptAPI::PromptEventType last_type;
+        mutable std::shared_mutex prompt_mutex_;
         std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>> bindings;
 		std::string text;
 	    SkyPromptAPI::Prompt prompt;

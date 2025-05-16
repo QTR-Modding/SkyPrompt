@@ -12,7 +12,7 @@ PapyrusAPI::PapyrusSink::~PapyrusSink() {
 	prompt.refid = 0;
 }
 
-void PapyrusAPI::PapyrusSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) {
+void PapyrusAPI::PapyrusSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
 	auto* vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
     if (!vm) return;
 
@@ -40,7 +40,7 @@ void PapyrusAPI::PapyrusSink::ProcessEvent(const SkyPromptAPI::PromptEvent event
     vm->SendEventAll("SkyPromptEvent", args);
 }
 
-std::span<const SkyPromptAPI::Prompt> PapyrusAPI::PapyrusSink::GetPrompts() {
+std::span<const SkyPromptAPI::Prompt> PapyrusAPI::PapyrusSink::GetPrompts() const {
     std::shared_lock lock(prompt_mutex_);
     return { &prompt, 1 };
 }
@@ -101,8 +101,7 @@ void PapyrusAPI::PapyrusSink::SetActionID(const SkyPromptAPI::ActionID a_actionI
 
 bool PapyrusAPI::AddPrompt(SkyPromptAPI::ClientID clientID, const std::string& text,
                            const SkyPromptAPI::EventID eventID, const SkyPromptAPI::ActionID actionID,
-                           const SkyPromptAPI::PromptType type,
-                           const RE::TESForm* refForm,
+                           const SkyPromptAPI::PromptType type, const RE::TESForm* refForm,
                            const std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>>& buttonKeys) {
     {
         std::shared_lock lock(mutex_);
