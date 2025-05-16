@@ -10,10 +10,16 @@ namespace {
     }
 
     void RegisterForSkyPrompt(RE::StaticFunctionTag*, const std::uint16_t clientID) {
+		if (registeredClients.contains(clientID)) {
+			return;
+		}
         registeredClients.insert(clientID);
     }
 
     void UnregisterFromSkyPrompt(RE::StaticFunctionTag*, const std::uint16_t clientID) {
+		if (!registeredClients.contains(clientID)) {
+			return;
+		}
         registeredClients.erase(clientID);
     }
 
@@ -21,29 +27,19 @@ namespace {
                     const SkyPromptAPI::ActionID actionID, const SkyPromptAPI::PromptType type, RE::TESForm* refForm,
         RE::BSTArray<uint32_t> devices, RE::BSTArray<uint32_t> keys) {
 
-		logger::info("SendPrompt: clientID: {}, text {} ,eventID: {}, actionID: {}, type: {}, refForm: {}",
-			clientID, text.c_str(),eventID, actionID, static_cast<std::uint16_t>(type), refForm ? refForm->GetFormID() : 0);
-
         if (devices.size() != keys.size()) return false;
         std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>> bindings;
         for (RE::BSTArray<uint32_t>::size_type i = 0; i < devices.size(); ++i) {
 			auto a_device = static_cast<RE::INPUT_DEVICE>(devices[i]);
 			auto a_key = static_cast<SkyPromptAPI::ButtonID>(keys[i]);
-			logger::info("SendPrompt: device: {}, key: {}", a_device, a_key);
             bindings.emplace_back(a_device, a_key);
         }
-
-		for (auto [a_device, a_button] : bindings) {
-			logger::info("SendPrompt: device: {}, key: {}", a_device, a_button);
-		}
 
 		if (PapyrusAPI::AddPrompt(clientID, text, eventID, actionID, type, refForm, bindings)) {
 			std::shared_lock lock(PapyrusAPI::mutex_);
 			if (const auto it = PapyrusAPI::papyrusSinks.find(clientID); it != PapyrusAPI::papyrusSinks.end()) {
 				auto& sinks = it->second;
 				if (const auto a_sink = sinks.find({ eventID, actionID }); a_sink != sinks.end()) {
-					lock.unlock();
-					std::unique_lock lock2(PapyrusAPI::mutex_);
 			        return SkyPromptAPI::SendPrompt(a_sink->second.get(), clientID);
 				}
 			}
@@ -56,9 +52,9 @@ namespace {
 		if (const auto it = PapyrusAPI::papyrusSinks.find(clientID); it != PapyrusAPI::papyrusSinks.end()) {
 			auto& sinks = it->second;
 			if (const auto a_sink = sinks.find({ eventID, actionID }); a_sink != sinks.end()) {
+				SkyPromptAPI::RemovePrompt(a_sink->second.get(), clientID);
 				lock.unlock();
 				std::unique_lock lock2(PapyrusAPI::mutex_);
-				SkyPromptAPI::RemovePrompt(a_sink->second.get(), clientID);
 				sinks.erase(a_sink);
 			}
 		}
