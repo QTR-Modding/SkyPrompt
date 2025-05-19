@@ -599,6 +599,9 @@ bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
 bool ImGui::Renderer::Manager::CycleClient(const bool a_left)
 {
     std::shared_lock lock(mutex_);
+    if (client_managers.size() <= 1) {
+        return false;
+    }
 	const bool any_has_queue = std::ranges::any_of(client_managers | std::views::values,
 	    [](const auto& managers) {
 		    return !managers.empty() && std::ranges::any_of(managers, [](const auto& m) {
