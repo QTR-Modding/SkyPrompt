@@ -5,22 +5,16 @@ namespace {
 
     std::unordered_set<SkyPromptAPI::ClientID> registeredClients;
 
-    SkyPromptAPI::ClientID RequestClientID(RE::StaticFunctionTag*) {
-        return SkyPromptAPI::RequestClientID();
-    }
-
-    void RegisterForSkyPrompt(RE::StaticFunctionTag*, const std::uint16_t clientID) {
-		if (registeredClients.contains(clientID)) {
-			return;
-		}
+    int RegisterForSkyPrompt(RE::StaticFunctionTag*) {
+        const std::uint16_t clientID = SkyPromptAPI::RequestClientID();
+        if (clientID == 0) {
+            return 0;
+        }
+        if (registeredClients.contains(clientID)) {
+            return clientID;
+        }
         registeredClients.insert(clientID);
-    }
-
-    void UnregisterFromSkyPrompt(RE::StaticFunctionTag*, const std::uint16_t clientID) {
-		if (!registeredClients.contains(clientID)) {
-			return;
-		}
-        registeredClients.erase(clientID);
+        return clientID;
     }
 
     bool SendPrompt(RE::StaticFunctionTag*, const SkyPromptAPI::ClientID clientID, std::string text, const SkyPromptAPI::EventID eventID,
@@ -60,13 +54,31 @@ namespace {
 		}
     }
 
+    void RegisterForSkyPromptEvent(RE::StaticFunctionTag*, RE::TESForm* a_form) {
+        if (!a_form) {
+            return;
+        }
+        PapyrusAPI::skyPromptEvents.Register(a_form);
+	    logger::info("Registered for SkyPrompt event: {:x}", a_form->GetFormID());
+    }
+
+    void UnregisterFromSkyPromptEvent(RE::StaticFunctionTag*, RE::TESForm* a_form) {
+        if (!a_form) {
+            return;
+        }
+        PapyrusAPI::skyPromptEvents.Unregister(a_form);
+    }
+    
+
+
 }
 
 bool PapyrusAPI::Register(RE::BSScript::IVirtualMachine* vm) {
-    vm->RegisterFunction("RequestClientID", "SkyPrompt", RequestClientID);
     vm->RegisterFunction("RegisterForSkyPrompt", "SkyPrompt", RegisterForSkyPrompt);
-    vm->RegisterFunction("UnregisterFromSkyPrompt", "SkyPrompt", UnregisterFromSkyPrompt);
     vm->RegisterFunction("SendPrompt", "SkyPrompt", SendPrompt);
-	vm->RegisterFunction("RemovePrompt", "SkyPrompt", RemovePrompt);
+    vm->RegisterFunction("RemovePrompt", "SkyPrompt", RemovePrompt);
+    vm->RegisterFunction("RegisterForSkyPromptEvent", "SkyPrompt", RegisterForSkyPromptEvent);
+    vm->RegisterFunction("UnregisterFromSkyPromptEvent", "SkyPrompt", UnregisterFromSkyPromptEvent);
+
     return true;
 }

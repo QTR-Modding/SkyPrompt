@@ -3,6 +3,8 @@
 #include "API.h"
 
 namespace PapyrusAPI {
+	inline SKSE::RegistrationSet<int, int, int, int, float, float> skyPromptEvents("OnSkyPromptEvent"sv);
+
 	using PromptKey = std::pair<SkyPromptAPI::EventID,SkyPromptAPI::ActionID>;
 	class PapyrusSink final : public SkyPromptAPI::PromptSink {
 	public:
@@ -13,8 +15,8 @@ namespace PapyrusAPI {
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
         std::span<const SkyPromptAPI::Prompt> GetPrompts() const override;
 
-        [[nodiscard]] SkyPromptAPI::EventID GetEventID();
-        [[nodiscard]] SkyPromptAPI::ActionID GetActionID();
+        [[nodiscard]] SkyPromptAPI::EventID GetEventID() const;
+        [[nodiscard]] SkyPromptAPI::ActionID GetActionID() const;
         void SetKeys(const std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>>& buttonKeys);
 		void SetText(const std::string& a_text);
 		void SetType(SkyPromptAPI::PromptType a_type);

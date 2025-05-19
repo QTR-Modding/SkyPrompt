@@ -13,22 +13,21 @@ PapyrusAPI::PapyrusSink::~PapyrusSink() {
 }
 
 void PapyrusAPI::PapyrusSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
-	auto* vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
+    auto* vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
     if (!vm) return;
 
-	const auto a_type = event.type;
-	if (a_type != SkyPromptAPI::PromptEventType::kMove) {
-		if (std::shared_lock lock(prompt_mutex_); last_type == a_type) {
-			return;
-		}
-	}
-	{
+    const auto a_type = event.type;
+    if (a_type != SkyPromptAPI::PromptEventType::kMove) {
+        if (std::shared_lock lock(prompt_mutex_); last_type == a_type) {
+            return;
+        }
+    }
+    {
 	    std::unique_lock lock(prompt_mutex_);
 	    last_type = a_type;
-	}
+    }
 
-    const auto args =
-    RE::MakeFunctionArguments(
+    skyPromptEvents.QueueEvent(
         static_cast<int>(clientID),
         static_cast<int>(event.type),
         static_cast<int>(event.prompt.eventID),
@@ -36,8 +35,6 @@ void PapyrusAPI::PapyrusSink::ProcessEvent(const SkyPromptAPI::PromptEvent event
         static_cast<float>(event.delta.first),
         static_cast<float>(event.delta.second)
     );
-
-    vm->SendEventAll("SkyPromptEvent", args);
 }
 
 std::span<const SkyPromptAPI::Prompt> PapyrusAPI::PapyrusSink::GetPrompts() const {
@@ -45,12 +42,12 @@ std::span<const SkyPromptAPI::Prompt> PapyrusAPI::PapyrusSink::GetPrompts() cons
     return { &prompt, 1 };
 }
 
-SkyPromptAPI::EventID PapyrusAPI::PapyrusSink::GetEventID() {
+SkyPromptAPI::EventID PapyrusAPI::PapyrusSink::GetEventID() const {
     std::shared_lock lock(prompt_mutex_);
     return prompt.eventID;
 }
 
-SkyPromptAPI::ActionID PapyrusAPI::PapyrusSink::GetActionID() {
+SkyPromptAPI::ActionID PapyrusAPI::PapyrusSink::GetActionID() const {
     std::shared_lock lock(prompt_mutex_);
     return prompt.actionID;
 }
@@ -67,7 +64,6 @@ void PapyrusAPI::PapyrusSink::SetKeys(const std::vector<std::pair<RE::INPUT_DEVI
 void PapyrusAPI::PapyrusSink::SetText(const std::string& a_text)
 {
 	if (!a_text.empty()) {
-		logger::info("SetText: {}", a_text.c_str());
 		std::unique_lock lock(prompt_mutex_);
 		prompt.text = "";
 		text = a_text;
@@ -99,7 +95,7 @@ void PapyrusAPI::PapyrusSink::SetActionID(const SkyPromptAPI::ActionID a_actionI
 	prompt.actionID = a_actionID;
 }
 
-bool PapyrusAPI::AddPrompt(SkyPromptAPI::ClientID clientID, const std::string& text,
+bool PapyrusAPI::AddPrompt(SkyPromptAPI::ClientID clientID, const std::string& text,  // NOLINT(misc-use-internal-linkage)
                            const SkyPromptAPI::EventID eventID, const SkyPromptAPI::ActionID actionID,
                            const SkyPromptAPI::PromptType type, const RE::TESForm* refForm,
                            const std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>>& buttonKeys) {

@@ -11,7 +11,9 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
 	    SpeedProfiler profiler("Plugin load (Part 2)");
         MCP::Register();
-        SKSE::GetPapyrusInterface()->Register(PapyrusAPI::Register);
+        if (!SKSE::GetPapyrusInterface()->Register(PapyrusAPI::Register)) {
+            logger::error("Failed to register Papyrus API");
+        }
 
     }
 	if (message->type == SKSE::MessagingInterface::kInputLoaded) {
