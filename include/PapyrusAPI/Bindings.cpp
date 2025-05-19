@@ -68,9 +68,6 @@ namespace {
         }
         PapyrusAPI::skyPromptEvents.Unregister(a_form);
     }
-    
-
-
 }
 
 bool PapyrusAPI::Register(RE::BSScript::IVirtualMachine* vm) {
