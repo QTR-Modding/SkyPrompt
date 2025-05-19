@@ -17,4 +17,6 @@ set(sources ${sources}
     src/ImGui/IconsFonts.cpp
     src/ImGui/IconsFontAwesome6.cpp
     src/ImGui/FormComboBox.cpp
+    include/PapyrusAPI/Bindings.cpp
+    include/PapyrusAPI/Sinks.cpp
 )

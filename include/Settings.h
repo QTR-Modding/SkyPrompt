@@ -18,18 +18,6 @@ private:
 	const wchar_t* userDisplayTweaksPath{ L"Data/SKSE/Plugins/SSEDisplayTweaks_Custom.ini" };
 };
 
-namespace ButtonSettings {
-
-	inline std::shared_mutex button_key_lock;
-
-	using namespace MCP::Settings;
-    inline std::map<Interaction, std::map<Input::DEVICE,uint32_t>> interactionKeys;
-
-	void SetInteractionKey(const Interaction& a_interaction, Input::DEVICE a_device, uint32_t converted_key);
-	uint32_t GetInteractionKey(const Interaction& a_interaction, Input::DEVICE a_device);
-	void RemoveInteractionKey(const Interaction& a_interaction);
-}
-
 namespace OtherSettings {
     [[maybe_unused]] inline float search_scaling = 0.5f;
 }

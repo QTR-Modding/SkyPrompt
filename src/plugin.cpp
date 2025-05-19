@@ -5,16 +5,15 @@
 #include "Settings.h"
 #include "Styles.h"
 #include "Utils.h"
+#include "PapyrusAPI/Bindings.h"
 
 void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
 	    SpeedProfiler profiler("Plugin load (Part 2)");
         MCP::Register();
-    }
-    if (message->type == SKSE::MessagingInterface::kNewGame || message->type == SKSE::MessagingInterface::kPostLoadGame) {
-        // Post-load
-    }
-    if (message->type == SKSE::MessagingInterface::kPostLoad) {
+        if (!SKSE::GetPapyrusInterface()->Register(PapyrusAPI::Register)) {
+            logger::error("Failed to register Papyrus API");
+        }
 
     }
 	if (message->type == SKSE::MessagingInterface::kInputLoaded) {

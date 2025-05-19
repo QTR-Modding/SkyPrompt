@@ -71,8 +71,6 @@ namespace ImGui
 		if (!MCP::refreshStyle.exchange(false)) {
 			return;
 		}
-		logger::info("Refreshing ImGui style");
-		//LoadStyles();
 
 		ImGuiStyle style;
 		auto&      colors = style.Colors;
