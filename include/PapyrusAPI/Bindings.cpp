@@ -59,7 +59,6 @@ namespace {
             return;
         }
         PapyrusAPI::skyPromptEvents.Register(a_form);
-	    logger::info("Registered for SkyPrompt event: {:x}", a_form->GetFormID());
     }
 
     void UnregisterFromSkyPromptEvent(RE::StaticFunctionTag*, RE::TESForm* a_form) {
