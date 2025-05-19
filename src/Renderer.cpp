@@ -570,10 +570,10 @@ SubManager* ImGui::Renderer::Manager::Add2Q(
 	return manager_list->back().get();
 }
 
-void Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
+bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
 
 	if (std::shared_lock lock(mutex_); client_id == last_clientID) {
-		return;
+		return false;
 	}
 
 	if (!MCP::Settings::cycle_controls.load()) {
@@ -593,38 +593,41 @@ void Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
 
 	managers = std::move(client_managers.at(client_id));
 	last_clientID = client_id;
+	return true;
 }
 
-void ImGui::Renderer::Manager::CycleClient(const bool a_left)
+bool ImGui::Renderer::Manager::CycleClient(const bool a_left)
 {
     std::shared_lock lock(mutex_);
 	const bool any_has_queue = std::ranges::any_of(client_managers | std::views::values,
 	    [](const auto& managers) {
-		    return std::ranges::any_of(managers, [](const auto& m) {
+		    return !managers.empty() && std::ranges::any_of(managers, [](const auto& m) {
 			    return m && m->HasQueue();
 		    });
 	    });
 
     if (!any_has_queue) {
-	    return;
+		return false;
     }
 
     auto it = client_managers.find(last_clientID);
-    if (a_left) {
-        if (it == client_managers.begin()) {
-            it = std::prev(client_managers.end());
+	while (it->first == last_clientID || it->second.empty()) {
+        if (a_left) {
+            if (it == client_managers.begin()) {
+                it = std::prev(client_managers.end());
+            } else {
+                --it;
+            }
         } else {
-            --it;
+            ++it;
+            if (it == client_managers.end()) {
+                it = client_managers.begin(); 
+            }
         }
-    } else {
-        ++it;
-        if (it == client_managers.end()) {
-            it = client_managers.begin(); 
-        }
-    }
+	}
 
     lock.unlock();
-    SwitchToClientManager(it->first);
+    return SwitchToClientManager(it->first);
 }
 
 bool ImGui::Renderer::Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID)

@@ -145,7 +145,7 @@ namespace ImGui::Renderer
         SubManager* Add2Q(SkyPromptAPI::ClientID a_clientID, const Interaction& a_interaction,
                           SkyPromptAPI::PromptType a_type, RefID a_refid, std::map<Input::DEVICE, uint32_t> a_bttn_map, bool show = true);
 
-        void SwitchToClientManager(SkyPromptAPI::ClientID client_id);
+        bool SwitchToClientManager(SkyPromptAPI::ClientID client_id);
 
         SkyPromptAPI::ClientID last_clientID = 0;
         mutable std::shared_mutex mutex_;
@@ -182,6 +182,6 @@ namespace ImGui::Renderer
         void SendEvents();
 
         bool InitializeClient(SkyPromptAPI::ClientID a_clientID);
-        void CycleClient(bool a_left);
+        bool CycleClient(bool a_left);
 	};
 }
