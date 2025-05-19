@@ -3,19 +3,8 @@
 
 namespace {
 
-    std::unordered_set<SkyPromptAPI::ClientID> registeredClients;
-
-    int RegisterForSkyPrompt(RE::StaticFunctionTag*) {
-        const std::uint16_t clientID = SkyPromptAPI::RequestClientID();
-        if (clientID == 0) {
-            return 0;
-        }
-        if (registeredClients.contains(clientID)) {
-            return clientID;
-        }
-        registeredClients.insert(clientID);
-        return clientID;
-    }
+    std::shared_mutex mutex_;
+    std::unordered_map<RE::FormID,std::pair<SkyPromptAPI::ClientID,bool>> registeredClients;
 
     bool SendPrompt(RE::StaticFunctionTag*, const SkyPromptAPI::ClientID clientID, std::string text, const SkyPromptAPI::EventID eventID,
                     const SkyPromptAPI::ActionID actionID, const SkyPromptAPI::PromptType type, RE::TESForm* refForm,
@@ -54,27 +43,67 @@ namespace {
 		}
     }
 
-    void RegisterForSkyPromptEvent(RE::StaticFunctionTag*, RE::TESForm* a_form) {
-        if (!a_form) {
-            return;
+    SkyPromptAPI::ClientID RegisterForSkyPromptEvent(RE::StaticFunctionTag*, RE::TESForm* a_form) {
+
+        if (!a_form || a_form->IsDynamicForm()) {
+            return 0;
         }
-        PapyrusAPI::skyPromptEvents.Register(a_form);
+
+		const auto a_formID = a_form->GetFormID();
+		if (std::unique_lock lock(PapyrusAPI::mutex_); registeredClients.contains(a_formID)) {
+            if (auto& [a_ID, is_registered] = registeredClients.at(a_formID); 
+				is_registered || PapyrusAPI::skyPromptEvents.Register(a_form)) {
+			    is_registered = true;
+			    return a_ID;
+            }
+			return 0;
+		}
+
+        if (PapyrusAPI::skyPromptEvents.Register(a_form)) {
+		    const auto a_clientID = SkyPromptAPI::RequestClientID();
+            if (a_clientID == 0) {
+				PapyrusAPI::skyPromptEvents.Unregister(a_formID);
+			    return 0;
+            }
+            {
+                std::unique_lock lock(PapyrusAPI::mutex_);
+                registeredClients[a_formID] = { a_clientID, true };
+            }
+            return a_clientID;
+        }
+
+        return 0;
     }
 
-    void UnregisterFromSkyPromptEvent(RE::StaticFunctionTag*, RE::TESForm* a_form) {
+    bool UnregisterFromSkyPromptEvent(RE::StaticFunctionTag*, RE::TESForm* a_form) {
         if (!a_form) {
-            return;
+            return false;
         }
-        PapyrusAPI::skyPromptEvents.Unregister(a_form);
+        const auto a_formID = a_form->GetFormID();
+
+        {
+            std::shared_lock lock(PapyrusAPI::mutex_);
+            if (!registeredClients.contains(a_formID)) {
+                return false;
+            }
+        }
+
+        std::unique_lock lock(PapyrusAPI::mutex_);
+        if (auto& [a_ID, is_registered] = registeredClients.at(a_formID); is_registered) {
+            if (PapyrusAPI::skyPromptEvents.Unregister(a_formID)) {
+                is_registered = false;
+                return true;
+            }
+        }
+        return false;
     }
 }
 
 bool PapyrusAPI::Register(RE::BSScript::IVirtualMachine* vm) {
-    vm->RegisterFunction("RegisterForSkyPrompt", "SkyPrompt", RegisterForSkyPrompt);
-    vm->RegisterFunction("SendPrompt", "SkyPrompt", SendPrompt);
-    vm->RegisterFunction("RemovePrompt", "SkyPrompt", RemovePrompt);
     vm->RegisterFunction("RegisterForSkyPromptEvent", "SkyPrompt", RegisterForSkyPromptEvent);
     vm->RegisterFunction("UnregisterFromSkyPromptEvent", "SkyPrompt", UnregisterFromSkyPromptEvent);
+    vm->RegisterFunction("SendPrompt", "SkyPrompt", SendPrompt);
+    vm->RegisterFunction("RemovePrompt", "SkyPrompt", RemovePrompt);
 
     return true;
 }
