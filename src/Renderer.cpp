@@ -577,7 +577,7 @@ bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
 	}
 
 	if (!MCP::Settings::cycle_controls.load()) {
-	    Clear(true);
+	    Clear(SkyPromptAPI::kRemovedByMod);
 	}
 	else {
 	    CleanUpQueue();
@@ -745,15 +745,8 @@ void ImGui::Renderer::SubManager::CleanUpQueue()
 	ButtonStateActions();
 }
 
-void ImGui::Renderer::SubManager::ClearQueue(const SkyPromptAPI::PromptEventType a_type)
+void ImGui::Renderer::SubManager::ClearQueue()
 {
-    {
-        std::shared_lock lock(q_mutex_);
-        for (const auto& a_button : interactQueue.buttons) {
-			SendEvent(a_button.interaction, a_type);
-        }
-    }
-
 	{
 	    std::unique_lock lock(q_mutex_);
 		interactQueue.Clear();
@@ -764,6 +757,15 @@ void ImGui::Renderer::SubManager::ClearQueue(const SkyPromptAPI::PromptEventType
 	}
 
 	blockProgress.store(false);
+}
+
+void ImGui::Renderer::SubManager::ClearQueue(const SkyPromptAPI::PromptEventType a_event_type)
+{
+    std::shared_lock lock(q_mutex_);
+    for (const auto& a_button : interactQueue.buttons) {
+	    SendEvent(a_button.interaction, a_event_type);
+    }
+	ClearQueue();
 }
 
 bool ImGui::Renderer::SubManager::HasQueue() const
@@ -828,7 +830,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 
         if (buttonState.pressCount == 3) {
 		    buttonState.pressCount = 0;
-		    ClearQueue();
+		    ClearQueue(SkyPromptAPI::kDeclined);
 	    }
 		else {
 	        if (a_type == SkyPromptAPI::kHold) {
@@ -958,7 +960,7 @@ uint32_t InteractionButton::GetKey() const
 }
 
 InteractionButton::InteractionButton(const Interaction& a_interaction, const SkyPromptAPI::PromptType a_type,
-                                     const RefID a_refid, std::map<Input::DEVICE, uint32_t> a_keys, int a_default_key_index)
+                                     const RefID a_refid, std::map<Input::DEVICE, uint32_t> a_keys, const int a_default_key_index)
 {
 	interaction = a_interaction;
 	type = a_type;
@@ -1085,17 +1087,18 @@ void ImGui::Renderer::Manager::ShowQueue() {
 	}
 }
 
-void ImGui::Renderer::Manager::Clear(const bool API_call)
+void ImGui::Renderer::Manager::Clear()
 {
     std::unique_lock lock(mutex_);
-    for (const auto& a_manager : managers) {
-		if (API_call) {
-            a_manager->ClearQueue(SkyPromptAPI::kRemovedByMod);
-		}
-		else {
-			a_manager->ClearQueue();
-		}
-    }
+    managers.clear();
+}
+
+void ImGui::Renderer::Manager::Clear(const SkyPromptAPI::PromptEventType a_event_type)
+{
+	std::unique_lock lock(mutex_);
+	for (const auto& a_manager : managers) {
+		a_manager->ClearQueue(a_event_type);
+	}
     managers.clear();
 }
 

@@ -110,7 +110,8 @@ namespace ImGui::Renderer
         void ShowQueue();
         void WakeUpQueue();
         void CleanUpQueue();
-        void ClearQueue(SkyPromptAPI::PromptEventType a_type=SkyPromptAPI::kDeclined);
+        void ClearQueue();
+        void ClearQueue(SkyPromptAPI::PromptEventType a_event_type);
         bool HasQueue() const;
         void Start();
         void Stop();
@@ -155,6 +156,8 @@ namespace ImGui::Renderer
         const std::vector<std::unique_ptr<SubManager>>* GetManagerList(SkyPromptAPI::ClientID a_clientID) const;
         std::vector<std::unique_ptr<SubManager>>* GetManagerList(SkyPromptAPI::ClientID a_clientID);
 
+        void Clear();
+        void Clear(SkyPromptAPI::PromptEventType a_event_type);
 
     public:
 
@@ -168,7 +171,6 @@ namespace ImGui::Renderer
         void Stop();
         void CleanUpQueue();
         void ShowQueue();
-        void Clear(bool API_call=false);
         void ResetQueue() const;
         void WakeUpQueue() const;
         bool IsPaused() const { return isPaused.load(); }
