@@ -761,9 +761,11 @@ void ImGui::Renderer::SubManager::ClearQueue()
 
 void ImGui::Renderer::SubManager::ClearQueue(const SkyPromptAPI::PromptEventType a_event_type)
 {
-    std::shared_lock lock(q_mutex_);
-    for (const auto& a_button : interactQueue.buttons) {
-	    SendEvent(a_button.interaction, a_event_type);
+    {
+        std::shared_lock lock(q_mutex_);
+        for (const auto& a_button : interactQueue.buttons) {
+	        SendEvent(a_button.interaction, a_event_type);
+        }
     }
 	ClearQueue();
 }
