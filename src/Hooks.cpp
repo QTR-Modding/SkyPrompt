@@ -184,15 +184,7 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 					else if (button_event->IsUp()) {
 						submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kUp);
 					}
-                    if (submanager->buttonState.isPressing) {
-                        if (const auto held_dur = button_event->HeldDuration() * 1000.f; 
-                            now - submanager->buttonState.lastPressTime < std::chrono::milliseconds(100+static_cast<int>(held_dur))) {
-					        submanager->UpdateProgressCircle(true);
-						}
-                    }
-                    else {
-					    submanager->UpdateProgressCircle(false);
-                    }
+					submanager->UpdateProgressCircle(submanager->buttonState.isPressing);
                 }
 		    }
 		}
