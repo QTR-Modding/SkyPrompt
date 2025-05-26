@@ -94,6 +94,8 @@ namespace ImGui::Renderer
         void RemoveFromSinks(SkyPromptAPI::PromptSink* a_prompt_sink);
         void ButtonStateActions();
 
+        mutable std::atomic<bool> wakeup_queued_{ false };
+
     public:
 
         SubManager() = default;

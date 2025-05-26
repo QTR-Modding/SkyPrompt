@@ -523,6 +523,7 @@ void SubManager::ShowQueue() {
 void ImGui::Renderer::SubManager::WakeUpQueue() {
     std::unique_lock lock(q_mutex_);
     interactQueue.WakeUp();
+    wakeup_queued_.store(false);
 }
 
 SubManager* ImGui::Renderer::Manager::Add2Q(
@@ -804,11 +805,14 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 	    return false;
 	}
 
-	Tasker::GetSingleton()->PushTask([] {
-	    Manager::GetSingleton()->WakeUpQueue();
-	},
-		100
-	);
+    if (!wakeup_queued_.load()) {
+	    wakeup_queued_.store(true);
+        Tasker::GetSingleton()->PushTask([] {
+	        Manager::GetSingleton()->WakeUpQueue();
+        },
+	        100
+        );
+    }
 
 	{
 	    std::unique_lock lock(progress_mutex_);
