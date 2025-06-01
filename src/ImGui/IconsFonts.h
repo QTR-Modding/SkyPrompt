@@ -2,7 +2,7 @@
 #include "API.h"
 #include "Graphics.h"
 #include "Settings.h"
-#include "Util.h"
+#include <unordered_set>
 
 
 namespace IconFont

@@ -1,5 +1,4 @@
 ﻿#include "IconsFonts.h"
-#include "IconsFontAwesome6.h"
 #include "Input.h"
 #include "Renderer.h"
 #include "imgui_internal.h"

@@ -79,11 +79,8 @@ endif ()
 set(Boost_USE_STATIC_LIBS ON)
 
 find_package(directxtex CONFIG REQUIRED)
-find_package(Freetype REQUIRED)
 find_package(imgui CONFIG REQUIRED)
-find_package(rapidfuzz CONFIG REQUIRED)
 find_package(unordered_dense CONFIG REQUIRED)
-find_path(SRELL_INCLUDE_DIRS "srell.hpp")
 
 
 add_commonlibsse_plugin(
@@ -100,7 +97,6 @@ target_include_directories(
 	PRIVATE
 	${CLIB_UTIL_INCLUDE_DIRS}
     ${SKSE_MCP_INCLUDE_DIRS}
-	${SRELL_INCLUDE_DIRS}
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 	${CMAKE_CURRENT_SOURCE_DIR}/src
 	${CMAKE_CURRENT_SOURCE_DIR}/src/ImGui
@@ -113,9 +109,7 @@ target_link_libraries(
 	${PROJECT_NAME}
 	PRIVATE
 		Microsoft::DirectXTex
-		Freetype::Freetype
 		imgui::imgui
-		rapidfuzz::rapidfuzz
 		unordered_dense::unordered_dense
 )
 

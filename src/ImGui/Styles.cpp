@@ -5,67 +5,6 @@
 
 namespace ImGui
 {
-	void Styles::ConvertVec4StylesToU32()
-	{
-		frameBG_WidgetU32 = ColorConvertFloat4ToU32(user.frameBG_Widget);
-		frameBG_WidgetActiveU32 = ColorConvertFloat4ToU32(user.frameBG_WidgetActive);
-		gridLinesU32 = ColorConvertFloat4ToU32(user.gridLines);
-		sliderBorderU32 = ColorConvertFloat4ToU32(user.sliderBorder);
-		sliderBorderActiveU32 = ColorConvertFloat4ToU32(user.sliderBorderActive);
-		iconDisabledU32 = ColorConvertFloat4ToU32(user.iconDisabled);
-	}
-
-	ImU32 Styles::GetColorU32(const USER_STYLE a_style) const
-	{
-		switch (a_style) {
-		case USER_STYLE::kIconDisabled:
-			return iconDisabledU32;
-		case USER_STYLE::kGridLines:
-			return gridLinesU32;
-		case USER_STYLE::kSliderBorder:
-			return sliderBorderU32;
-		case USER_STYLE::kSliderBorderActive:
-			return sliderBorderActiveU32;
-		case USER_STYLE::kFrameBG_Widget:
-			return frameBG_WidgetU32;
-		case USER_STYLE::kFrameBG_WidgetActive:
-			return frameBG_WidgetActiveU32;
-		default:
-			return ImU32();
-		}
-	}
-
-	ImVec4 Styles::GetColorVec4(const USER_STYLE a_style) const
-	{
-		switch (a_style) {
-		case USER_STYLE::kIconDisabled:
-			return user.iconDisabled;
-		case USER_STYLE::kComboBoxTextBox:
-			return user.comboBoxTextBox;
-		case USER_STYLE::kComboBoxText:
-			return user.comboBoxText;
-		default:
-			return ImVec4();
-		}
-	}
-
-	float Styles::GetVar(const USER_STYLE a_style) const
-	{
-		switch (a_style) {
-		case USER_STYLE::kButtons:
-			return user.buttonScale;
-		case USER_STYLE::kCheckbox:
-			return user.checkboxScale;
-		case USER_STYLE::kStepper:
-			return user.stepperScale;
-		case USER_STYLE::kSeparatorThickness:
-			return user.separatorThickness;
-		case USER_STYLE::kGridLines:
-			return user.gridThickness;
-		default:
-			return 1.0f;
-		}
-	}
 
 	void Styles::OnStyleRefresh() const {
 		if (!MCP::refreshStyle.exchange(false)) {
@@ -120,20 +59,5 @@ namespace ImGui
 	void Styles::RefreshStyle()
 	{
         MCP::refreshStyle.store(true);
-	}
-
-	ImU32 GetUserStyleColorU32(const USER_STYLE a_style)
-	{
-		return Styles::GetSingleton()->GetColorU32(a_style);
-	}
-
-	ImVec4 GetUserStyleColorVec4(const USER_STYLE a_style)
-	{
-		return Styles::GetSingleton()->GetColorVec4(a_style);
-	}
-
-	float GetUserStyleVar(const USER_STYLE a_style)
-	{
-		return Styles::GetSingleton()->GetVar(a_style);
 	}
 }

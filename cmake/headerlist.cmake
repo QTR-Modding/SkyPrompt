@@ -13,12 +13,8 @@ set(headers ${headers}
     include/Interaction.h
     include/Geometry.h
 	src/ImGui/Graphics.h
-    src/ImGui/Widgets.h
-    src/ImGui/Util.h
     src/ImGui/Styles.h
     src/ImGui/IconsFonts.h
-    src/ImGui/IconsFontAwesome6.h
-    src/ImGui/FormComboBox.h
     include/PapyrusAPI/Bindings.h
     include/PapyrusAPI/Sinks.h
 )

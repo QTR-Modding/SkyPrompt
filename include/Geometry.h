@@ -1,5 +1,4 @@
 #pragma once
-#include <glm/glm.hpp>
 
 class Geometry {
     std::vector<RE::NiPoint3> positions;

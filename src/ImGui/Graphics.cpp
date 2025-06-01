@@ -1,5 +1,4 @@
 #include "Graphics.h"
-
 #include "Renderer.h"
 
 namespace ImGui
