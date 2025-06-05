@@ -184,7 +184,9 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 					else if (button_event->IsUp()) {
 						submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kUp);
 					}
-					submanager->UpdateProgressCircle(submanager->buttonState.isPressing);
+                    if (submanager->buttonState.pressCount>0) {
+					    submanager->UpdateProgressCircle(submanager->buttonState.isPressing);
+                    }
                 }
 		    }
 		}
