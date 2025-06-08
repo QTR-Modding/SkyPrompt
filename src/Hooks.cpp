@@ -22,7 +22,7 @@ void CreateD3DAndSwapChain::thunk() {
     func();
 
     if (const auto renderer = RE::BSGraphics::Renderer::GetSingleton()) {
-        swapChain = reinterpret_cast<IDXGISwapChain*>(renderer->data.renderWindows[0].swapChain);
+        swapChain = reinterpret_cast<IDXGISwapChain*>(renderer->GetRuntimeData().renderWindows[0].swapChain);
         if (!swapChain) {
             logger::error("couldn't find swapChain");
             return;
@@ -34,8 +34,8 @@ void CreateD3DAndSwapChain::thunk() {
             return;
         }
 
-        device = reinterpret_cast<ID3D11Device*>(renderer->data.forwarder);
-        context = reinterpret_cast<ID3D11DeviceContext*>(renderer->data.context);
+        device = reinterpret_cast<ID3D11Device*>(renderer->GetRuntimeData().forwarder);
+        context = reinterpret_cast<ID3D11DeviceContext*>(renderer->GetRuntimeData().context);
 
         logger::info("Initializing ImGui...");
 
@@ -184,18 +184,21 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 					else if (button_event->IsUp()) {
 						submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kUp);
 					}
-                    if (submanager->buttonState.isPressing) {
-                        if (const auto held_dur = button_event->HeldDuration() * 1000.f; 
-                            now - submanager->buttonState.lastPressTime < std::chrono::milliseconds(100+static_cast<int>(held_dur))) {
-					        submanager->UpdateProgressCircle(true);
-						}
-                    }
-                    else {
-					    submanager->UpdateProgressCircle(false);
+                    if (submanager->buttonState.pressCount>0) {
+					    submanager->UpdateProgressCircle(submanager->buttonState.isPressing);
                     }
                 }
 		    }
 		}
+
+	    if (!block && button_event->IsDown()) {
+			const auto device = input_manager->GetInputDevice();
+            const bool is_L = key == MCP::Settings::cycle_L[device];
+			const bool is_R = key == MCP::Settings::cycle_R[device];
+		    if (is_L || is_R) {
+				block = Manager::GetSingleton()->CycleClient(is_L);
+		    }
+        }
 	}
 	else if (const auto mouse_event = event->AsMouseMoveEvent()) {
         constexpr auto key = SkyPromptAPI::kMouseMove;

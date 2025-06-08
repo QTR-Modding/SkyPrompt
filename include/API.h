@@ -67,8 +67,8 @@ namespace SkyPromptAPI {
 
     class PromptSink {
     public:
-		virtual void ProcessEvent(PromptEvent event) = 0;
-		virtual std::span<const Prompt> GetPrompts() = 0;
+		virtual void ProcessEvent(PromptEvent event) const = 0;
+		virtual std::span<const Prompt> GetPrompts() const = 0;
     protected:
         virtual ~PromptSink() = default;
     };
@@ -87,8 +87,8 @@ namespace SkyPromptAPI {
         "ProcessSendPrompt",                     /* hostName */
         bool,                                       /* returnType */
         false,                                      /* defaultValue */
-        (PromptSink* a_sink, bool a_force, ClientID a_clientID), /* signature */
-        (a_sink, a_force, a_clientID)         /* callArgs */
+        (const PromptSink* a_sink, ClientID a_clientID), /* signature */
+        (a_sink, a_clientID)         /* callArgs */
     );
 
     DECLARE_API_FUNC_EX(
@@ -96,7 +96,7 @@ namespace SkyPromptAPI {
         "ProcessRemovePrompt",                     /* hostName */
         void,                                       /* returnType */
         ,                                      /* defaultValue */
-        (PromptSink* a_sink, ClientID a_clientID), /* signature */
+        (const PromptSink* a_sink, ClientID a_clientID), /* signature */
         (a_sink, a_clientID)         /* callArgs */
     );
 

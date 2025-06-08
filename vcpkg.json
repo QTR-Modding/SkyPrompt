@@ -3,7 +3,6 @@
   "name": "skyprompt",
   "version-string": "0.1.0.0",
   "dependencies": [
-    "rapidjson",
     "fast-cpp-csv-parser",
     "rsm-binary-io",
     "simpleini",
@@ -11,25 +10,16 @@
     "xbyak",
     "rapidcsv",
     "rapidjson",
-    "directxmath",
-    "directxtk",
-    "boost-stl-interfaces",
     "clib-util",
     "skse-mcp",
     "magic-enum",
     "directxtex",
-    "freetype",
+    "directxtk",
     {
       "name": "imgui",
       "features": [ "dx11-binding", "win32-binding", "freetype", "wchar32" ]
     },
-    "rapidfuzz",
-    "rsm-binary-io",
-    "spdlog",
-    "srell",
-    "unordered-dense",
-    "boost-lockfree",
-    "glm"
+    "unordered-dense"
   ],
   "overrides": [
     {

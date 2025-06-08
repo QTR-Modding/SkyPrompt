@@ -1,5 +1,4 @@
 #include "Graphics.h"
-
 #include "Renderer.h"
 
 namespace ImGui
@@ -44,7 +43,7 @@ namespace ImGui
 				}
 
 				ComPtr<ID3D11Resource> pTexture{};
-				hr = DirectX::CreateTexture((ID3D11Device*)renderer->data.forwarder, image->GetImages(), 1, image->GetMetadata(), &pTexture);
+				hr = DirectX::CreateTexture((ID3D11Device*)renderer->GetRuntimeData().forwarder, image->GetImages(), 1, image->GetMetadata(), &pTexture);
 
 				if (SUCCEEDED(hr)) {
 					D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc{};
@@ -53,7 +52,7 @@ namespace ImGui
 					srvDesc.Texture2D.MipLevels = 1;
 					srvDesc.Texture2D.MostDetailedMip = 0;
 
-					hr = ((ID3D11Device*)renderer->data.forwarder)->CreateShaderResourceView(pTexture.Get(), &srvDesc, &srView);
+					hr = ((ID3D11Device*)renderer->GetRuntimeData().forwarder)->CreateShaderResourceView(pTexture.Get(), &srvDesc, &srView);
 					result = SUCCEEDED(hr);
 				}
 

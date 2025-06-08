@@ -21,20 +21,12 @@ constexpr float EPSILON = 1e-10f;
 
 #include <wrl/client.h>
 
-#include <DirectXMath.h>
 #include <DirectXTex.h>
 
 #include <ankerl/unordered_dense.h>
-#include <rapidfuzz/rapidfuzz_all.hpp>
-#include <srell.hpp>
 
-
-#include <ClibUtil/editorID.hpp>
-#include <ClibUtil/hash.hpp>
 #include <ClibUtil/simpleINI.hpp>
 #include <ClibUtil/singleton.hpp>
-#include <ClibUtil/string.hpp>
-
 
 using EventResult = RE::BSEventNotifyControl;
 
@@ -65,24 +57,3 @@ struct string_hash
 
 template <class D>
 using StringMap = ankerl::unordered_dense::map<std::string, D, string_hash, std::equal_to<>>;
-
-namespace stl
-{
-	using namespace SKSE::stl;
-
-	template <class T>
-	void write_thunk_call(std::uintptr_t a_src)
-	{
-		SKSE::AllocTrampoline(14);
-
-		auto& trampoline = SKSE::GetTrampoline();
-		T::func = trampoline.write_call<5>(a_src, T::thunk);
-	}
-
-	template <class F, class T>
-	void write_vfunc()
-	{
-		REL::Relocation<std::uintptr_t> vtbl{ F::VTABLE[0] };
-		T::func = vtbl.write_vfunc(T::idx, T::thunk);
-	}
-}

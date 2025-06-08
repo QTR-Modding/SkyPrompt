@@ -11,10 +11,8 @@ set(sources ${sources}
  	src/Interaction.cpp
  	src/Geometry.cpp
 	src/ImGui/Graphics.cpp
-    src/ImGui/Widgets.cpp
-    src/ImGui/Util.cpp
     src/ImGui/Styles.cpp
     src/ImGui/IconsFonts.cpp
-    src/ImGui/IconsFontAwesome6.cpp
-    src/ImGui/FormComboBox.cpp
+    include/PapyrusAPI/Bindings.cpp
+    include/PapyrusAPI/Sinks.cpp
 )
