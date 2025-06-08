@@ -22,7 +22,7 @@ void CreateD3DAndSwapChain::thunk() {
     func();
 
     if (const auto renderer = RE::BSGraphics::Renderer::GetSingleton()) {
-        swapChain = reinterpret_cast<IDXGISwapChain*>(renderer->GetRuntimeData().renderWindows[0].swapChain);
+        swapChain = reinterpret_cast<IDXGISwapChain*>(RE::BSGraphics::Renderer::GetRendererData()->renderWindows[0].swapChain);
         if (!swapChain) {
             logger::error("couldn't find swapChain");
             return;
@@ -34,8 +34,8 @@ void CreateD3DAndSwapChain::thunk() {
             return;
         }
 
-        device = reinterpret_cast<ID3D11Device*>(renderer->GetRuntimeData().forwarder);
-        context = reinterpret_cast<ID3D11DeviceContext*>(renderer->GetRuntimeData().context);
+        device = reinterpret_cast<ID3D11Device*>(RE::BSGraphics::Renderer::GetRendererData()->forwarder);
+        context = reinterpret_cast<ID3D11DeviceContext*>(RE::BSGraphics::Renderer::GetRendererData()->context);
 
         logger::info("Initializing ImGui...");
 
@@ -226,29 +226,6 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 	}
 
 	return block;
-}
-
-bool ImGui::Renderer::InputHook::IsOtherButtonPressed(RE::InputEvent* const* a_event)
-{
-	auto curr_prompt_keys = MANAGER(ImGui::Renderer)->GetPromptKeys();
-	const std::unordered_set<uint32_t> prompt_keys(curr_prompt_keys.begin(), curr_prompt_keys.end());
-    const auto input_manager = MANAGER(Input);
-	const auto user_events = RE::UserEvents::GetSingleton();
-	for (auto current = *a_event; current; current = current->next) {
-		if (const auto button_event = current->AsButtonEvent()) {
-            if (!button_event->IsPressed()) continue;
-            const auto key = input_manager->Convert(button_event->GetIDCode(),button_event->GetDevice());
-			if (prompt_keys.contains(key)) {
-				continue;
-			}
-			if (button_event->userEvent == user_events->move) {
-				continue;
-            }
-			return true;
-        }
-    }
-
-    return false;
 }
 
 template <typename MenuType>

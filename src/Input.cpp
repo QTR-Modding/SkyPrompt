@@ -474,23 +474,12 @@ namespace Input
 		}
 		return DEVICE::kUnknown;
 	}
-	RE::INPUT_DEVICE to_RE_device(const DEVICE a_device)
-	{
-		switch (a_device) {
-		case DEVICE::kKeyboardMouse:
-			return RE::INPUT_DEVICE::kKeyboard;
-		case DEVICE::kGamepadDirectX:
-			return RE::INPUT_DEVICE::kGamepad;
-		case DEVICE::kGamepadOrbis:
-			return RE::INPUT_DEVICE::kGamepad;
-		default:
-			return RE::INPUT_DEVICE::kNone;
-		}
-	}
 	DEVICE from_RE_device(const RE::INPUT_DEVICE a_device)
 	{
 		switch (a_device) {
 		case RE::INPUT_DEVICE::kKeyboard:
+			return DEVICE::kKeyboardMouse;
+		case RE::INPUT_DEVICE::kMouse:
 			return DEVICE::kKeyboardMouse;
 		case RE::INPUT_DEVICE::kGamepad:
 			if (RE::ControlMap::GetSingleton()->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis) {

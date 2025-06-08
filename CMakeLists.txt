@@ -1,5 +1,5 @@
 
-if(NOT DEFINED ENV{COMMONLIB_SSE_FOLDER})
+if(NOT DEFINED ENV{COMMONLIB_SSE_FOLDER2})
   message(FATAL_ERROR "Missing COMMONLIB_SSE_FOLDER environment variable")
 endif()
 
@@ -46,7 +46,7 @@ set(ENABLE_SKYRIM_AE ON CACHE BOOL " " FORCE)
 set(ENABLE_SKYRIM_VR ON CACHE BOOL " " FORCE)
 set(BUILD_TESTS OFF CACHE BOOL " " FORCE)
 
-add_subdirectory("$ENV{COMMONLIB_SSE_FOLDER}" ${CMAKE_CURRENT_BINARY_DIR}/_deps/clib-build)
+add_subdirectory("$ENV{COMMONLIB_SSE_FOLDER2}" ${CMAKE_CURRENT_BINARY_DIR}/_deps/clib-build)
 get_target_property(COMMONLIB_SRC_DIR CommonLibSSE SOURCE_DIR)
 
 find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")

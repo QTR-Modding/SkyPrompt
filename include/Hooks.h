@@ -32,7 +32,6 @@ namespace ImGui::Renderer
 		static void thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::InputEvent* const* a_event);
 		static inline REL::Relocation<decltype(thunk)> func;
 		static bool ProcessInput(RE::InputEvent* event);
-        static bool IsOtherButtonPressed(RE::InputEvent* const* a_event);
 	};
 
 	template <typename MenuType>
