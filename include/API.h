@@ -41,7 +41,7 @@ namespace SkyPromptAPI {
 
 	struct Prompt {
 		std::string_view text;
-        std::span<std::pair<RE::INPUT_DEVICE, ButtonID>> button_key;
+        std::span<const std::pair<RE::INPUT_DEVICE, ButtonID>> button_key;
         EventID eventID;
 		ActionID actionID;
 		PromptType type;

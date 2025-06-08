@@ -146,7 +146,7 @@ namespace ImGui::Renderer
         std::shared_mutex events_to_send_mutex;
         std::map<const SkyPromptAPI::PromptSink*, std::vector<SkyPromptAPI::PromptEvent>> events_to_send_;
         SubManager* Add2Q(SkyPromptAPI::ClientID a_clientID, const Interaction& a_interaction,
-                          SkyPromptAPI::PromptType a_type, RefID a_refid, std::map<Input::DEVICE, uint32_t> a_bttn_map, bool show = true);
+                          SkyPromptAPI::PromptType a_type, RefID a_refid, const std::map<Input::DEVICE, uint32_t>& a_bttn_map, bool show = true);
 
         bool SwitchToClientManager(SkyPromptAPI::ClientID client_id);
 

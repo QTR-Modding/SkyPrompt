@@ -528,7 +528,7 @@ void ImGui::Renderer::SubManager::WakeUpQueue() {
 
 SubManager* ImGui::Renderer::Manager::Add2Q(
     const SkyPromptAPI::ClientID a_clientID, const Interaction& a_interaction,
-    const SkyPromptAPI::PromptType a_type, const RefID a_refid, std::map<Input::DEVICE, uint32_t> a_bttn_map, const bool show) {
+    const SkyPromptAPI::PromptType a_type, const RefID a_refid, const std::map<Input::DEVICE, uint32_t>& a_bttn_map, const bool show) {
 
 
 	const auto manager_list = GetManagerList(a_clientID);
@@ -650,15 +650,14 @@ bool ImGui::Renderer::Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_si
 		auto interaction = Interaction(event_id, action_id);
 		interaction.text = text;
 		std::map<Input::DEVICE, uint32_t> temp_button_keys;
-		for (const auto [a_device, key] : button_key) {
-			if (key == 0) {
-				continue;
-			}
+		for (const auto& [a_device, key] : button_key) {
 			Input::DEVICE device = Input::from_RE_device(a_device);
 			if (device == Input::DEVICE::kUnknown) {
 				continue;
 			}
-			temp_button_keys[device] = key;
+			if (const auto a_new_key = MANAGER(Input)->Convert(key,a_device)) {
+			    temp_button_keys[device] = a_new_key;
+			}
 		}
 		if (const auto submanager = Add2Q(a_clientID, interaction, a_type, a_refid,temp_button_keys, true)) {
 			const auto a_list = GetManagerList(a_clientID);
