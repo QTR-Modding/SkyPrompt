@@ -14,12 +14,14 @@ struct Interaction {
 	ACTIONS::Action action = 0;
 	SCENES::Event event = 0;
 	std::string text;
+	uint32_t text_color;
 
 	Interaction() = default;
 	Interaction(const Interaction& a_rhs) {
 		action = a_rhs.action;
 		event = a_rhs.event;
 		text = a_rhs.text;
+		text_color = a_rhs.text_color;
 	}
 	Interaction(const SCENES::Event& a_event, const ACTIONS::Action& a_action) : action(a_action), event(a_event) {}
 

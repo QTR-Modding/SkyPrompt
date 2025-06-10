@@ -241,7 +241,7 @@ namespace {
         const auto p1 = ImVec2(iconCenter.x, iconCenter.y - outer_radius + triangle_height); // Tip (bottom, closer to center)
         const auto p2 = ImVec2(iconCenter.x - triangle_width * 0.5f, iconCenter.y - outer_radius - triangle_height); // Top left
         const auto p3 = ImVec2(iconCenter.x + triangle_width * 0.5f, iconCenter.y - outer_radius - triangle_height); // Top right
-		auto color = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 200);
+		const auto color = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 200);
         drawList->AddTriangleFilled(p1, p2, p3, color);
     }
 }
@@ -259,8 +259,8 @@ ImVec2 ImGui::ButtonIcon(const IconFont::IconTexture* a_texture)
 void ImGui::DrawCycleIndicators(SkyPromptAPI::ClientID curr_index, SkyPromptAPI::ClientID queue_size)
 {
 	auto* iconMgr  = MANAGER(IconFont);
-    auto* inputMgr = MANAGER(Input);
-	auto curr_device = inputMgr->GetInputDevice();
+    const auto* inputMgr = MANAGER(Input);
+	const auto curr_device = inputMgr->GetInputDevice();
     const uint32_t keyL = MCP::Settings::cycle_L.at(curr_device);
 
     const uint32_t keyR = MCP::Settings::cycle_R.at(curr_device);
@@ -302,7 +302,7 @@ void ImGui::AddTextWithShadow(ImDrawList* draw_list, ImFont* font, const float f
     draw_list->AddText(font, font_size, position, text_color, text);
 }
 
-ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const IconFont::IconTexture* a_texture, const float progress, const float button_state)
+ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, uint32_t a_text_color, const IconFont::IconTexture* a_texture, const float progress, const float button_state)
 {
     if (!a_texture || !a_texture->srView.Get()) {
         logger::error("Button icon texture not loaded.");
@@ -384,8 +384,9 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const IconFont:
 
     const ImVec2 textScreenPos = ImGui::GetCursorScreenPos();
 
+	const auto text_color = a_text_color ? a_text_color : IM_COL32(255, 255, 255, 255);
     AddTextWithShadow(a_drawlist, ImGui::GetFont(), ImGui::GetFontSize(), 
-        textScreenPos, IM_COL32(255, 255, 255, 255), a_text);
+        textScreenPos, text_color, a_text);
 
     // Move ImGui cursor manually to avoid overlap
     ImGui::Dummy(textSize);  // Moves cursor forward horizontally

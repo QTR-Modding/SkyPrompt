@@ -234,7 +234,7 @@ namespace ImGui
         ImU32 shadow_color = IM_COL32(0, 0, 0, 255*MCP::Settings::font_shadow),
         ImVec2 shadow_offset = ImVec2(2.5f, 2.5f));
 
-    ImVec2 ButtonIconWithCircularProgress(const char* a_text, const IconFont::IconTexture* a_texture, float progress,float button_state=-1.f);
+    ImVec2 ButtonIconWithCircularProgress(const char* a_text, uint32_t a_text_color, const IconFont::IconTexture* a_texture, float progress, float button_state=-1.f);
 
 
 }

@@ -64,7 +64,7 @@ std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha,
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
 	std::optional<std::pair<float,float>> a_position;
     if (buttonIcon->srView.Get()) {
-        const auto position = ImGui::ButtonIconWithCircularProgress(a_text.c_str(), buttonIcon,progress,button_state);
+        const auto position = ImGui::ButtonIconWithCircularProgress(a_text.c_str(), text_color, buttonIcon,progress, button_state);
 		a_position = { position.x,position.y };
     } else {
         logger::error("Button icon texture not loaded for key {}", buttonKey);
@@ -638,7 +638,7 @@ bool ImGui::Renderer::Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_si
 {
 
     for (const auto prompts = a_prompt_sink->GetPrompts();
-		const auto& [text, button_key, a_event, a_action, a_type, a_refid] : prompts) {
+		const auto& [text, text_color,button_key, a_event, a_action, a_type, a_refid] : prompts) {
 	    if (text.empty()) {
 		    logger::warn("Empty prompt text");
 		    return false;
@@ -649,6 +649,7 @@ bool ImGui::Renderer::Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_si
 		const uint32_t action_id = start_index + a_action;
 		auto interaction = Interaction(event_id, action_id);
 		interaction.text = text;
+		interaction.text_color = text_color;
 		std::map<Input::DEVICE, uint32_t> temp_button_keys;
 		for (const auto& [a_device, key] : button_key) {
 			Input::DEVICE device = Input::from_RE_device(a_device);
@@ -970,6 +971,7 @@ InteractionButton::InteractionButton(const Interaction& a_interaction, const Sky
 	interaction = a_interaction;
 	type = a_type;
 	text = a_interaction.name();
+	text_color = a_interaction.text_color;
 	if (const auto a_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_refid)) {
 		attached_object = a_ref->GetHandle();
 	}

@@ -14,6 +14,7 @@ struct InteractionButton
 {
     Interaction interaction;
     std::string text;
+	uint32_t text_color;
     SkyPromptAPI::PromptType type = SkyPromptAPI::PromptType::kSinglePress;
     RE::ObjectRefHandle attached_object;
 	std::map<Input::DEVICE, uint32_t> keys;
