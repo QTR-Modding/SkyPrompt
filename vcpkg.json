@@ -11,6 +11,7 @@
     "rapidcsv",
     "rapidjson",
     "clib-util",
+    "clib-utils-qtr",
     "skse-mcp",
     "magic-enum",
     "directxtex",
