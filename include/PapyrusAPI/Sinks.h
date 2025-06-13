@@ -8,9 +8,9 @@ namespace PapyrusAPI {
 	using PromptKey = std::pair<SkyPromptAPI::EventID,SkyPromptAPI::ActionID>;
 	class PapyrusSink final : public SkyPromptAPI::PromptSink {
 	public:
-		explicit PapyrusSink(const SkyPromptAPI::ClientID a_clientID) : last_type(), prompt(), clientID(a_clientID){};
+		explicit PapyrusSink(const SkyPromptAPI::ClientID a_clientID) : last_type(), clientID(a_clientID){};
 
-		~PapyrusSink() override;
+		~PapyrusSink() override = default;
 
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
         std::span<const SkyPromptAPI::Prompt> GetPrompts() const override;

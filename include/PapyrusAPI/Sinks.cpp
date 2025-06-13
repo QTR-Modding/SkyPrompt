@@ -1,17 +1,5 @@
 #include "Sinks.h"
 
-PapyrusAPI::PapyrusSink::~PapyrusSink() {
-    std::unique_lock lock(prompt_mutex_);
-    prompt = {};
-    last_type = {};
-    clientID = 0;
-    text = "";
-    bindings.clear();
-    prompt.button_key = {};
-    prompt.text = "";
-    prompt.refid = 0;
-}
-
 void PapyrusAPI::PapyrusSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
     auto* vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
     if (!vm) return;
