@@ -791,6 +791,15 @@ void ImGui::Renderer::SubManager::Stop()
 bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 {
 
+    if (!wakeup_queued_.load()) {
+	    wakeup_queued_.store(true);
+        Tasker::GetSingleton()->PushTask([] {
+	        Manager::GetSingleton()->WakeUpQueue();
+        },
+	        100
+        );
+    }
+
 	if (!isPressing) {
 	    std::unique_lock lock(progress_mutex_);
 		if (progress_circle > 0.5f*MCP::Settings::progress_speed) {
@@ -805,18 +814,9 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 	    return false;
 	}
 
-    if (!wakeup_queued_.load()) {
-	    wakeup_queued_.store(true);
-        Tasker::GetSingleton()->PushTask([] {
-	        Manager::GetSingleton()->WakeUpQueue();
-        },
-	        100
-        );
-    }
-
 	{
 	    std::unique_lock lock(progress_mutex_);
-	    progress_circle += RE::GetSecondsSinceLastFrame() * MCP::Settings::progress_speed*4.f / (RE::BSTimer::GetSingleton()->QGlobalTimeMultiplier()+EPSILON);
+	    progress_circle += RE::GetSecondsSinceLastFrame() * MCP::Settings::progress_speed*4.f / (RE::BSTimer::QGlobalTimeMultiplier()+EPSILON);
 	}
 
 	SkyPromptAPI::PromptType a_type = SkyPromptAPI::kSinglePress;
