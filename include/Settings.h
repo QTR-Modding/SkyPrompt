@@ -64,7 +64,7 @@ namespace Presets {
 			0.415f, // left slight
 
 		};
-		constexpr std::array OSPY = { // X offsets for on-screen positions
+		constexpr std::array OSPY = { // Y offsets for on-screen positions
 			0.981f, // bottom
 			0.210f, // top
 			0.650f, // center
