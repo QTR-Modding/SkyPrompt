@@ -5,7 +5,6 @@ set(sources ${sources}
 	src/Hooks.cpp
 	src/MCP.cpp
  	src/Input.cpp
- 	src/Tasker.cpp
  	src/Renderer.cpp
  	src/Service.cpp
  	src/Interaction.cpp
