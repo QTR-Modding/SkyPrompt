@@ -23,10 +23,10 @@ namespace MCP {
         inline float fadeSpeed{ 0.02f };
 	    inline float xPercent = Presets::OSP::OSPX[1];
         inline float yPercent = Presets::OSP::OSPY[4];
-        inline float prompt_size = 55;
+        inline float prompt_size = 45.65f;
 		inline float icon2font_ratio = 1.f;
 		inline float linespacing = 0.267f;
-	    inline float progress_speed = .442f;
+	    inline float progress_speed = .552f;
 	    inline float lifetime = 5.f;
 #ifndef NDEBUG
 		inline bool draw_debug = true;
@@ -53,14 +53,14 @@ namespace MCP {
 
 		namespace SpecialCommands {
 			inline bool visualize = true;
-			inline float responsiveness = 0.9f;
+			inline float responsiveness = 0.667f;
 			void Render();
 		};
 
 		// Settings::Theme
 	    inline std::string font_name = "Jost-Regular";
 	    inline std::set<std::string> font_names;
-	    inline float font_shadow = 0.5f;
+	    inline float font_shadow = 0.2f;
 
 		void OSPPresetBox();
 		bool FontSettings();
