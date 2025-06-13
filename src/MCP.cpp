@@ -226,16 +226,16 @@ void MCP::Settings::LoadDefaultPromptKeys()
         Input::Manager::Convert(KEY::kNum4, RE::INPUT_DEVICE::kKeyboard)
     }},
     { Input::DEVICE::kGamepadDirectX, {
-        Input::Manager::Convert(GAMEPAD_DIRECTX::kA, RE::INPUT_DEVICE::kGamepad),
         Input::Manager::Convert(GAMEPAD_DIRECTX::kB, RE::INPUT_DEVICE::kGamepad),
         Input::Manager::Convert(GAMEPAD_DIRECTX::kX, RE::INPUT_DEVICE::kGamepad),
-        Input::Manager::Convert(GAMEPAD_DIRECTX::kY, RE::INPUT_DEVICE::kGamepad)
+        Input::Manager::Convert(GAMEPAD_DIRECTX::kY, RE::INPUT_DEVICE::kGamepad),
+        Input::Manager::Convert(GAMEPAD_DIRECTX::kA, RE::INPUT_DEVICE::kGamepad)
     }},
     { Input::DEVICE::kGamepadOrbis, {
-        Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_A, RE::INPUT_DEVICE::kGamepad),
         Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_B, RE::INPUT_DEVICE::kGamepad),
         Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_X, RE::INPUT_DEVICE::kGamepad),
-        Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_Y, RE::INPUT_DEVICE::kGamepad)
+        Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_Y, RE::INPUT_DEVICE::kGamepad),
+        Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_A, RE::INPUT_DEVICE::kGamepad)
     }}
     };
 	cycle_L = {
