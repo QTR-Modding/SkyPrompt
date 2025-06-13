@@ -1,5 +1,6 @@
 #pragma once
 #include "Input.h"
+#include "Settings.h"
 #include "rapidjson/document.h"
 
 namespace MCP {
@@ -16,16 +17,17 @@ namespace MCP {
     void Register();
 
     namespace Settings {
+        inline size_t current_OSP = 21; // CenterBottomRight
         constexpr float marginX = 20.0f;
         constexpr float marginY = 20.0f;
-        inline float fadeSpeed{ 0.007f };
-	    inline float xPercent = 0.8f;
-        inline float yPercent = 0.97f;
-        inline float prompt_size = 40;
+        inline float fadeSpeed{ 0.02f };
+	    inline float xPercent = Presets::OSP::OSPX[1];
+        inline float yPercent = Presets::OSP::OSPY[4];
+        inline float prompt_size = 55;
 		inline float icon2font_ratio = 1.f;
-		inline float linespacing = 0.3f;
-	    inline float progress_speed = 1.f;
-	    inline float lifetime = 20.f;
+		inline float linespacing = 0.267f;
+	    inline float progress_speed = .442f;
+	    inline float lifetime = 5.f;
 #ifndef NDEBUG
 		inline bool draw_debug = true;
 #endif
@@ -37,8 +39,8 @@ namespace MCP {
 
         inline std::atomic shouldReloadPromptSize=true;
         inline std::atomic shouldReloadLifetime=true;
-	    inline std::atomic initialized{ false };
-		inline std::atomic cycle_controls = true;
+	    inline std::atomic initialized{ true };
+		inline std::atomic cycle_controls = true; // multipage prompt support
 
 
 		inline std::map<Input::DEVICE, bool> enabled_devices = {
@@ -60,6 +62,7 @@ namespace MCP {
 	    inline std::set<std::string> font_names;
 	    inline float font_shadow = 0.5f;
 
+		void OSPPresetBox();
 		bool FontSettings();
 		void LoadDefaultPromptKeys();
 		bool CycleControls();
