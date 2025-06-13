@@ -3,7 +3,6 @@
 #include "Tasker.h"
 #include "IconsFonts.h"
 #include "MCP.h"
-#include "Settings.h"
 #include "Styles.h"
 #include "Utils.h"
 #include "Geometry.h"

@@ -35,3 +35,16 @@ void Settings::LoadSettings() const
 		logger::error("Failed to load settings: {}", e.what());
 	}
 }
+
+std::array<std::pair<float, float>, Presets::OSP::NOSPs> Presets::OSP::getOSPs()
+{
+	std::array<std::pair<float, float>, NOSPs> result;
+	size_t index = 0;
+	for (auto a_float:Presets::OSP::OSPY) {
+	    for (auto b_float:Presets::OSP::OSPX) {
+			result[index]= {b_float, a_float};
+			++index;
+		}
+	}
+	return result;
+}

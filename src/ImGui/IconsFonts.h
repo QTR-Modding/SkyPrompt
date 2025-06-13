@@ -1,8 +1,8 @@
 #pragma once
 #include "API.h"
 #include "Graphics.h"
-#include "Settings.h"
 #include <unordered_set>
+#include "MCP.h"
 
 
 namespace IconFont

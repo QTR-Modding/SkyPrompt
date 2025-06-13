@@ -32,6 +32,12 @@ void __stdcall MCP::RenderSettings()
 	MCP_API::Checkbox("Draw Debug", &Settings::draw_debug);
 #endif
 
+    const auto cache = Settings::current_OSP;
+    Settings::OSPPresetBox();
+	if (cache != Settings::current_OSP) {
+		settingsChanged = true;
+	}
+
     // Slider for fade speed
     if (!MCP_API::SliderFloat("Fade Speed", &Settings::fadeSpeed, 0.0f, 0.1f)) {
         if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
@@ -153,6 +159,30 @@ bool MCP::Settings::IsEnabled(const Input::DEVICE a_device)
 	return false;
 }
 
+void MCP::Settings::OSPPresetBox()
+{
+	// Dropdown for OSP Preset
+	MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.25f);
+	const auto current_preset_name= Presets::OSP::OSPPool.to_name(current_OSP);
+	if (MCP_API::BeginCombo("On-Screen Position", current_preset_name.data())) {
+        for (const auto& all_preset_names = Presets::OSP::OSPnames; 
+			const auto& preset_name : all_preset_names) {
+			const bool isSelected = current_preset_name == preset_name;
+			if (MCP_API::Selectable(preset_name.data(), isSelected)) {
+				if (!isSelected) {
+					current_OSP = std::distance(all_preset_names.begin(), std::ranges::find(all_preset_names, preset_name));
+					const auto [fst, snd] = Presets::OSP::presets.for_level(current_OSP);
+					xPercent = fst;
+					yPercent = snd;
+
+				}
+			}
+			if (isSelected) MCP_API::SetItemDefaultFocus();
+		}
+		MCP_API::EndCombo();
+	}
+}
+
 bool MCP::Settings::FontSettings()
 {
 	auto changed = false;
@@ -196,16 +226,16 @@ void MCP::Settings::LoadDefaultPromptKeys()
         Input::Manager::Convert(KEY::kNum4, RE::INPUT_DEVICE::kKeyboard)
     }},
     { Input::DEVICE::kGamepadDirectX, {
-        Input::Manager::Convert(GAMEPAD_DIRECTX::kA, RE::INPUT_DEVICE::kGamepad),
         Input::Manager::Convert(GAMEPAD_DIRECTX::kB, RE::INPUT_DEVICE::kGamepad),
         Input::Manager::Convert(GAMEPAD_DIRECTX::kX, RE::INPUT_DEVICE::kGamepad),
-        Input::Manager::Convert(GAMEPAD_DIRECTX::kY, RE::INPUT_DEVICE::kGamepad)
+        Input::Manager::Convert(GAMEPAD_DIRECTX::kY, RE::INPUT_DEVICE::kGamepad),
+        Input::Manager::Convert(GAMEPAD_DIRECTX::kA, RE::INPUT_DEVICE::kGamepad)
     }},
     { Input::DEVICE::kGamepadOrbis, {
-        Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_A, RE::INPUT_DEVICE::kGamepad),
         Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_B, RE::INPUT_DEVICE::kGamepad),
         Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_X, RE::INPUT_DEVICE::kGamepad),
-        Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_Y, RE::INPUT_DEVICE::kGamepad)
+        Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_Y, RE::INPUT_DEVICE::kGamepad),
+        Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_A, RE::INPUT_DEVICE::kGamepad)
     }}
     };
 	cycle_L = {
