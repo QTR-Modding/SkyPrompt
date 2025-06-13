@@ -23,7 +23,7 @@ struct Interaction {
 		text = a_rhs.text;
 		text_color = a_rhs.text_color;
 	}
-	Interaction(const SCENES::Event& a_event, const ACTIONS::Action& a_action) : action(a_action), event(a_event) {}
+	Interaction(const SCENES::Event& a_event, const ACTIONS::Action& a_action) : action(a_action), event(a_event),text_color(0xFFFFFFFF){}
 
 	[[nodiscard]] std::string name() const { return text; }
 
