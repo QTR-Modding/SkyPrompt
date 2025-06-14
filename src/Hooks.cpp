@@ -127,7 +127,7 @@ void ImGui::Renderer::Install()
 
 void ImGui::Renderer::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::InputEvent* const* a_event)
 {
-	if (!a_dispatcher || !a_event) {
+	if (!a_dispatcher || !a_event || !MCP::Settings::initialized) {
 		return func(a_dispatcher, a_event);
 	}
 
