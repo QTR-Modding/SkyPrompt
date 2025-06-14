@@ -31,6 +31,11 @@ void __stdcall MCP::RenderSettings()
 	if (MCP_API::Button("Start Tutorial")) {
 	    Tutorial::Manager::Start();
 	}
+	MCP_API::SameLine();
+	if (MCP_API::Button("Start ModPageImage")) {
+		auto clientID = SkyPromptAPI::RequestClientID();
+		if (SendPrompt(Tutorial::ModPageImage::Sink::GetSingleton(),clientID)){};
+	}
 #ifndef NDEBUG
 	// Checkbox for debug mode
 	MCP_API::SameLine();
@@ -59,7 +64,7 @@ void __stdcall MCP::RenderSettings()
     }
 
     // Slider for Prompt Size
-    if (!MCP_API::SliderFloat("Prompt Size", &Settings::prompt_size, 15.0f, 100.0f)) {
+    if (!MCP_API::SliderFloat("Prompt Size", &Settings::prompt_size, 15.0f, 1000.0f)) {
         if (MCP_API::IsItemDeactivatedAfterEdit()) {
             Settings::shouldReloadPromptSize.store(true);
             settingsChanged = true;

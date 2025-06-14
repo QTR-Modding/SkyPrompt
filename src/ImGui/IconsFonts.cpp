@@ -91,7 +91,7 @@ namespace IconFont
 		//const auto a_iconsize = a_fontsize * 1.f;
 		const auto a_largefontsize = a_fontsize * 1.2f;
 		//const auto a_largeiconsize = a_largefontsize * 1.f;
-		const auto a_smallfontsize = a_fontsize * 0.65f;
+		const auto a_smallfontsize = a_largefontsize; // a_fontsize * 0.65f;
 
 		io.FontDefault = LoadFontIconSet(a_fontsize, ranges);
 		largeFont = LoadFontIconSet(a_largefontsize, ranges);
@@ -145,6 +145,7 @@ namespace IconFont
 
 	const IconTexture* Manager::GetIcon(const std::uint32_t key)
 	{
+		return &mouse.find(static_cast<KEY>(SkyPromptAPI::kSkyrim))->second;
 		switch (key) {
 		case SKSE::InputMap::kGamepadButtonOffset_DPAD_UP:
 			return &upKey;

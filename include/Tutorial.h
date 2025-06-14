@@ -113,6 +113,24 @@ namespace Tutorial {
 
 	}
 
+	namespace ModPageImage {
+
+	    inline SkyPromptAPI::ClientID client_id=0;
+		inline std::chrono::steady_clock::time_point last_delete_t;
+
+        constexpr std::string_view str1 = "SkyPrompt";
+
+		const SkyPromptAPI::Prompt prompt1(str1,0,0,SkyPromptAPI::PromptType::kHold);
+
+		class Sink final : public SkyPromptAPI::PromptSink,public clib_util::singleton::ISingleton<Sink> {
+			std::array<const SkyPromptAPI::Prompt,1> m_prompts = {prompt1};
+		public:
+			std::span<const SkyPromptAPI::Prompt> GetPrompts() const override {return m_prompts;}
+			void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
+        };
+
+	}
+
     class Manager : public clib_util::singleton::ISingleton<Manager>
     {
     public:

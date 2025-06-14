@@ -149,6 +149,18 @@ void Tutorial::SwitchBackFromTutorialPos()
     MCP::Settings::yPercent = old_ypos;
 }
 
+void Tutorial::ModPageImage::Sink::ProcessEvent(SkyPromptAPI::PromptEvent event) const {
+    switch (event.type) {
+        case SkyPromptAPI::PromptEventType::kTimeout:
+        case SkyPromptAPI::PromptEventType::kTimingOut:
+            // ReSharper disable once CppNoDiscardExpression
+            if (SkyPromptAPI::SendPrompt(this,client_id)) {
+            }
+        default:
+            break;
+    }
+}
+
 void Tutorial::Tutorial0::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
     if (event.prompt.eventID && event.type == SkyPromptAPI::kAccepted) {
         Manager::End(this,client_id);
