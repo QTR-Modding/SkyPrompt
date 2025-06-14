@@ -2,6 +2,7 @@
 #include "IconsFonts.h"
 #include "Input.h"
 #include "Renderer.h"
+#include "Tutorial.h"
 #include "Styles.h"
 #include "imgui_impl_dx11.h"
 #include "imgui_impl_win32.h"
@@ -135,7 +136,7 @@ void ImGui::Renderer::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_di
     size_t length = 0;
 
     for (auto current = *a_event; current; current = current->next) {
-        if (ProcessInput(current)) {
+        if (ProcessInput(current) || Tutorial::showing_tutorial.load()) {
             if (current != last) {
                 last->next = current->next;
             } else {

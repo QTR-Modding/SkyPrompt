@@ -8,6 +8,7 @@ set(sources ${sources}
  	src/Renderer.cpp
  	src/Service.cpp
  	src/Interaction.cpp
+ 	src/Tutorial.cpp
  	src/Geometry.cpp
 	src/ImGui/Graphics.cpp
     src/ImGui/Styles.cpp

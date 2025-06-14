@@ -92,7 +92,6 @@ namespace ImGui::Renderer
 
         std::map<Interaction,std::vector<const SkyPromptAPI::PromptSink*>> sinks;
 
-        void RemoveFromSinks(SkyPromptAPI::PromptSink* a_prompt_sink);
         void ButtonStateActions();
 
         mutable std::atomic<bool> wakeup_queued_{ false };
@@ -159,7 +158,6 @@ namespace ImGui::Renderer
         const std::vector<std::unique_ptr<SubManager>>* GetManagerList(SkyPromptAPI::ClientID a_clientID) const;
         std::vector<std::unique_ptr<SubManager>>* GetManagerList(SkyPromptAPI::ClientID a_clientID);
 
-        void Clear();
         void Clear(SkyPromptAPI::PromptEventType a_event_type);
 
     public:

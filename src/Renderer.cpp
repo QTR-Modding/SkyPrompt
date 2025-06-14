@@ -1,11 +1,12 @@
 ﻿#include "Renderer.h"
 #include "Hooks.h"
-#include "Tasker.h"
+#include "CLibUtilsQTR/Tasker.hpp"
 #include "IconsFonts.h"
 #include "MCP.h"
 #include "Styles.h"
 #include "Utils.h"
 #include "Geometry.h"
+#include "Tutorial.h"
 
 using namespace ImGui::Renderer;
 
@@ -110,7 +111,7 @@ void ButtonQueue::Show(const float progress, const InteractionButton* button2sho
 		current_button = button2show;
 	}
 	else if (current_button) {
-		if (!Manager::IsGameFrozen()) {
+		if (Tutorial::showing_tutorial.load() || !Manager::IsGameFrozen()) {
 		    if (expired()/* && current_button->alpha>0.f*/) {
 				alpha = std::max(alpha - MCP::Settings::fadeSpeed, 0.0f);
 	        }
@@ -219,7 +220,10 @@ void ImGui::Renderer::Manager::ReArrange() {
 		}
 	}
 
-	Clear();
+	{
+	    std::unique_lock lock(mutex_);
+        managers.clear();
+	}
 
 	// distribute the interactions to the managers
 	for (const auto& interaction_buttons : interactions | std::views::values) {
@@ -398,16 +402,6 @@ RE::TESObjectREFR* ImGui::Renderer::SubManager::GetAttachedObject() const {
 	return nullptr;
 }
 
-void ImGui::Renderer::SubManager::RemoveFromSinks(SkyPromptAPI::PromptSink* a_prompt_sink)
-{
-	std::unique_lock lock(sink_mutex_);
-	for (auto& sinks_ : sinks | std::views::values) {
-		if (const auto it = std::ranges::find(sinks_, a_prompt_sink); it != sinks_.end()) {
-			sinks_.erase(it);
-		}
-	}
-}
-
 void ImGui::Renderer::SubManager::ButtonStateActions()
 {
 	buttonState.pressCount = std::min(3,buttonState.pressCount);
@@ -421,6 +415,24 @@ void ImGui::Renderer::SubManager::ButtonStateActions()
 			}
 			else if (buttonState.pressCount == 3) {
 				NextPrompt();
+				if (Tutorial::showing_tutorial.load()) {
+					const auto a_id = Tutorial::Tutorial2::client_id*std::numeric_limits<SkyPromptAPI::ClientID>::max();
+                    if (const auto a_interaction = GetCurrentInteraction(); static_cast<SCENES::Event>(a_id) == a_interaction.event) {
+						Tutorial::Tutorial2::to_be_deleted.erase(static_cast<SkyPromptAPI::ActionID>(a_interaction.action-static_cast<ACTIONS::Action>(a_id)));
+					    if (Tutorial::Tutorial2::to_be_deleted.empty()) {
+						    SKSE::GetTaskInterface()->AddTask([]() {
+                                SkyPromptAPI::RemovePrompt(Tutorial::Tutorial2::Sink::GetSingleton(),Tutorial::Tutorial2::client_id);
+                                if (const auto new_clientID = SkyPromptAPI::RequestClientID()) {
+                                    Tutorial::Tutorial3::client_id = new_clientID;
+                                    if (!SkyPromptAPI::SendPrompt(Tutorial::Tutorial3::Sink::GetSingleton(),Tutorial::Tutorial3::client_id)) {
+                                        logger::error("Failed to Send Tutorial3 prompts.");
+                                    }
+                                }
+						    }
+						    );
+                        }
+					}
+				}
 			}
 			buttonState.pressCount = 0;
 		}
@@ -637,7 +649,7 @@ bool ImGui::Renderer::Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_si
 {
 
     for (const auto prompts = a_prompt_sink->GetPrompts();
-		const auto& [text, text_color,button_key, a_event, a_action, a_type, a_refid] : prompts) {
+		const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color] : prompts) {
 	    if (text.empty()) {
 		    logger::warn("Empty prompt text");
 		    return false;
@@ -789,14 +801,13 @@ void ImGui::Renderer::SubManager::Stop()
 
 bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 {
-
     if (!wakeup_queued_.load()) {
 	    wakeup_queued_.store(true);
-        Tasker::GetSingleton()->PushTask([] {
-	        Manager::GetSingleton()->WakeUpQueue();
-        },
-	        100
-        );
+        clib_utilsQTR::Tasker::GetSingleton()->PushTask([] {
+                                                            Manager::GetSingleton()->WakeUpQueue();
+                                                        },
+                                                        100
+            );
     }
 
 	if (!isPressing) {
@@ -808,11 +819,9 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 		blockProgress.store(false);
 		return false;
 	}
-
 	if (blockProgress.load()) {
 	    return false;
 	}
-
 	{
 	    std::unique_lock lock(progress_mutex_);
 	    progress_circle += RE::GetSecondsSinceLastFrame() * MCP::Settings::progress_speed*4.f / (RE::BSTimer::QGlobalTimeMultiplier()+EPSILON);
@@ -1091,12 +1100,6 @@ void ImGui::Renderer::Manager::ShowQueue() {
 		}
 	    EndImGuiWindow();
 	}
-}
-
-void ImGui::Renderer::Manager::Clear()
-{
-    std::unique_lock lock(mutex_);
-    managers.clear();
 }
 
 void ImGui::Renderer::Manager::Clear(const SkyPromptAPI::PromptEventType a_event_type)

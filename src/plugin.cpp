@@ -6,6 +6,7 @@
 #include "Styles.h"
 #include "Utils.h"
 #include "PapyrusAPI/Bindings.h"
+#include "Tutorial.h"
 
 void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
@@ -14,7 +15,9 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         if (!SKSE::GetPapyrusInterface()->Register(PapyrusAPI::Register)) {
             logger::error("Failed to register Papyrus API");
         }
-
+        if (OtherSettings::first_install) {
+            Tutorial::Manager::Start();
+        }
     }
 	if (message->type == SKSE::MessagingInterface::kInputLoaded) {
 		if (MCP::Settings::prompt_keys.empty()) {
