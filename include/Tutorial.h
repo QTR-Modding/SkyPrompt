@@ -8,10 +8,14 @@ namespace Tutorial {
     constexpr std::string_view quit_me = "Quit Tutorial";
 	inline std::atomic_bool showing_tutorial = false;
 	void ReadMenuFrameworkStrings();
+	void SwitchToTutorialPos();
+	void SwitchBackFromTutorialPos();
     inline std::string MF_KB_key;
 	inline std::string MF_KB_mode;
 	inline std::string MF_GP_key;
 	inline std::string MF_GP_mode;
+	inline float old_xpos;
+	inline float old_ypos;
 
 	namespace Tutorial3 {
 
@@ -121,7 +125,7 @@ namespace Tutorial {
 			        Tutorial::Tutorial0::to_be_deleted = {0,1};
 			        Tutorial::Tutorial1::to_be_deleted = {0,1};
 			        Tutorial::Tutorial2::to_be_deleted = {0,1};
-			        Tutorial::Tutorial3::to_be_deleted = {0,1};
+			        Tutorial::Tutorial3::to_be_deleted = {0,1};		        
 			        ShowTutorial();
 				    showing_tutorial.store(true);
 			    }
@@ -156,13 +160,15 @@ namespace Tutorial {
         static void End(const SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID) {
 			SkyPromptAPI::RemovePrompt(a_sink,a_clientID);
 			showing_tutorial.store(false);
-			ShowMessageBox(
+			SwitchBackFromTutorialPos();
+            ShowMessageBox(
 			    "SkyPrompt Tutorial:", 
 			    { "Restart","End" }, Callback);
             
         }
 
 	    static void ShowTutorial() {
+			SwitchToTutorialPos();
 			if (!SkyPromptAPI::SendPrompt(Tutorial0::Sink::GetSingleton(),Tutorial0::client_id)) {
 				logger::error("Failed to Send ShowTutorial prompts.");
 			}

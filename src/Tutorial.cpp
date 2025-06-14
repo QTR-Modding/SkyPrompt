@@ -114,8 +114,6 @@ void Tutorial::Tutorial1::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
 
 void Tutorial::ReadMenuFrameworkStrings()
 {
-	// read INI at Data/SKSE/Plugins/SKSEMenuFramework.ini as SimpleINI/CSSimpleINI
-
 	CSimpleIniA ini;
 	ini.SetUnicode(true);
     if (ini.LoadFile("Data/SKSE/Plugins/SKSEMenuFramework.ini") < 0) {
@@ -133,6 +131,22 @@ void Tutorial::ReadMenuFrameworkStrings()
     std::ranges::transform(MF_GP_key, MF_GP_key.begin(),[](const unsigned char c) { return std::toupper(c); });
 	std::string temp4 = "DoublePress";
 	MF_GP_mode = clib_util::ini::get_value(ini, temp4, "General", "ToggleModeGamePad");
+}
+
+void Tutorial::SwitchToTutorialPos()
+{
+    old_xpos = MCP::Settings::xPercent;
+	old_ypos = MCP::Settings::yPercent;
+
+    const auto [fst, snd] = Presets::OSP::presets.for_level(11);
+	MCP::Settings::xPercent = fst;
+    MCP::Settings::yPercent = snd;
+}
+
+void Tutorial::SwitchBackFromTutorialPos()
+{
+    MCP::Settings::xPercent = old_xpos;
+    MCP::Settings::yPercent = old_ypos;
 }
 
 void Tutorial::Tutorial0::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
