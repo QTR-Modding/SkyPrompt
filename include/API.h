@@ -32,6 +32,7 @@ namespace SkyPromptAPI {
 
     constexpr ButtonID kMouseMove = 283;
     constexpr ButtonID kThumbstickMove = 284;
+    constexpr ButtonID kSkyrim = 285;
 
     enum PromptType : std::uint8_t {
         kSinglePress,

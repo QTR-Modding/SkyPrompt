@@ -200,6 +200,7 @@ namespace IconFont
 			{ SKSE::InputMap::kGamepadButtonOffset_LT, { IconTexture(L"360_LT"sv), IconTexture(L"PS3_LT"sv) } },
 			{ SKSE::InputMap::kGamepadButtonOffset_RT, { IconTexture(L"360_RT"sv), IconTexture(L"PS3_RT"sv) } },
 			{ SkyPromptAPI::kThumbstickMove, { IconTexture(L"thumbstick"sv), IconTexture(L"thumbstick"sv) } },
+			{ SkyPromptAPI::kSkyrim, { IconTexture(L"skyrim"sv), IconTexture(L"skyrim"sv) } },
 		};
 
 		Map<std::uint32_t, IconTexture> mouse{
@@ -212,6 +213,7 @@ namespace IconFont
 			{ 256 + +MOUSE::kButton6, IconTexture(L"Mouse7"sv) },
 			{ 256 + +MOUSE::kButton7, IconTexture(L"Mouse8"sv) },
 			{ SkyPromptAPI::kMouseMove, IconTexture(L"mouse"sv) },
+			{ SkyPromptAPI::kSkyrim, IconTexture(L"skyrim"sv) },
 		};
 
 		BUTTON_SCHEME buttonScheme{ BUTTON_SCHEME::kAutoDetect };
