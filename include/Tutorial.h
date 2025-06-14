@@ -168,6 +168,7 @@ namespace Tutorial {
         }
 
 	    static void ShowTutorial() {
+			MCP::Settings::initialized = true;
 			SwitchToTutorialPos();
 			if (!SkyPromptAPI::SendPrompt(Tutorial0::Sink::GetSingleton(),Tutorial0::client_id)) {
 				logger::error("Failed to Send ShowTutorial prompts.");
