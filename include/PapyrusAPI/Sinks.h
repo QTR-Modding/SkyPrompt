@@ -1,6 +1,6 @@
 #pragma once
 #include <shared_mutex>
-#include "API.h"
+#include "SkyPrompt/API.hpp"
 
 namespace PapyrusAPI {
 	inline SKSE::RegistrationSet<int, int, int, int, float, float> skyPromptEvents("OnSkyPromptEvent"sv);

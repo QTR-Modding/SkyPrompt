@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "skyprompt",
-  "version-string": "0.1.0.0",
+  "version-string": "1.0.0.0",
   "dependencies": [
     "fast-cpp-csv-parser",
     "rsm-binary-io",
@@ -16,6 +16,7 @@
     "magic-enum",
     "directxtex",
     "directxtk",
+    "skyprompt-api",
     {
       "name": "imgui",
       "features": [ "dx11-binding", "win32-binding", "freetype", "wchar32" ]

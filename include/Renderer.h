@@ -1,7 +1,7 @@
 #pragma once
 #include <shared_mutex>
 #include "imgui.h"
-#include "API.h"
+#include "SkyPrompt/API.hpp"
 #include "MCP.h"
 #include "Interaction.h"
 

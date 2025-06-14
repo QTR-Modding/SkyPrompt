@@ -1,5 +1,5 @@
 #pragma once
-#include "API.h"
+#include "SkyPrompt/API.hpp"
 
 #define DLLEXPORT __declspec(dllexport)
 

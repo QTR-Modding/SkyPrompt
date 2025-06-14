@@ -1,5 +1,5 @@
 #pragma once
-#include "API.h"
+#include "SkyPrompt/API.hpp"
 #include "Graphics.h"
 #include <unordered_set>
 #include "MCP.h"

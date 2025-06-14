@@ -1,6 +1,6 @@
 #pragma once
 #include "Utils.h"
-#include "API.h"
+#include "SkyPrompt/API.hpp"
 #include "MCP.h"
 
 namespace Tutorial {
