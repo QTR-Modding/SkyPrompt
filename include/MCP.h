@@ -6,6 +6,7 @@
 namespace MCP {
 
 	inline std::atomic_bool refreshStyle{ false };
+	inline bool is_installed = false;
 
     inline std::string log_path;
     inline std::vector<std::string> logLines;
@@ -53,7 +54,7 @@ namespace MCP {
 
 		namespace SpecialCommands {
 			inline bool visualize = true;
-			inline float responsiveness = 0.667f;
+			inline float responsiveness = 0.5f;
 			void Render();
 		};
 

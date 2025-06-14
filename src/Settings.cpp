@@ -1,6 +1,7 @@
 #include "Settings.h"
 #include "Hooks.h"
 #include "Renderer.h"
+#include "Utils.h"
 
 void Settings::SerializeINI(const wchar_t* a_path, const std::function<void(CSimpleIniA&)>& a_func, const bool a_generate)
 {
@@ -28,6 +29,11 @@ void Settings::LoadSettings() const
 		ImGui::Renderer::LoadSettings(ini);  // display tweaks scaling
 	});
 	try {
+	    if (!std::filesystem::exists(json_folder)) {
+		    logger::info("settings.json not found, creating default settings.json");
+            OtherSettings::first_install = true;
+		    return MCP::Settings::to_json();
+	    }
 	    MCP::Settings::from_json();
         ImGui::Renderer::UpdateMaxIntervalBetweenPresses();
 	}

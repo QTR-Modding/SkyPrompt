@@ -63,3 +63,17 @@ void EndImGuiWindow()
 	ImGui::End();
 	ImGui::PopStyleVar(2);
 }
+
+void SkyrimMessageBox::Show(const std::string& bodyText, const std::vector<std::string>& buttonTextValues,
+    std::function<void(unsigned int)> callback) {
+    const auto* factoryManager = RE::MessageDataFactoryManager::GetSingleton();
+    const auto* uiStringHolder = RE::InterfaceStrings::GetSingleton();
+    auto* factory = factoryManager->GetCreator<RE::MessageBoxData>(
+        uiStringHolder->messageBoxData);  // "MessageBoxData" <--- can we just use this string?
+    auto* messagebox = factory->Create();
+    const RE::BSTSmartPointer<RE::IMessageBoxCallback> messageCallback = RE::make_smart<MessageBoxResultCallback>(callback);
+    messagebox->callback = messageCallback;
+    messagebox->bodyText = bodyText;
+    for (auto& text : buttonTextValues) messagebox->buttonText.push_back(text.c_str());
+    messagebox->QueueMessage();
+}

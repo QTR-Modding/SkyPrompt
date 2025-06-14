@@ -126,6 +126,8 @@ void MCP::Register()
         return;
     }
 
+	is_installed = true;
+
 	log_path = GetLogPath().string();
 
     SKSEMenuFramework::SetSection(mod_name);
@@ -459,12 +461,8 @@ void MCP::Settings::to_json()
 
 void MCP::Settings::from_json()
 {
-	auto json = mod_folder + "settings.json";
-	if (!std::filesystem::exists(json)) {
-		logger::info("settings.json not found, creating default settings.json");
-		return to_json();
-	}
-	std::ifstream file(json);
+	
+	std::ifstream file(json_folder);
 	std::string str((std::istreambuf_iterator(file)), std::istreambuf_iterator<char>());
 
 	rapidjson::Document doc;

@@ -19,6 +19,7 @@ private:
 
 namespace OtherSettings {
     [[maybe_unused]] inline float search_scaling = 0.5f;
+	inline bool first_install = false;
 }
 
 namespace Presets {
