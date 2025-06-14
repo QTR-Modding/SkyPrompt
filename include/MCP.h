@@ -54,7 +54,7 @@ namespace MCP {
 
 		namespace SpecialCommands {
 			inline bool visualize = true;
-			inline float responsiveness = 0.5f;
+			inline float responsiveness = 0.67f;
 			void Render();
 		};
 

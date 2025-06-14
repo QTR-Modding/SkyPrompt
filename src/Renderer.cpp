@@ -812,7 +812,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 
 	if (!isPressing) {
 	    std::unique_lock lock(progress_mutex_);
-		if (progress_circle > 0.5f*MCP::Settings::progress_speed) {
+		if (progress_circle > MCP::Settings::progress_speed) {
 			buttonState.pressCount = 0;
 		}
         progress_circle = 0.0f;
