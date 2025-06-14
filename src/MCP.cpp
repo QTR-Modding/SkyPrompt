@@ -5,6 +5,7 @@
 #include "rapidjson/stringbuffer.h"
 #include "Hooks.h"
 #include "Settings.h"
+#include "Tutorial.h"
 #include "SKSEMCP/SKSEMenuFramework.hpp"
 
 static void HelpMarker(const char* desc) {
@@ -26,6 +27,10 @@ void __stdcall MCP::RenderSettings()
     if (MCP_API::Checkbox("Enable Mod", &enabled)) {
         Settings::initialized.store(enabled);
     }
+	MCP_API::SameLine();
+	if (MCP_API::Button("Start Tutorial")) {
+	    Tutorial::Manager::Start();
+	}
 #ifndef NDEBUG
 	// Checkbox for debug mode
 	MCP_API::SameLine();
