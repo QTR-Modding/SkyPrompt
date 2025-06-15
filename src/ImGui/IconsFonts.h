@@ -199,7 +199,8 @@ namespace IconFont
 			{ SKSE::InputMap::kGamepadButtonOffset_Y, { IconTexture(L"360_Y"sv), IconTexture(L"PS3_Y"sv) } },
 			{ SKSE::InputMap::kGamepadButtonOffset_LT, { IconTexture(L"360_LT"sv), IconTexture(L"PS3_LT"sv) } },
 			{ SKSE::InputMap::kGamepadButtonOffset_RT, { IconTexture(L"360_RT"sv), IconTexture(L"PS3_RT"sv) } },
-			{ SkyPromptAPI::kThumbstickMove, { IconTexture(L"thumbstick"sv), IconTexture(L"thumbstick"sv) } },
+			{ SkyPromptAPI::kThumbstickMoveL, { IconTexture(L"thumbstickl"sv), IconTexture(L"thumbstickl"sv) } },
+			{ SkyPromptAPI::kThumbstickMoveR, { IconTexture(L"thumbstickr"sv), IconTexture(L"thumbstickr"sv) } },
 			{ SkyPromptAPI::kSkyrim, { IconTexture(L"skyrim"sv), IconTexture(L"skyrim"sv) } },
 		};
 

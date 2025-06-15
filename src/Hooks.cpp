@@ -214,7 +214,7 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 		}
 	}
 	else if (const auto thumbstick_event = event->AsThumbstickEvent()) {
-		constexpr auto key = SkyPromptAPI::kThumbstickMove;
+		const auto key = thumbstick_event->IsLeft() ? SkyPromptAPI::kThumbstickMoveL : SkyPromptAPI::kThumbstickMoveR;
 		for (const auto prompt_keys = render_manager->GetPromptKeys(); const auto & prompt_key : prompt_keys) {
 			if (prompt_key != 0 && prompt_key == key) {
 				block = true;

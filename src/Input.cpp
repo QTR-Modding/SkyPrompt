@@ -392,7 +392,8 @@ namespace Input
 	uint32_t Manager::Convert(const uint32_t button_key, const RE::INPUT_DEVICE a_device)
 	{
 		if (button_key == SkyPromptAPI::kMouseMove || 
-			button_key == SkyPromptAPI::kThumbstickMove ||
+			button_key == SkyPromptAPI::kThumbstickMoveL ||
+			button_key == SkyPromptAPI::kThumbstickMoveR ||
 			button_key == SkyPromptAPI::kSkyrim
 			) {
 			return button_key;
