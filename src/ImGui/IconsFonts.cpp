@@ -244,15 +244,22 @@ namespace {
 		const auto color = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 200);
         drawList->AddTriangleFilled(p1, p2, p3, color);
     }
-}
 
+	float GetIconSize() {
+		const auto a_fontsize = ImGui::GetIO().FontDefault->FontSize;
+        return a_fontsize* MCP::Settings::icon2font_ratio;
+    }
+
+	ImVec2 GetIconSizeImVec() {
+		const auto a_size = GetIconSize();
+		return {a_size, a_size};
+    }
+}
 
 ImVec2 ImGui::ButtonIcon(const IconFont::IconTexture* a_texture)
 {
-	using namespace MCP::Settings;
-	const ImVec2 a_size = {prompt_size*icon2font_ratio, prompt_size*icon2font_ratio};
+	const auto a_size = GetIconSizeImVec();
 	ImGui::Image(reinterpret_cast<ImTextureID>(a_texture->srView.Get()), a_size);
-
 	return a_size;
 }
 
@@ -265,8 +272,7 @@ void ImGui::DrawCycleIndicators(SkyPromptAPI::ClientID curr_index, SkyPromptAPI:
 
     const uint32_t keyR = MCP::Settings::cycle_R.at(curr_device);
 
-    const float iconSz = MCP::Settings::prompt_size *
-                         MCP::Settings::icon2font_ratio * 0.6f;
+    const float iconSz = GetIconSize() * 0.6f;
 
 	const float spacing = ImGui::GetFontSize() * 0.25f;
     ImGui::Dummy(ImVec2(0.0f, spacing));
@@ -302,7 +308,7 @@ void ImGui::AddTextWithShadow(ImDrawList* draw_list, ImFont* font, const float f
     draw_list->AddText(font, font_size, position, text_color, text);
 }
 
-ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, uint32_t a_text_color, const IconFont::IconTexture* a_texture, const float progress, const float button_state)
+ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const uint32_t a_text_color, const IconFont::IconTexture* a_texture, const float progress, const float button_state)
 {
     if (!a_texture || !a_texture->srView.Get()) {
         logger::error("Button icon texture not loaded.");
@@ -312,14 +318,15 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, uint32_t a_text
     // Calculate sizes
     const ImVec2 textSize = ImGui::CalcTextSize(a_text);
 
-    const float circleDiameter = MCP::Settings::prompt_size * MCP::Settings::icon2font_ratio * 1.25f;
+	const auto a_iconsize = GetIconSize();
+    const float circleDiameter = a_iconsize  * 1.25f;
     const float rowHeight = std::max(circleDiameter, textSize.y);
 
     // Record the "start" cursor Y.
     const float startY = ImGui::GetCursorPosY();
 
     // 1) Center the icon in this row
-    const float iconOffset = (rowHeight - (MCP::Settings::prompt_size * MCP::Settings::icon2font_ratio)) * 0.5f;
+    const float iconOffset = (rowHeight - a_iconsize) * 0.5f;
     ImGui::SetCursorPosY(startY + iconOffset);
 
     // 2) Draw the icon (and get its final size)
