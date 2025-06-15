@@ -1,8 +1,9 @@
 #pragma once
+#include "MCP.h"
 
 namespace ImGui::Renderer
 {
-    inline std::chrono::milliseconds maxIntervalBetweenPresses(220);
+    inline std::chrono::milliseconds maxIntervalBetweenPresses(static_cast<int>(1000 - (780)* MCP::Settings::SpecialCommands::responsiveness));
 	void UpdateMaxIntervalBetweenPresses();
 
 	void Install();
