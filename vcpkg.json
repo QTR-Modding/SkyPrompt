@@ -3,11 +3,7 @@
   "name": "skyprompt",
   "version-string": "1.0.0.0",
   "dependencies": [
-    "fast-cpp-csv-parser",
-    "rsm-binary-io",
-    "simpleini",
     "spdlog",
-    "xbyak",
     "rapidcsv",
     "rapidjson",
     "clib-util",
@@ -15,7 +11,6 @@
     "skse-mcp",
     "magic-enum",
     "directxtex",
-    "directxtk",
     "skyprompt-api",
     {
       "name": "imgui",

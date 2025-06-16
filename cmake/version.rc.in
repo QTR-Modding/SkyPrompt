@@ -21,7 +21,7 @@ BEGIN
 			VALUE "FileDescription", "@PROJECT_NAME@"
 			VALUE "FileVersion", "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@.@PROJECT_VERSION_TWEAK@"
 			VALUE "InternalName", "@PROJECT_NAME@"
-			VALUE "LegalCopyright", "All Rights Reserved Quantumyilmaz & SkyrimThiago"
+			VALUE "LegalCopyright", "All Rights Reserved Quantumyilmaz"
 			VALUE "ProductName", "@PROJECT_NAME@"
 			VALUE "ProductVersion",  "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@"
 		END
