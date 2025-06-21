@@ -167,7 +167,7 @@ void Tutorial::Tutorial0::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
     if (to_be_deleted.empty()) {
         SkyPromptAPI::RemovePrompt(this,client_id);
         if (!SkyPromptAPI::SendPrompt(Tutorial1::Sink::GetSingleton(),client_id)) {
-            logger::error("Failed to Send Tutorial2 prompts.");
+            logger::error("Failed to Send Tutorial1 prompts.");
         }
     }
 }
