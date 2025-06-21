@@ -17,9 +17,10 @@ namespace Tutorial {
 	inline float old_xpos;
 	inline float old_ypos;
 
+	inline SkyPromptAPI::ClientID client_id=0;
+
 	namespace Tutorial3 {
 
-	    inline SkyPromptAPI::ClientID client_id=0;
 		inline std::chrono::steady_clock::time_point last_delete_t;
 
         constexpr std::string_view str1 = "Delete All: Triple Press and Hold the Button!";
@@ -41,8 +42,6 @@ namespace Tutorial {
 	}
 
 	namespace Tutorial2 {
-
-	    inline SkyPromptAPI::ClientID client_id=0;
 
         constexpr std::string_view str1 = "Skip to Next: Triple Press the Button!";
         constexpr std::string_view str2 = "Skip to Next: Triple Press the Button! ";
@@ -66,7 +65,6 @@ namespace Tutorial {
 
 	namespace Tutorial1 {
 
-	    inline SkyPromptAPI::ClientID client_id=0;
         inline std::chrono::steady_clock::time_point last_delete_t;
 		
         constexpr std::string_view str1 = "Delete Me: Double Press the Button!";
@@ -92,7 +90,6 @@ namespace Tutorial {
 
 	namespace Tutorial0 {
 
-	    inline SkyPromptAPI::ClientID client_id=0;
 		inline std::chrono::steady_clock::time_point last_delete_t;
 
         constexpr std::string_view str1 = "Accept Prompt: Hold the Button!";
@@ -118,14 +115,14 @@ namespace Tutorial {
     public:
         static void Callback(const unsigned int a_int) {
 		    if (!a_int) {
-			    if (Tutorial0::client_id == 0) {
-				    Tutorial0::client_id = SkyPromptAPI::RequestClientID();
+			    if (client_id == 0) {
+				    client_id = SkyPromptAPI::RequestClientID();
 			    }
-			    if (Tutorial0::client_id > 0) {
-			        Tutorial::Tutorial0::to_be_deleted = {0,1};
-			        Tutorial::Tutorial1::to_be_deleted = {0,1};
-			        Tutorial::Tutorial2::to_be_deleted = {0,1};
-			        Tutorial::Tutorial3::to_be_deleted = {0,1};		        
+			    if (client_id > 0) {
+			        Tutorial0::to_be_deleted = {0,1};
+			        Tutorial1::to_be_deleted = {0,1};
+			        Tutorial2::to_be_deleted = {0,1};
+			        Tutorial3::to_be_deleted = {0,1};		        
 			        ShowTutorial();
 				    showing_tutorial.store(true);
 			    }
@@ -158,7 +155,7 @@ namespace Tutorial {
 	    }
 
         static void End(const SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID) {
-			SkyPromptAPI::RemovePrompt(a_sink,a_clientID);
+			RemovePrompt(a_sink,a_clientID);
 			showing_tutorial.store(false);
 			SwitchBackFromTutorialPos();
             ShowMessageBox(
@@ -170,7 +167,7 @@ namespace Tutorial {
 	    static void ShowTutorial() {
 			MCP::Settings::initialized = true;
 			SwitchToTutorialPos();
-			if (!SkyPromptAPI::SendPrompt(Tutorial0::Sink::GetSingleton(),Tutorial0::client_id)) {
+			if (!SkyPromptAPI::SendPrompt(Tutorial0::Sink::GetSingleton(),client_id)) {
 				logger::error("Failed to Send ShowTutorial prompts.");
 			}
 	    }

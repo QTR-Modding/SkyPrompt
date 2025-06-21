@@ -416,17 +416,14 @@ void ImGui::Renderer::SubManager::ButtonStateActions()
 			else if (buttonState.pressCount == 3) {
 				NextPrompt();
 				if (Tutorial::showing_tutorial.load()) {
-					const auto a_id = Tutorial::Tutorial2::client_id*std::numeric_limits<SkyPromptAPI::ClientID>::max();
+					const auto a_id = Tutorial::client_id*std::numeric_limits<SkyPromptAPI::ClientID>::max();
                     if (const auto a_interaction = GetCurrentInteraction(); static_cast<SCENES::Event>(a_id) == a_interaction.event) {
 						Tutorial::Tutorial2::to_be_deleted.erase(static_cast<SkyPromptAPI::ActionID>(a_interaction.action-static_cast<ACTIONS::Action>(a_id)));
 					    if (Tutorial::Tutorial2::to_be_deleted.empty()) {
 						    SKSE::GetTaskInterface()->AddTask([]() {
-                                SkyPromptAPI::RemovePrompt(Tutorial::Tutorial2::Sink::GetSingleton(),Tutorial::Tutorial2::client_id);
-                                if (const auto new_clientID = SkyPromptAPI::RequestClientID()) {
-                                    Tutorial::Tutorial3::client_id = new_clientID;
-                                    if (!SkyPromptAPI::SendPrompt(Tutorial::Tutorial3::Sink::GetSingleton(),Tutorial::Tutorial3::client_id)) {
-                                        logger::error("Failed to Send Tutorial3 prompts.");
-                                    }
+                                SkyPromptAPI::RemovePrompt(Tutorial::Tutorial2::Sink::GetSingleton(),Tutorial::client_id);
+                                if (!SkyPromptAPI::SendPrompt(Tutorial::Tutorial3::Sink::GetSingleton(),Tutorial::client_id)) {
+                                    logger::error("Failed to Send Tutorial3 prompts.");
                                 }
 						    }
 						    );

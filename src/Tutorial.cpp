@@ -61,11 +61,8 @@ void Tutorial::Tutorial2::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
     }
     if (to_be_deleted.empty()) {
         SkyPromptAPI::RemovePrompt(this,client_id);
-        if (const auto new_clientID = SkyPromptAPI::RequestClientID()) {
-            Tutorial3::client_id = new_clientID;
-            if (!SkyPromptAPI::SendPrompt(Tutorial3::Sink::GetSingleton(),Tutorial3::client_id)) {
-                logger::error("Failed to Send Tutorial3 prompts.");
-            }
+        if (!SkyPromptAPI::SendPrompt(Tutorial3::Sink::GetSingleton(),client_id)) {
+            logger::error("Failed to Send Tutorial3 prompts.");
         }
     }
 }
@@ -103,11 +100,8 @@ void Tutorial::Tutorial1::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
     }
     if (to_be_deleted.empty()) {
         SkyPromptAPI::RemovePrompt(this,client_id);
-        if (const auto new_clientID = SkyPromptAPI::RequestClientID()) {
-            Tutorial2::client_id = new_clientID;
-            if (!SkyPromptAPI::SendPrompt(Tutorial2::Sink::GetSingleton(),Tutorial2::client_id)) {
-                logger::error("Failed to Send Tutorial2 prompts.");
-            }
+        if (!SkyPromptAPI::SendPrompt(Tutorial2::Sink::GetSingleton(),client_id)) {
+            logger::error("Failed to Send Tutorial2 prompts.");
         }
     }
 }
@@ -172,11 +166,8 @@ void Tutorial::Tutorial0::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
     }
     if (to_be_deleted.empty()) {
         SkyPromptAPI::RemovePrompt(this,client_id);
-        if (const auto new_clientID = SkyPromptAPI::RequestClientID()) {
-            Tutorial1::client_id = new_clientID;
-            if (!SkyPromptAPI::SendPrompt(Tutorial1::Sink::GetSingleton(),Tutorial1::client_id)) {
-                logger::error("Failed to Send Tutorial2 prompts.");
-            }
+        if (!SkyPromptAPI::SendPrompt(Tutorial1::Sink::GetSingleton(),client_id)) {
+            logger::error("Failed to Send Tutorial2 prompts.");
         }
     }
 }
