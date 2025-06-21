@@ -416,8 +416,8 @@ void ImGui::Renderer::SubManager::ButtonStateActions()
 			else if (buttonState.pressCount == 3) {
 				NextPrompt();
 				if (Tutorial::showing_tutorial.load()) {
-					const auto a_id = Tutorial::client_id*std::numeric_limits<SkyPromptAPI::ClientID>::max();
-                    if (const auto a_interaction = GetCurrentInteraction(); static_cast<SCENES::Event>(a_id) == a_interaction.event) {
+					const SCENES::Event a_id = Tutorial::client_id*std::numeric_limits<SkyPromptAPI::ClientID>::max();
+                    if (const auto a_interaction = GetCurrentInteraction(); a_id == a_interaction.event) {
 						Tutorial::Tutorial2::to_be_deleted.erase(static_cast<SkyPromptAPI::ActionID>(a_interaction.action-static_cast<ACTIONS::Action>(a_id)));
 					    if (Tutorial::Tutorial2::to_be_deleted.empty()) {
 						    SKSE::GetTaskInterface()->AddTask([]() {
