@@ -41,8 +41,24 @@ void ProcessRemovePrompt(const SkyPromptAPI::PromptSink* a_sink, const SkyPrompt
 	manager->RemoveFromQ(a_clientID, a_sink);
 }
 
-SkyPromptAPI::ClientID ProcessRequestClientID()
+SkyPromptAPI::ClientID ProcessRequestClientID(int a_major, int a_minor)
 {
+
+	constexpr int major = SkyPromptAPI::MAJOR;
+	constexpr int minor = SkyPromptAPI::MINOR;
+
+	if (a_major != major) {
+	    logger::error("Mismatch in MAJOR version of SkyPrompt ({}.{}) and Client ({}.{})!",
+			major,minor,a_major,a_minor);
+		return 0;
+	}
+
+	if (a_minor != minor) {
+	    logger::error("Mismatch in MINOR version of SkyPrompt ({}.{}) and Client ({}.{})!",
+			major,minor,a_major,a_minor);
+		return 0;
+	}
+
 	std::lock_guard lock(Interactions::mutex_);
 	if (Interactions::last_clientID == std::numeric_limits<SkyPromptAPI::ClientID>::max()) {
 		return 0;
