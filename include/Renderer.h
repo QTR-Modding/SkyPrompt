@@ -8,13 +8,22 @@
 
 namespace ImGui::Renderer {
     struct ButtonState;
+
+    struct ButtonMutables {
+        std::string text;
+        uint32_t text_color;
+        float progress;
+    };
+
+    constexpr float progress_circle_offset = 1.f/12.f;
+    constexpr float progress_circle_offset_deg = 360.f * progress_circle_offset * 0.5f;
 }
 
 struct InteractionButton
 {
+	using Mutables = ImGui::Renderer::ButtonMutables;
     Interaction interaction;
-    mutable std::string text;
-    mutable uint32_t text_color;
+    mutable Mutables mutables;
     SkyPromptAPI::PromptType type = SkyPromptAPI::PromptType::kSinglePress;
     RE::ObjectRefHandle attached_object;
     std::map<Input::DEVICE, uint32_t> keys;
@@ -22,7 +31,7 @@ struct InteractionButton
 
     [[nodiscard]] uint32_t GetKey() const;
 
-    explicit InteractionButton(const Interaction& a_interaction, const std::string& a_text, uint32_t a_text_color, SkyPromptAPI::PromptType a_type, RefID a_refid, std::map<Input::DEVICE, uint32_t> a_keys, int a_default_key_index);
+    explicit InteractionButton(const Interaction& a_interaction, const Mutables& a_mutables, SkyPromptAPI::PromptType a_type, RefID a_refid, std::map<Input::DEVICE, uint32_t> a_keys, int a_default_key_index);
     bool operator==(const InteractionButton& a_rhs) const { return interaction == a_rhs.interaction; }
     bool operator<(const InteractionButton& a_rhs) const { return interaction < a_rhs.interaction; }
     [[nodiscard]] std::optional<std::pair<float,float>> Show(float alpha = 0.f, const std::string& extra_text="", float progress=0.f, float button_state = -1.f) const;
@@ -86,7 +95,7 @@ namespace ImGui::Renderer
         mutable std::shared_mutex sink_mutex_;
         ButtonQueue interactQueue;
         float progress_circle = 0.0f;
-        float progress_circle_max = 1.0f;
+		float progress_circle_max = 1.f;
 
         std::atomic<bool> blockProgress = false;
 
@@ -146,7 +155,7 @@ namespace ImGui::Renderer
 
         std::shared_mutex events_to_send_mutex;
         std::map<const SkyPromptAPI::PromptSink*, std::vector<SkyPromptAPI::PromptEvent>> events_to_send_;
-        SubManager* Add2Q(SkyPromptAPI::ClientID a_clientID, const Interaction& a_interaction, const std::string& a_text, uint32_t a_color,
+        SubManager* Add2Q(SkyPromptAPI::ClientID a_clientID, const Interaction& a_interaction, const ButtonMutables& a_mutables,
                           SkyPromptAPI::PromptType a_type, RefID a_refid, const std::map<Input::DEVICE, uint32_t>& a_bttn_map, bool show = true);
 
         bool SwitchToClientManager(SkyPromptAPI::ClientID client_id);

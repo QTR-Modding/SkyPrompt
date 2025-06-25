@@ -41,12 +41,12 @@ void ImGui::Renderer::RenderPrompts() {
 }
 
 
-std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha, const std::string& extra_text, const float progress, const float button_state) const
+std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha, const std::string& extra_text, float progress, const float button_state) const
 {
     const auto buttonKey = GetKey();
 	const auto icon_manager = MANAGER(IconFont);
 	if (icon_manager->unavailable_keys.contains(buttonKey)) return std::nullopt;
-	const std::string base_text = text; // Cache the base text
+	const std::string base_text = mutables.text; // Cache the base text
 	std::string a_text;
     a_text.reserve(base_text.size() + 1 + extra_text.size()); // Reserve memory to avoid reallocations
 	a_text.append(base_text);
@@ -64,7 +64,10 @@ std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha,
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
 	std::optional<std::pair<float,float>> a_position;
     if (buttonIcon->srView.Get()) {
-        const auto position = ImGui::ButtonIconWithCircularProgress(a_text.c_str(), text_color, buttonIcon,progress, button_state);
+		if (const auto progress_override = mutables.progress; std::abs(progress_override)>EPSILON) {
+			progress = progress_override;
+		}
+        const auto position = ImGui::ButtonIconWithCircularProgress(a_text.c_str(), mutables.text_color, buttonIcon, progress, button_state);
 		a_position = { position.x,position.y };
     } else {
         logger::error("Button icon texture not loaded for key {}", buttonKey);
@@ -132,7 +135,10 @@ void ButtonQueue::Show(const float progress, const InteractionButton* button2sho
 				if (!current_button) return;
 			}
 		}
-        if (const auto pos = current_button->Show(alpha,extra_text,progress,current_button->type == SkyPromptAPI::kSinglePress ? -1.f : ButtonStateToFloat(a_button_state)); 
+        if (const auto pos = current_button->Show(alpha, extra_text, progress,
+                                                  current_button->type == SkyPromptAPI::kSinglePress
+                                                      ? -1.f
+                                                      : ButtonStateToFloat(a_button_state)); 
 			pos.has_value()) {
 			position = pos.value();
 		}
@@ -230,7 +236,7 @@ void ImGui::Renderer::Manager::ReArrange() {
 		for (const auto& interaction_button : interaction_buttons) {
 			const auto a_ref = interaction_button.attached_object.get().get();
 			const auto a_refid = a_ref ? a_ref->GetFormID() : 0;
-            if (!Add2Q(a_clientID, interaction_button.interaction,interaction_button.text,interaction_button.text_color, interaction_button.type, a_refid, interaction_button.keys, true)) {
+            if (!Add2Q(a_clientID, interaction_button.interaction, interaction_button.mutables, interaction_button.type, a_refid, interaction_button.keys, true)) {
                logger::error("Failed to add interaction to the queue");  
             }
 		}
@@ -405,7 +411,7 @@ RE::TESObjectREFR* ImGui::Renderer::SubManager::GetAttachedObject() const {
 }
 
 void ImGui::Renderer::SubManager::Update(const SkyPromptAPI::ClientID a_client_id, const SkyPromptAPI::PromptSink* a_prompt_sink) const {
-    using Update = std::pair<std::string, uint32_t>; // <text, color>
+    using Update = ButtonMutables;
     std::map<Interaction, Update> updates;
     for (const auto prompts = a_prompt_sink->GetPrompts(); const auto& prompt : prompts) {
         if (prompt.text.empty()) {
@@ -413,7 +419,7 @@ void ImGui::Renderer::SubManager::Update(const SkyPromptAPI::ClientID a_client_i
 	        continue;
         }
         const auto a_interaction = Manager::MakeInteraction(a_client_id, prompt.eventID, prompt.actionID);
-        updates[a_interaction] = std::make_pair(prompt.text, prompt.text_color);
+        updates[a_interaction] = Update(std::string(prompt.text), prompt.text_color, prompt.progress);
     }
     if (updates.empty()) {
         return;
@@ -421,9 +427,7 @@ void ImGui::Renderer::SubManager::Update(const SkyPromptAPI::ClientID a_client_i
     std::unique_lock lock(q_mutex_);
     for (const auto& a_button : interactQueue.buttons) {
         if (updates.contains(a_button.interaction)) {
-	        a_button.text = updates.at(a_button.interaction).first;
-	        a_button.text_color = updates.at(a_button.interaction).second;
-	        logger::info("updated");
+	        a_button.mutables = updates.at(a_button.interaction);
         }
     }
 }
@@ -559,8 +563,9 @@ void ImGui::Renderer::SubManager::WakeUpQueue() {
 }
 
 SubManager* ImGui::Renderer::Manager::Add2Q(
-    const SkyPromptAPI::ClientID a_clientID, const Interaction& a_interaction, const std::string& a_text, const uint32_t a_color,
-    const SkyPromptAPI::PromptType a_type, const RefID a_refid, const std::map<Input::DEVICE, uint32_t>& a_bttn_map, const bool show) {
+    const SkyPromptAPI::ClientID a_clientID, const Interaction& a_interaction, const ButtonMutables& a_mutables,
+    const SkyPromptAPI::PromptType a_type, const RefID a_refid, const std::map<Input::DEVICE, uint32_t>& a_bttn_map,
+    const bool show) {
 
 
 	const auto manager_list = GetManagerList(a_clientID);
@@ -580,13 +585,13 @@ SubManager* ImGui::Renderer::Manager::Add2Q(
 	int index = 0;
 	for (const auto& a_manager : *manager_list) {
         if (const auto& interactions = a_manager->GetInteractions(); interactions.empty()) {
-			const auto iButton = InteractionButton(a_interaction, a_text, a_color, a_type, a_refid, a_bttn_map, index);
+			const auto iButton = InteractionButton(a_interaction, a_mutables, a_type, a_refid, a_bttn_map, index);
 			a_manager->Add2Q(iButton, show);
 			return a_manager.get();
 		}
         else if (interactions.front().event == a_interaction.event) {
 			a_manager->WakeUpQueue();
-            const auto iButton = InteractionButton(a_interaction, a_text, a_color, a_type, a_refid, a_bttn_map, index);
+            const auto iButton = InteractionButton(a_interaction, a_mutables, a_type, a_refid, a_bttn_map, index);
             a_manager->Add2Q(iButton, show);
 			return a_manager.get();
         }
@@ -601,7 +606,7 @@ SubManager* ImGui::Renderer::Manager::Add2Q(
 		return nullptr;
 	}
 
-    const auto iButton = InteractionButton(a_interaction, a_text, a_color, a_type, a_refid, a_bttn_map, index);
+    const auto iButton = InteractionButton(a_interaction, a_mutables, a_type, a_refid, a_bttn_map, index);
     manager_list->back()->Add2Q(iButton, show);
 	return manager_list->back().get();
 }
@@ -673,7 +678,7 @@ bool ImGui::Renderer::Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_si
 {
 
     for (const auto prompts = a_prompt_sink->GetPrompts();
-		const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color] : prompts) {
+		const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color, progress] : prompts) {
 	    if (text.empty()) {
 		    logger::warn("Empty prompt text");
 		    return false;
@@ -691,7 +696,7 @@ bool ImGui::Renderer::Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_si
 		}
         const auto interaction = MakeInteraction(a_clientID,a_event,a_action);
         auto a_txt = std::string(text);
-        if (const auto submanager = Add2Q(a_clientID, interaction,a_txt,text_color, a_type, a_refid,temp_button_keys, true)) {
+		if (const auto submanager = Add2Q(a_clientID, interaction,{a_txt,text_color,progress}, a_type, a_refid,temp_button_keys, true)) {
             if (!GetManagerList(a_clientID)) {
 				logger::error("Failed to get manager list");
 				return false;
@@ -993,13 +998,11 @@ uint32_t InteractionButton::GetKey() const
 	return keys.contains(a_device) ? keys.at(a_device) : MCP::Settings::prompt_keys.at(a_device).at(default_key_index);
 }
 
-InteractionButton::InteractionButton(const Interaction& a_interaction, const std::string& a_text, const uint32_t a_text_color, const SkyPromptAPI::PromptType a_type,
-                                     const RefID a_refid, std::map<Input::DEVICE, uint32_t> a_keys, const int a_default_key_index)
-{
+InteractionButton::InteractionButton(const Interaction& a_interaction, const Mutables& a_mutables,
+    const SkyPromptAPI::PromptType a_type, const RefID a_refid, std::map<Input::DEVICE, uint32_t> a_keys, const int a_default_key_index) {
 	interaction = a_interaction;
 	type = a_type;
-	text = a_text;
-	text_color = a_text_color;
+	mutables = a_mutables;
 	if (const auto a_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_refid)) {
 		attached_object = a_ref->GetHandle();
 	}

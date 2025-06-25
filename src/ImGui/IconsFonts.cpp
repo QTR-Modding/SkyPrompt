@@ -280,8 +280,8 @@ namespace {
     }
 
 	void DrawProgressCircle(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float a_radius, const float a_thickness, const float progress, const float start_angle) {
-		const auto aColor = progress >= 1.f ? IM_COL32(228, 185, 76, 180) : IM_COL32(255, 255, 255, 180);
-        DrawCircle(a_drawlist, iconCenter, a_radius, std::max(progress - 1.f / 12.f, 0.f), a_thickness, aColor, start_angle);
+		const auto aColor = progress + ImGui::Renderer::progress_circle_offset >= 1.f ? IM_COL32(228, 185, 76, 180) : IM_COL32(255, 255, 255, 180);
+        DrawCircle(a_drawlist, iconCenter, a_radius, std::max(progress, 0.f), a_thickness, aColor, start_angle);
     }
 
 
@@ -406,8 +406,8 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const uint32_t 
 	}
 
 	if (button_state > 0.f && button_state < 3.f) {
-		DrawProgressCircle(a_drawlist, iconCenter, circle_radius, thickness, std::max(progress - 1.f / 12.f, 0.f),
-                           RE::deg_to_rad(15));
+		DrawProgressCircle(a_drawlist, iconCenter, circle_radius, thickness, progress - Renderer::progress_circle_offset,
+                           RE::deg_to_rad(Renderer::progress_circle_offset_deg));
 	}
 
 	if (button_state > 0.f) {
