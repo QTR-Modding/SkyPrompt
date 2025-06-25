@@ -438,26 +438,28 @@ void ImGui::Renderer::SubManager::ButtonStateActions()
 
 	if (const auto now = std::chrono::steady_clock::now(); !buttonState.isPressing) {
 		if (now - buttonState.lastPressTime > maxIntervalBetweenPresses) {
-			if (buttonState.pressCount == 2) {
-			    const auto a_interaction = GetCurrentInteraction();
-                RemoveCurrentPrompt();
-			    SendEvent(a_interaction, SkyPromptAPI::PromptEventType::kDeclined);
-			}
-			else if (buttonState.pressCount == 3) {
-				NextPrompt();
-				if (Tutorial::showing_tutorial.load()) {
-					const SCENES::Event a_id = Tutorial::client_id*std::numeric_limits<SkyPromptAPI::ClientID>::max();
-                    if (const auto a_interaction = GetCurrentInteraction(); a_id == a_interaction.event) {
-						Tutorial::Tutorial2::to_be_deleted.erase(static_cast<SkyPromptAPI::ActionID>(a_interaction.action-static_cast<ACTIONS::Action>(a_id)));
-					    if (Tutorial::Tutorial2::to_be_deleted.empty()) {
-						    SKSE::GetTaskInterface()->AddTask([]() {
-                                SkyPromptAPI::RemovePrompt(Tutorial::Tutorial2::Sink::GetSingleton(),Tutorial::client_id);
-                                if (!SkyPromptAPI::SendPrompt(Tutorial::Tutorial3::Sink::GetSingleton(),Tutorial::client_id)) {
-                                    logger::error("Failed to Send Tutorial3 prompts.");
-                                }
-						    }
-						    );
-                        }
+			if (const auto current_button = GetCurrentButton(); current_button && current_button->type != SkyPromptAPI::kSinglePress) {
+				if (buttonState.pressCount == 2) {
+					const auto a_interaction = GetCurrentInteraction();
+					RemoveCurrentPrompt();
+					SendEvent(a_interaction, SkyPromptAPI::PromptEventType::kDeclined);
+				}
+				else if (buttonState.pressCount == 3) {
+					NextPrompt();
+					if (Tutorial::showing_tutorial.load()) {
+						const SCENES::Event a_id = Tutorial::client_id*std::numeric_limits<SkyPromptAPI::ClientID>::max();
+						if (const auto a_interaction = GetCurrentInteraction(); a_id == a_interaction.event) {
+							Tutorial::Tutorial2::to_be_deleted.erase(static_cast<SkyPromptAPI::ActionID>(a_interaction.action-static_cast<ACTIONS::Action>(a_id)));
+							if (Tutorial::Tutorial2::to_be_deleted.empty()) {
+								SKSE::GetTaskInterface()->AddTask([]() {
+									SkyPromptAPI::RemovePrompt(Tutorial::Tutorial2::Sink::GetSingleton(),Tutorial::client_id);
+									if (!SkyPromptAPI::SendPrompt(Tutorial::Tutorial3::Sink::GetSingleton(),Tutorial::client_id)) {
+										logger::error("Failed to Send Tutorial3 prompts.");
+									}
+								}
+								);
+							}
+						}
 					}
 				}
 			}
@@ -778,7 +780,6 @@ void ImGui::Renderer::SubManager::CleanUpQueue()
 		lock.unlock();
 		ClearQueue(SkyPromptAPI::kTimeout);
 	}
-
 	ButtonStateActions();
 }
 
@@ -868,9 +869,11 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 		lock.unlock();
 
         if (buttonState.pressCount == 3) {
-		    buttonState.pressCount = 0;
-		    ClearQueue(SkyPromptAPI::kDeclined);
-	    }
+            buttonState.pressCount = 0;
+            if (a_type != SkyPromptAPI::kSinglePress) {
+                ClearQueue(SkyPromptAPI::kDeclined);
+            }
+        }
 		else {
 	        if (a_type == SkyPromptAPI::kHold) {
 	            Stop();
@@ -883,7 +886,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 			}
 		}
 
-		return true;
+        return true;
     }
 
 	return false;
