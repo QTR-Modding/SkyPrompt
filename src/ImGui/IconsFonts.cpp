@@ -245,6 +245,13 @@ namespace {
         drawList->AddTriangleFilled(p1, p2, p3, color);
     }
 
+	void DrawProgressMark(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float outer_radius, const float inner_radius) {
+        constexpr auto aColor = IM_COL32(255, 255, 255, 30);
+        constexpr auto aColor2 = IM_COL32(255, 255, 255, 180);
+        DrawCircle(a_drawlist, iconCenter, outer_radius, 1.0, inner_radius / 6.f, aColor);
+		DrawTriangle(a_drawlist, iconCenter, outer_radius, inner_radius*0.6f,aColor2);
+    }
+
 	float GetIconSize() {
 		const auto a_fontsize = ImGui::GetIO().FontDefault->FontSize;
         return a_fontsize* MCP::Settings::icon2font_ratio;
@@ -308,7 +315,9 @@ void ImGui::AddTextWithShadow(ImDrawList* draw_list, ImFont* font, const float f
     draw_list->AddText(font, font_size, position, text_color, text);
 }
 
-ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const uint32_t a_text_color, const IconFont::IconTexture* a_texture, const float progress, const float button_state)
+ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const uint32_t a_text_color,
+                                             const IconFont::IconTexture* a_texture, const float progress,
+                                             const float button_state)
 {
     if (!a_texture || !a_texture->srView.Get()) {
         logger::error("Button icon texture not loaded.");
@@ -375,10 +384,7 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const uint32_t 
 	}
 
 	if (button_state > 0.f) {
-        constexpr auto aColor = IM_COL32(255, 255, 255, 30);
-        constexpr auto aColor2 = IM_COL32(255, 255, 255, 180);
-        DrawCircle(a_drawlist, iconCenter, circle_radius, 1.0, radius / 6.f, aColor);
-		DrawTriangle(a_drawlist, iconCenter, circle_radius, radius*0.6f,aColor2);
+		DrawProgressMark(a_drawlist, iconCenter, circle_radius,radius);
 	}
 
     // 4) Move horizontally for the text
