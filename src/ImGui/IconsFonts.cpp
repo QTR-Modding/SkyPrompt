@@ -245,12 +245,45 @@ namespace {
         drawList->AddTriangleFilled(p1, p2, p3, color);
     }
 
-	void DrawProgressMark(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float outer_radius, const float inner_radius) {
+	void DrawProgressMark(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float outer_radius, const float a_thickness) {
         constexpr auto aColor = IM_COL32(255, 255, 255, 30);
-        constexpr auto aColor2 = IM_COL32(255, 255, 255, 180);
-        DrawCircle(a_drawlist, iconCenter, outer_radius, 1.0, inner_radius / 6.f, aColor);
-		DrawTriangle(a_drawlist, iconCenter, outer_radius, inner_radius*0.6f,aColor2);
+        DrawCircle(a_drawlist, iconCenter, outer_radius, 1.0, a_thickness, aColor);
     }
+
+	void DrawHoldMark(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float outer_radius, const float inner_radius) {
+        constexpr auto aColor = IM_COL32(255, 255, 255, 180);
+		DrawTriangle(a_drawlist, iconCenter, outer_radius, inner_radius*0.6f,aColor);
+    }
+
+	void DrawCross1(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float a_radius, const float a_thickness) {
+		constexpr auto a_red= IM_COL32(147, 39, 41, 180);
+		const ImVec2 topRight = iconCenter + ImVec2(a_radius, -a_radius);
+        const ImVec2 bottomLeft = iconCenter + ImVec2(-a_radius, a_radius);
+	    a_drawlist->AddLine(topRight, bottomLeft, a_red, a_thickness);
+    }
+
+	void DrawCross2(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float a_radius, const float a_thickness) {
+		constexpr auto a_red= IM_COL32(147, 39, 41, 180);
+	    const ImVec2 topLeft = iconCenter + ImVec2(-a_radius, -a_radius);
+	    const ImVec2 bottomRight = iconCenter + ImVec2(a_radius, a_radius);
+        a_drawlist->AddLine(topLeft, bottomRight, a_red, a_thickness);
+    }
+
+	void DrawSkipPrompt(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float a_radius, const float a_thickness) {
+        constexpr auto a_yellow = IM_COL32(228, 185, 76, 100);
+		DrawCircle(a_drawlist, iconCenter, a_radius, 1.f, a_thickness, a_yellow);
+    }
+
+	void DrawDeleteAll(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float a_radius, const float a_thickness, const float progress) {
+	    constexpr auto a_red= IM_COL32(147, 39, 41, 180);
+		DrawCircle(a_drawlist, iconCenter, a_radius, progress, a_thickness, a_red);
+    }
+
+	void DrawProgressCircle(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float a_radius, const float a_thickness, const float progress, const float start_angle) {
+		const auto aColor = progress >= 1.f ? IM_COL32(228, 185, 76, 180) : IM_COL32(255, 255, 255, 180);
+        DrawCircle(a_drawlist, iconCenter, a_radius, std::max(progress - 1.f / 12.f, 0.f), a_thickness, aColor, start_angle);
+    }
+
 
 	float GetIconSize() {
 		const auto a_fontsize = ImGui::GetIO().FontDefault->FontSize;
@@ -349,42 +382,37 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const uint32_t 
         iconRenderPos.y + (iconSize.y * 0.5f)
     };
     const float radius = iconSize.y * 0.5f;
+	const float thickness = radius / 6.f;
 	const float circle_radius = circleDiameter / 2.f;
 
 	const auto a_drawlist = GetWindowDrawList();
 
-	constexpr auto a_yellow = IM_COL32(228, 185, 76, 100);
-	constexpr auto a_red= IM_COL32(147, 39, 41, 180);
-	const auto outer_color = button_state > 3.f && progress > 0.f ? a_red : a_yellow;
 
-    if (button_state > 2.f) {
-		const auto a_radius = circle_radius * 0.6f;
-		const ImVec2 topLeft = iconCenter + ImVec2(-a_radius, -a_radius);
-		const ImVec2 bottomRight = iconCenter + ImVec2(a_radius, a_radius);
-		if (MCP::Settings::SpecialCommands::visualize && button_state < 3.f) {
-            a_drawlist->AddLine(topLeft, bottomRight, a_red, radius / 6.f);
+	if (MCP::Settings::SpecialCommands::visualize) {
+		if (button_state < 3.f) {
+            if (button_state > 2.f) {
+		        DrawCross2(a_drawlist, iconCenter, circle_radius * 0.6f, thickness);
+		    }
+	        if (button_state > 1.f) {
+			    DrawCross1(a_drawlist, iconCenter, circle_radius * 0.6f, thickness);
+		    }
+		}
+		else if (progress > 0.f) {
+			DrawDeleteAll(a_drawlist, iconCenter, circle_radius, thickness, progress);
+		}
+		else {
+		    DrawSkipPrompt(a_drawlist, iconCenter, circle_radius, thickness);
 		}
 	}
-	if (button_state > 1.f) {
-		const auto a_radius = circle_radius * 0.6f;
-		const ImVec2 topRight = iconCenter + ImVec2(a_radius, -a_radius);
-        const ImVec2 bottomLeft = iconCenter + ImVec2(-a_radius, a_radius);
-		if (MCP::Settings::SpecialCommands::visualize && button_state < 3.f) {
-	        a_drawlist->AddLine(topRight, bottomLeft, a_red, radius / 6.f);
-		}
-	}
-	if (button_state > 3.f) {
-        if (MCP::Settings::SpecialCommands::visualize) {
-			DrawCircle(a_drawlist, iconCenter, circle_radius, progress > 0.f ? progress : 1.f, radius / 6.f,outer_color);
-        }
-	}
-	else if (button_state > 0.f) {
-        const auto aColor = progress >= 1.f ? IM_COL32(228, 185, 76, 180) : IM_COL32(255, 255, 255, 180);
-        DrawCircle(a_drawlist, iconCenter, circle_radius, std::max(progress-1.f/12.f,0.f), radius / 6.f,aColor,RE::deg_to_rad(15));
+
+	if (button_state > 0.f && button_state < 3.f) {
+		DrawProgressCircle(a_drawlist, iconCenter, circle_radius, thickness, std::max(progress - 1.f / 12.f, 0.f),
+                           RE::deg_to_rad(15));
 	}
 
 	if (button_state > 0.f) {
-		DrawProgressMark(a_drawlist, iconCenter, circle_radius,radius);
+		DrawProgressMark(a_drawlist, iconCenter, circle_radius,thickness);
+		DrawHoldMark(a_drawlist, iconCenter, circle_radius,radius);
 	}
 
     // 4) Move horizontally for the text
@@ -395,15 +423,11 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const uint32_t 
     ImGui::SetCursorPosY(startY + textOffset);
     ImGui::SetCursorPosX(GetCursorPosX() + circle_radius - radius);
 
-    const ImVec2 textScreenPos = ImGui::GetCursorScreenPos();
-
-	const auto text_color = a_text_color ? a_text_color : IM_COL32(255, 255, 255, 255);
     AddTextWithShadow(a_drawlist, ImGui::GetFont(), ImGui::GetFontSize(), 
-        textScreenPos, text_color, a_text);
+        GetCursorScreenPos(), a_text_color ? a_text_color : IM_COL32(255, 255, 255, 255), a_text);
 
     // Move ImGui cursor manually to avoid overlap
     ImGui::Dummy(textSize);  // Moves cursor forward horizontally
-
 
 	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset * MCP::Settings::linespacing*5);
 
