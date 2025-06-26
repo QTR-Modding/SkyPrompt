@@ -1,5 +1,7 @@
 #pragma once
 #include "Tutorial.h"
+
+#include "CLibUtilsQTR/Tasker.hpp"
 #include "ClibUtil/simpleINI.hpp"
 
 void Tutorial::Tutorial3::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
@@ -35,8 +37,46 @@ void Tutorial::Tutorial3::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
             break;
     }
     if (to_be_deleted.empty()) {
-        Manager::End(this,client_id);
+        //Manager::End(this,client_id);
+        SkyPromptAPI::RemovePrompt(this,client_id);
+		Tutorial4::Sink::GetSingleton()->Start();
     }
+}
+
+void Tutorial::Tutorial4::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
+    if (event.type == SkyPromptAPI::kAccepted) {
+        showing.store(false);
+        RemovePrompt(Sink::GetSingleton(),client_id);
+        if (event.prompt.eventID) {
+            Manager::End(this,client_id);
+        }
+        else {
+			Tutorial5::Sink::GetSingleton()->Start();
+        }
+	}
+}
+
+void Tutorial::Tutorial4::Sink::SendQTE()
+{
+    clib_utilsQTR::Tasker::GetSingleton()->PushTask([this] {
+        if (!showing.load()) {
+			return;
+        }
+        if (m_prompts[0].progress < EPSILON) {
+			m_prompts[0].progress = 0.99f;
+        }
+        if (!SkyPromptAPI::SendPrompt(Tutorial4::Sink::GetSingleton(),client_id)) {
+            m_prompts[0].progress -= 0.02f;
+		}
+        this->SendQTE();
+
+    },17);
+}
+
+void Tutorial::Tutorial4::Sink::Start() {
+	m_prompts[0].progress = 0.99f;
+    Tutorial4::showing.store(true);
+	Tutorial4::Sink::GetSingleton()->SendQTE();
 }
 
 void Tutorial::Tutorial2::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
@@ -141,6 +181,49 @@ void Tutorial::SwitchBackFromTutorialPos()
 {
     MCP::Settings::xPercent = old_xpos;
     MCP::Settings::yPercent = old_ypos;
+}
+
+void Tutorial::Tutorial5::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
+    if (event.type == SkyPromptAPI::kAccepted) {
+        if (event.prompt.eventID || Tutorial5::Sink::GetSingleton()->IncrementProgress()) {
+            Manager::End(this,client_id);
+        }
+	}
+}
+
+void Tutorial::Tutorial5::Sink::SendQTE() {
+    clib_utilsQTR::Tasker::GetSingleton()->PushTask([this] {
+        if (!showing_tutorial.load()) {
+			return;
+        }
+        if (m_prompts[0].progress >= 0.99f) {
+            Manager::End(this,client_id);
+		    return;
+	    }
+        if (m_prompts[0].progress < EPSILON) {
+			m_prompts[0].progress = 0.f;
+        }
+        if (!SkyPromptAPI::SendPrompt(Tutorial5::Sink::GetSingleton(),client_id)) {
+            m_prompts[0].progress -= 0.02f;
+		}
+        this->SendQTE();
+
+    },17);
+}
+
+void Tutorial::Tutorial5::Sink::Start() {
+    m_prompts[0].progress = 0.0f;
+    Tutorial5::Sink::GetSingleton()->SendQTE();
+}
+
+bool Tutorial::Tutorial5::Sink::IncrementProgress() {
+    if (m_prompts[0].progress < 1.0f) {
+        m_prompts[0].progress += 0.3f;
+    }
+    else if (m_prompts[0].progress >= 1.0f) {
+		return true;
+	}
+    return false;
 }
 
 void Tutorial::Tutorial0::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
