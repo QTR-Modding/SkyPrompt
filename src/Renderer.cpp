@@ -41,7 +41,7 @@ void ImGui::Renderer::RenderPrompts() {
 }
 
 
-std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha, const std::string& extra_text, float progress, const float button_state) const
+std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha, const std::string& extra_text, const float progress, const float button_state) const
 {
     const auto buttonKey = GetKey();
 	const auto icon_manager = MANAGER(IconFont);
@@ -64,9 +64,6 @@ std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha,
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
 	std::optional<std::pair<float,float>> a_position;
     if (buttonIcon->srView.Get()) {
-		if (const auto progress_override = GetProgressOverride(true); progress_override>EPSILON) {
-			progress = type == SkyPromptAPI::kSinglePress ? -progress_override : progress_override;
-		}
         const auto position = ImGui::ButtonIconWithCircularProgress(a_text.c_str(), mutables.text_color, buttonIcon, progress, button_state);
 		a_position = { position.x,position.y };
     } else {
@@ -94,6 +91,10 @@ namespace {
 		int int_part = static_cast<int>(std::abs(int_part_f));  // always positive
 		return {int_part, frac_part};  // frac_part keeps original sign
 	}
+
+	float GetSecondsSinceLastFrame() {
+		return RE::GetSecondsSinceLastFrame() / (RE::BSTimer::QGlobalTimeMultiplier() + EPSILON);
+    }
 }
 
 float InteractionButton::GetProgressOverride(const bool increment) const {
@@ -109,8 +110,8 @@ float InteractionButton::GetProgressOverride(const bool increment) const {
 
     if (mult == 0) return prog;
 
-	const auto new_frac = prog - mult*0.1f*RE::GetSecondsSinceLastFrame();
-	if (new_frac < -1.f || std::signbit(new_frac) != std::signbit(prog)) {
+    if (const auto new_frac = prog - mult* 0.1f * GetSecondsSinceLastFrame(); 
+		new_frac < -1.f || std::signbit(new_frac) != std::signbit(prog)) {
 		mutables.progress = static_cast<float>(mult);
 	}
 	else {
@@ -138,45 +139,53 @@ void ButtonQueue::WakeUp() {
 	elapsed = 0.0f;
 }
 
-void ButtonQueue::Show(const float progress, const InteractionButton* button2show, const ButtonState& a_button_state) {
+void ButtonQueue::Show(float progress, const InteractionButton* button2show, const ButtonState& a_button_state) {
 	if (button2show) {
 		Reset();
 		current_button = button2show;
+		return;
 	}
-	else if (current_button) {
-		if (Tutorial::showing_tutorial.load() || !Manager::IsGameFrozen()) {
-			const auto seconds = RE::GetSecondsSinceLastFrame();
-		    if (expired()/* && current_button->alpha>0.f*/) {
-				alpha = std::max(alpha - MCP::Settings::fadeSpeed*seconds*120.f, 0.0f);
-	        }
-			else {
-                alpha = std::min(alpha + MCP::Settings::fadeSpeed*seconds*120.f, 1.0f);
-			}
-			elapsed += seconds;
-		}
-		std::string extra_text;
-		if (const auto total = buttons.size(); total>1) {
-			if (const auto it = buttons.find(*current_button); it != buttons.end()) {
-				const auto index = std::distance(buttons.begin(), it) + 1;
-				extra_text = fmt::format(" ({}/{})", index, total);
-			}
-			else {
-				logger::error("Current button not found in the queue");
-				current_button = Next();
-				if (!current_button) return;
-			}
-		}
-        if (const auto pos = current_button->Show(alpha, extra_text, progress,
-                                                  current_button->type == SkyPromptAPI::kSinglePress
-                                                      ? -1.f
-                                                      : ButtonStateToFloat(a_button_state)); 
-			pos.has_value()) {
-			position = pos.value();
-		}
+	if (!current_button) {
+		current_button = Next();
+		return;
 	}
-	else {
-        current_button = Next();
-	}
+
+    if (Tutorial::showing_tutorial.load() || !Manager::IsGameFrozen()) {
+	    const auto seconds = GetSecondsSinceLastFrame();
+	    if (expired()/* && current_button->alpha>0.f*/) {
+		    alpha = std::max(alpha - MCP::Settings::fadeSpeed*seconds*120.f, 0.0f);
+	    }
+	    else {
+            alpha = std::min(alpha + MCP::Settings::fadeSpeed*seconds*120.f, 1.0f);
+	    }
+	    elapsed += seconds;
+    }
+
+    std::string extra_text;
+    if (const auto total = buttons.size(); total>1) {
+	    if (const auto it = buttons.find(*current_button); it != buttons.end()) {
+		    const auto index = std::distance(buttons.begin(), it) + 1;
+		    extra_text = fmt::format(" ({}/{})", index, total);
+	    }
+	    else {
+		    logger::error("Current button not found in the queue");
+		    current_button = Next();
+		    if (!current_button) return;
+	    }
+    }
+
+    const auto button_type = current_button->type;
+    if (const auto progress_override = current_button->GetProgressOverride(true); progress_override>EPSILON) {
+	    progress = button_type == SkyPromptAPI::kSinglePress ? -progress_override : progress_override;
+		WakeUp();
+    }
+    if (const auto pos = current_button->Show(alpha, extra_text, progress,
+                                              button_type == SkyPromptAPI::kSinglePress
+                                                  ? -1.f
+                                                  : ButtonStateToFloat(a_button_state)); 
+	    pos.has_value()) {
+	    position = pos.value();
+    }
 }
 
 
@@ -898,7 +907,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 	}
 	{
 	    std::unique_lock lock(progress_mutex_);
-	    progress_circle += RE::GetSecondsSinceLastFrame() * MCP::Settings::progress_speed*4.f / (RE::BSTimer::QGlobalTimeMultiplier()+EPSILON);
+	    progress_circle += GetSecondsSinceLastFrame() * MCP::Settings::progress_speed*4.f;
 	}
 
 	SkyPromptAPI::PromptType a_type = SkyPromptAPI::kSinglePress;
@@ -925,7 +934,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 	            Stop();
 	            RemoveCurrentPrompt();
 	        }
-			auto curr_button = GetCurrentButton();
+			const auto curr_button = GetCurrentButton();
 			SendEvent(interaction, SkyPromptAPI::PromptEventType::kAccepted, {0.f,0.f}, curr_button ? curr_button->GetProgressOverride(false) : 0.f);
 	        Start();
 			if (a_type != SkyPromptAPI::kHoldAndKeep) {

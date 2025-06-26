@@ -8,7 +8,7 @@ namespace {
 
     bool SendPrompt(RE::StaticFunctionTag*, const SkyPromptAPI::ClientID clientID, std::string text, const SkyPromptAPI::EventID eventID,
                     const SkyPromptAPI::ActionID actionID, const SkyPromptAPI::PromptType type, RE::TESForm* refForm,
-        RE::BSTArray<uint32_t> devices, RE::BSTArray<uint32_t> keys) {
+        RE::BSTArray<uint32_t> devices, RE::BSTArray<uint32_t> keys, float progress) {
 
         if (devices.size() != keys.size()) return false;
         std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>> bindings;
@@ -18,7 +18,7 @@ namespace {
             bindings.emplace_back(a_device, a_key);
         }
 
-		if (PapyrusAPI::AddPrompt(clientID, text, eventID, actionID, type, refForm, bindings)) {
+		if (PapyrusAPI::AddPrompt(clientID, text, eventID, actionID, type, refForm, bindings, progress)) {
 			std::shared_lock lock(PapyrusAPI::mutex_);
 			if (const auto it = PapyrusAPI::papyrusSinks.find(clientID); it != PapyrusAPI::papyrusSinks.end()) {
 				auto& sinks = it->second;

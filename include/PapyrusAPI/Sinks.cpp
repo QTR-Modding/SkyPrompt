@@ -21,7 +21,8 @@ void PapyrusAPI::PapyrusSink::ProcessEvent(const SkyPromptAPI::PromptEvent event
         static_cast<int>(event.prompt.eventID),
         static_cast<int>(event.prompt.actionID),
         static_cast<float>(event.delta.first),
-        static_cast<float>(event.delta.second)
+        static_cast<float>(event.delta.second),
+        static_cast<float>(event.prompt.progress)
     );
 }
 
@@ -71,6 +72,12 @@ void PapyrusAPI::PapyrusSink::SetRefID(const RE::FormID a_refid)
     prompt.refid = a_refid;
 }
 
+void PapyrusAPI::PapyrusSink::SetProgress(const float progress)
+{
+    std::unique_lock lock(prompt_mutex_);
+	prompt.progress = progress;
+}
+
 void PapyrusAPI::PapyrusSink::SetEventID(const SkyPromptAPI::EventID a_eventID)
 {
     std::unique_lock lock(prompt_mutex_);
@@ -83,10 +90,11 @@ void PapyrusAPI::PapyrusSink::SetActionID(const SkyPromptAPI::ActionID a_actionI
     prompt.actionID = a_actionID;
 }
 
-bool PapyrusAPI::AddPrompt(SkyPromptAPI::ClientID clientID, const std::string& text,  // NOLINT(misc-use-internal-linkage)
+bool PapyrusAPI::AddPrompt(SkyPromptAPI::ClientID clientID, const std::string& text,
+                           // NOLINT(misc-use-internal-linkage)
                            const SkyPromptAPI::EventID eventID, const SkyPromptAPI::ActionID actionID,
                            const SkyPromptAPI::PromptType type, const RE::TESForm* refForm,
-                           const std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>>& buttonKeys) {
+                           const std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>>& buttonKeys, const float progress) {
     {
         std::shared_lock lock(mutex_);
         if (papyrusSinks.contains(clientID)) {
@@ -98,6 +106,7 @@ bool PapyrusAPI::AddPrompt(SkyPromptAPI::ClientID clientID, const std::string& t
 			    it->second->SetText(text);
 			    it->second->SetType(type);
 			    it->second->SetRefID(refForm ? refForm->GetFormID() : 0);
+				it->second->SetProgress(progress);
 			    return true;
 		    }
         }
@@ -111,6 +120,7 @@ bool PapyrusAPI::AddPrompt(SkyPromptAPI::ClientID clientID, const std::string& t
     sink->SetText(text);
     sink->SetType(type);
     sink->SetRefID(refForm ? refForm->GetFormID() : 0);
+	sink->SetProgress(progress);
     sink->SetEventID(eventID);
     sink->SetActionID(actionID);
     return true;
