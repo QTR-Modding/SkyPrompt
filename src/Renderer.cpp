@@ -65,7 +65,7 @@ std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha,
 	std::optional<std::pair<float,float>> a_position;
     if (buttonIcon->srView.Get()) {
 		if (const auto progress_override = mutables.progress; std::abs(progress_override)>EPSILON) {
-			progress = progress_override;
+			progress = type == SkyPromptAPI::kSinglePress ? -progress_override : progress_override;
 		}
         const auto position = ImGui::ButtonIconWithCircularProgress(a_text.c_str(), mutables.text_color, buttonIcon, progress, button_state);
 		a_position = { position.x,position.y };
@@ -115,13 +115,14 @@ void ButtonQueue::Show(const float progress, const InteractionButton* button2sho
 	}
 	else if (current_button) {
 		if (Tutorial::showing_tutorial.load() || !Manager::IsGameFrozen()) {
+			const auto seconds = RE::GetSecondsSinceLastFrame();
 		    if (expired()/* && current_button->alpha>0.f*/) {
-				alpha = std::max(alpha - MCP::Settings::fadeSpeed, 0.0f);
+				alpha = std::max(alpha - MCP::Settings::fadeSpeed*seconds*120.f, 0.0f);
 	        }
 			else {
-                alpha = std::min(alpha + MCP::Settings::fadeSpeed, 1.0f);
+                alpha = std::min(alpha + MCP::Settings::fadeSpeed*seconds*120.f, 1.0f);
 			}
-			elapsed += RE::GetSecondsSinceLastFrame();
+			elapsed += seconds;
 		}
 		std::string extra_text;
 		if (const auto total = buttons.size(); total>1) {
@@ -697,7 +698,7 @@ bool ImGui::Renderer::Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_si
 			}
 		}
         const auto interaction = MakeInteraction(a_clientID,a_event,a_action);
-        auto a_txt = std::string(text);
+        const auto a_txt = std::string(text);
 		if (const auto submanager = Add2Q(a_clientID, interaction,{a_txt,text_color,progress}, a_type, a_refid,temp_button_keys, true)) {
             if (!GetManagerList(a_clientID)) {
 				logger::error("Failed to get manager list");
@@ -868,11 +869,9 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
         progress_circle = a_type == SkyPromptAPI::kHoldAndKeep ? progress_circle_max : 0.0f;
 		lock.unlock();
 
-        if (buttonState.pressCount == 3) {
+        if (buttonState.pressCount == 3 && a_type != SkyPromptAPI::kSinglePress) {
             buttonState.pressCount = 0;
-            if (a_type != SkyPromptAPI::kSinglePress) {
-                ClearQueue(SkyPromptAPI::kDeclined);
-            }
+            ClearQueue(SkyPromptAPI::kDeclined);
         }
 		else {
 	        if (a_type == SkyPromptAPI::kHold) {
