@@ -26,19 +26,17 @@ namespace Tutorial {
 		const SkyPromptAPI::Prompt prompt4(quit_me,1,0,SkyPromptAPI::PromptType::kSinglePress);
 
 		class Sink final : public SkyPromptAPI::PromptSink,public clib_util::singleton::ISingleton<Sink> {
-			std::array<SkyPromptAPI::Prompt,2> m_prompts = {prompt1,prompt4};
+			mutable std::array<SkyPromptAPI::Prompt,2> m_prompts = {prompt1,prompt4};
+			float mult = 8.f;
 		public:
 			std::span<const SkyPromptAPI::Prompt> GetPrompts() const override {return m_prompts;}
 			void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
 
-			void SendQTE();
-			void Start();
-			bool IncrementProgress();
+			void Start() const;
         };
 	}
 
 	namespace Tutorial4 {
-        inline std::atomic_bool showing = false;
         constexpr std::string_view str1 = "Quick! Press Me!";
 
 		const SkyPromptAPI::Prompt prompt1(str1,0,0,SkyPromptAPI::PromptType::kSinglePress);
@@ -50,7 +48,6 @@ namespace Tutorial {
 			std::span<const SkyPromptAPI::Prompt> GetPrompts() const override {return m_prompts;}
 			void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
 
-			void SendQTE();
 			void Start();
         };
 	}

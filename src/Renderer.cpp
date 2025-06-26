@@ -64,7 +64,7 @@ std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha,
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
 	std::optional<std::pair<float,float>> a_position;
     if (buttonIcon->srView.Get()) {
-		if (const auto progress_override = mutables.progress; std::abs(progress_override)>EPSILON) {
+		if (const auto progress_override = GetProgressOverride(true); progress_override>EPSILON) {
 			progress = type == SkyPromptAPI::kSinglePress ? -progress_override : progress_override;
 		}
         const auto position = ImGui::ButtonIconWithCircularProgress(a_text.c_str(), mutables.text_color, buttonIcon, progress, button_state);
@@ -77,6 +77,46 @@ std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha,
     ImGui::PopStyleVar(); // Restore alpha
 
 	return a_position;
+}
+
+namespace {
+    float ButtonStateToFloat(const ButtonState& a_button_state) {
+		auto a_press_count = a_button_state.pressCount;
+		if (a_button_state.isPressing && a_button_state.pressCount < 3) {
+            a_press_count--;
+		}
+	    return static_cast<float>(a_press_count) + 0.1f;
+    }
+
+	std::pair<int, float> splitFloat(const float x) {
+		float int_part_f;
+		float frac_part = std::modf(x, &int_part_f);
+		int int_part = static_cast<int>(std::abs(int_part_f));  // always positive
+		return {int_part, frac_part};  // frac_part keeps original sign
+	}
+}
+
+float InteractionButton::GetProgressOverride(const bool increment) const {
+
+	if (type != SkyPromptAPI::kSinglePress) {
+		return 0.f;
+	}
+	if (!increment) {
+		return mutables.progress; // Return current progress if not incrementing
+	}
+
+	const auto [mult, prog] = splitFloat(mutables.progress);
+
+    if (mult == 0) return prog;
+
+	const auto new_frac = prog - mult*0.1f*RE::GetSecondsSinceLastFrame();
+	if (new_frac < -1.f || std::signbit(new_frac) != std::signbit(prog)) {
+		mutables.progress = static_cast<float>(mult);
+	}
+	else {
+	    mutables.progress = (std::signbit(new_frac) ? -1 : 1) * mult + new_frac;
+	}
+	return std::abs(prog);
 }
 
 void ButtonQueue::Clear() {
@@ -96,16 +136,6 @@ void ButtonQueue::WakeUp() {
 	lifetime = MCP::Settings::lifetime;
 	alpha = 1.0f;
 	elapsed = 0.0f;
-}
-
-namespace {
-    float ButtonStateToFloat(const ButtonState& a_button_state) {
-		auto a_press_count = a_button_state.pressCount;
-		if (a_button_state.isPressing && a_button_state.pressCount < 3) {
-            a_press_count--;
-		}
-	    return static_cast<float>(a_press_count) + 0.1f;
-    }
 }
 
 void ButtonQueue::Show(const float progress, const InteractionButton* button2show, const ButtonState& a_button_state) {
@@ -325,7 +355,7 @@ bool ImGui::Renderer::Manager::IsGameFrozen()
 	return false;
 }
 
-void ImGui::Renderer::SubManager::SendEvent(const Interaction& a_interaction, const SkyPromptAPI::PromptEventType event_type, const std::pair<float,float> delta)
+void ImGui::Renderer::SubManager::SendEvent(const Interaction& a_interaction, const SkyPromptAPI::PromptEventType event_type, const std::pair<float,float> delta, const float progress_override)
 {
     constexpr uint32_t a_max = std::numeric_limits<SkyPromptAPI::ClientID>::max();
     const SkyPromptAPI::EventID a_event = a_interaction.event % a_max;
@@ -336,7 +366,11 @@ void ImGui::Renderer::SubManager::SendEvent(const Interaction& a_interaction, co
 			if (!a_sink) continue;
             for (const auto prompts = a_sink->GetPrompts(); const auto& prompt : prompts) {
 				if (prompt.eventID == a_event && prompt.actionID == a_action) {
-					Manager::GetSingleton()->AddEventToSend(a_sink, prompt, event_type, delta);
+					SkyPromptAPI::Prompt a_prompt = prompt;
+					if (std::abs(progress_override)>0.f) {
+						a_prompt.progress = progress_override;
+					}
+					Manager::GetSingleton()->AddEventToSend(a_sink, a_prompt, event_type, delta);
 				}
 			}
 		}
@@ -433,6 +467,11 @@ void ImGui::Renderer::SubManager::Update(const SkyPromptAPI::ClientID a_client_i
     }
 }
 
+void ImGui::Renderer::SubManager::Show(const InteractionButton* button2show)
+{
+	interactQueue.Show(progress_circle,button2show,buttonState);
+}
+
 void ImGui::Renderer::SubManager::ButtonStateActions()
 {
 	buttonState.pressCount = std::min(3,buttonState.pressCount);
@@ -467,6 +506,15 @@ void ImGui::Renderer::SubManager::ButtonStateActions()
 			buttonState.pressCount = 0;
 		}
 	}
+
+	if (const auto a_button = GetCurrentButton(); a_button && a_button->type == SkyPromptAPI::kSinglePress) {
+		const auto progress_override = a_button->GetProgressOverride(false);
+		const auto [mult, frac] = splitFloat(progress_override);
+		if (mult > 0.f && std::abs(frac)<EPSILON) {
+			const auto a_interaction = GetCurrentInteraction();
+			SendEvent(a_interaction, SkyPromptAPI::PromptEventType::kDeclined,{0.f,0.f},progress_override);
+		}
+	}
 }
 
 ImGui::Renderer::SubManager::~SubManager()
@@ -480,7 +528,7 @@ void ImGui::Renderer::SubManager::Add2Q(const InteractionButton& iButton, const 
     if (const auto button = interactQueue.AddButton(iButton); button && show) {
 		std::shared_lock lock2(progress_mutex_);
 		if (!Manager::GetSingleton()->IsPaused() && progress_circle == 0.f) {
-            interactQueue.Show(progress_circle,button,buttonState);
+			Show(button);
 		}
 	}
 }
@@ -512,7 +560,6 @@ void ImGui::Renderer::SubManager::RemoveFromQ(const SkyPromptAPI::PromptSink* a_
 void ImGui::Renderer::SubManager::RemoveCurrentPrompt()
 {
 	if (std::shared_lock lock(q_mutex_); interactQueue.current_button) {
-	    auto a_interaction = interactQueue.current_button->interaction;
 		lock.unlock();
 	    {
 		    std::unique_lock lock2(q_mutex_);
@@ -555,7 +602,7 @@ void SubManager::ShowQueue() {
 	            SendEvent(button.interaction, SkyPromptAPI::PromptEventType::kTimingOut);
 			}
 		}
-		interactQueue.Show(progress_circle,nullptr,buttonState);
+		Show(nullptr);
 	}
 }
 
@@ -878,7 +925,8 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 	            Stop();
 	            RemoveCurrentPrompt();
 	        }
-	        SendEvent(interaction, SkyPromptAPI::PromptEventType::kAccepted);
+			auto curr_button = GetCurrentButton();
+			SendEvent(interaction, SkyPromptAPI::PromptEventType::kAccepted, {0.f,0.f}, curr_button ? curr_button->GetProgressOverride(false) : 0.f);
 	        Start();
 			if (a_type != SkyPromptAPI::kHoldAndKeep) {
 	            blockProgress.store(true);
@@ -901,7 +949,7 @@ uint32_t ImGui::Renderer::SubManager::GetPromptKey() const {
 void ImGui::Renderer::SubManager::NextPrompt() {
 	std::unique_lock lock(q_mutex_);
 	if (const auto next = interactQueue.Next()) {
-		interactQueue.Show(progress_circle,next,buttonState);
+		Show(next);
 	}
 }
 

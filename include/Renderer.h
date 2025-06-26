@@ -35,6 +35,7 @@ struct InteractionButton
     bool operator==(const InteractionButton& a_rhs) const { return interaction == a_rhs.interaction; }
     bool operator<(const InteractionButton& a_rhs) const { return interaction < a_rhs.interaction; }
     [[nodiscard]] std::optional<std::pair<float,float>> Show(float alpha = 0.f, const std::string& extra_text="", float progress=0.f, float button_state = -1.f) const;
+    float GetProgressOverride(bool increment) const;
 };
 
 struct ButtonQueue {
@@ -101,9 +102,10 @@ namespace ImGui::Renderer
 
         std::map<Interaction,std::vector<const SkyPromptAPI::PromptSink*>> sinks;
 
-        void ButtonStateActions();
-
         mutable std::atomic<bool> wakeup_queued_{ false };
+
+        void ButtonStateActions();
+        void Show(const InteractionButton* button2show);
 
     public:
 
@@ -139,7 +141,7 @@ namespace ImGui::Renderer
         std::map<Interaction, std::vector<const SkyPromptAPI::PromptSink*>> GetSinks() const { return sinks; }
         bool IsInQueue(const SkyPromptAPI::PromptSink* a_sink) const;
         bool IsInQueue(const Interaction& a_interaction) const;
-        void SendEvent(const Interaction& a_interaction, SkyPromptAPI::PromptEventType event_type, std::pair<float,float> delta = {0.f,0.f});
+        void SendEvent(const Interaction& a_interaction, SkyPromptAPI::PromptEventType event_type, std::pair<float,float> delta = {0.f,0.f}, float progress_override = 0.f);
 
         ImVec2 GetAttachedObjectPos() const;
         RE::TESObjectREFR* GetAttachedObject() const;

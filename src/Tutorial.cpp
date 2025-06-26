@@ -1,7 +1,5 @@
 #pragma once
 #include "Tutorial.h"
-
-#include "CLibUtilsQTR/Tasker.hpp"
 #include "ClibUtil/simpleINI.hpp"
 
 void Tutorial::Tutorial3::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
@@ -44,39 +42,30 @@ void Tutorial::Tutorial3::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
 }
 
 void Tutorial::Tutorial4::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
-    if (event.type == SkyPromptAPI::kAccepted) {
-        showing.store(false);
-        RemovePrompt(Sink::GetSingleton(),client_id);
-        if (event.prompt.eventID) {
-            Manager::End(this,client_id);
-        }
-        else {
-			Tutorial5::Sink::GetSingleton()->Start();
-        }
-	}
+    if (event.prompt.eventID && event.type == SkyPromptAPI::kAccepted) {
+        Manager::End(this,client_id);
+        return;
+    }
+    switch (event.type) {
+        case SkyPromptAPI::PromptEventType::kAccepted:
+            SkyPromptAPI::RemovePrompt(this,client_id);
+            Tutorial5::Sink::GetSingleton()->Start();
+            break;
+        case SkyPromptAPI::PromptEventType::kDeclined:
+        case SkyPromptAPI::PromptEventType::kTimeout:
+        case SkyPromptAPI::PromptEventType::kRemovedByMod:
+        case SkyPromptAPI::PromptEventType::kTimingOut:
+            GetSingleton()->Start();
+        default:
+            break;
+    }
 }
 
-void Tutorial::Tutorial4::Sink::SendQTE()
+void Tutorial::Tutorial4::Sink::Start()
 {
-    clib_utilsQTR::Tasker::GetSingleton()->PushTask([this] {
-        if (!showing.load()) {
-			return;
-        }
-        if (m_prompts[0].progress < EPSILON) {
-			m_prompts[0].progress = 0.99f;
-        }
-        if (!SkyPromptAPI::SendPrompt(Tutorial4::Sink::GetSingleton(),client_id)) {
-            m_prompts[0].progress -= 0.02f;
-		}
-        this->SendQTE();
-
-    },17);
-}
-
-void Tutorial::Tutorial4::Sink::Start() {
-	m_prompts[0].progress = 0.99f;
-    Tutorial4::showing.store(true);
-	Tutorial4::Sink::GetSingleton()->SendQTE();
+    m_prompts[0].progress = 10.99f;
+    if (!SkyPromptAPI::SendPrompt(GetSingleton(),client_id)) {
+    }
 }
 
 void Tutorial::Tutorial2::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
@@ -184,46 +173,35 @@ void Tutorial::SwitchBackFromTutorialPos()
 }
 
 void Tutorial::Tutorial5::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
-    if (event.type == SkyPromptAPI::kAccepted) {
-        if (event.prompt.eventID || Tutorial5::Sink::GetSingleton()->IncrementProgress()) {
-            Manager::End(this,client_id);
-        }
-	}
-}
-
-void Tutorial::Tutorial5::Sink::SendQTE() {
-    clib_utilsQTR::Tasker::GetSingleton()->PushTask([this] {
-        if (!showing_tutorial.load()) {
-			return;
-        }
-        if (m_prompts[0].progress >= 0.99f) {
-            Manager::End(this,client_id);
-		    return;
-	    }
-        if (m_prompts[0].progress < EPSILON) {
-			m_prompts[0].progress = 0.f;
-        }
-        if (!SkyPromptAPI::SendPrompt(Tutorial5::Sink::GetSingleton(),client_id)) {
-            m_prompts[0].progress -= 0.02f;
-		}
-        this->SendQTE();
-
-    },17);
-}
-
-void Tutorial::Tutorial5::Sink::Start() {
-    m_prompts[0].progress = 0.0f;
-    Tutorial5::Sink::GetSingleton()->SendQTE();
-}
-
-bool Tutorial::Tutorial5::Sink::IncrementProgress() {
-    if (m_prompts[0].progress < 1.0f) {
-        m_prompts[0].progress += 0.3f;
+    if (event.prompt.eventID && event.type == SkyPromptAPI::kAccepted) {
+        Manager::End(this,client_id);
+        return;
     }
-    else if (m_prompts[0].progress >= 1.0f) {
-		return true;
-	}
-    return false;
+    switch (event.type) {
+        case SkyPromptAPI::PromptEventType::kAccepted:
+			m_prompts[0].progress = event.prompt.progress;
+            m_prompts[0].progress += 0.25f;
+            if (m_prompts[0].progress > mult+1.f) {
+                Manager::End(this,client_id);
+            }
+            else if (SkyPromptAPI::SendPrompt(GetSingleton(),client_id)) {
+            }
+            break;
+        case SkyPromptAPI::PromptEventType::kTimeout:
+        case SkyPromptAPI::PromptEventType::kRemovedByMod:
+        case SkyPromptAPI::PromptEventType::kTimingOut:
+            if (!SkyPromptAPI::SendPrompt(GetSingleton(),client_id)) {
+            }
+        default:
+            break;
+    }
+}
+
+void Tutorial::Tutorial5::Sink::Start() const {
+    m_prompts[0].progress = mult+.99f;
+    if (!SkyPromptAPI::SendPrompt(GetSingleton(),client_id)) {
+		logger::error("Failed to send Tutorial4 QTE prompt.");
+    }
 }
 
 void Tutorial::Tutorial0::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
