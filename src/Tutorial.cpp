@@ -35,7 +35,35 @@ void Tutorial::Tutorial3::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
             break;
     }
     if (to_be_deleted.empty()) {
+        SkyPromptAPI::RemovePrompt(this,client_id);
+		Tutorial4::Sink::GetSingleton()->Start();
+    }
+}
+
+void Tutorial::Tutorial4::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
+    if (event.prompt.eventID && event.type == SkyPromptAPI::kAccepted) {
         Manager::End(this,client_id);
+        return;
+    }
+    switch (event.type) {
+        case SkyPromptAPI::PromptEventType::kAccepted:
+            SkyPromptAPI::RemovePrompt(this,client_id);
+            Tutorial5::Sink::GetSingleton()->Start();
+            break;
+        case SkyPromptAPI::PromptEventType::kDeclined:
+        case SkyPromptAPI::PromptEventType::kTimeout:
+        case SkyPromptAPI::PromptEventType::kRemovedByMod:
+        case SkyPromptAPI::PromptEventType::kTimingOut:
+            GetSingleton()->Start();
+        default:
+            break;
+    }
+}
+
+void Tutorial::Tutorial4::Sink::Start()
+{
+    m_prompts[0].progress = 10.99f;
+    if (!SkyPromptAPI::SendPrompt(GetSingleton(),client_id)) {
     }
 }
 
@@ -141,6 +169,38 @@ void Tutorial::SwitchBackFromTutorialPos()
 {
     MCP::Settings::xPercent = old_xpos;
     MCP::Settings::yPercent = old_ypos;
+}
+
+void Tutorial::Tutorial5::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
+    if (event.prompt.eventID && event.type == SkyPromptAPI::kAccepted) {
+        Manager::End(this,client_id);
+        return;
+    }
+    switch (event.type) {
+        case SkyPromptAPI::PromptEventType::kAccepted:
+			m_prompts[0].progress = event.prompt.progress;
+            m_prompts[0].progress += 0.25f;
+            if (m_prompts[0].progress > mult+1.f) {
+                Manager::End(this,client_id);
+            }
+            else if (SkyPromptAPI::SendPrompt(GetSingleton(),client_id)) {
+            }
+            break;
+        case SkyPromptAPI::PromptEventType::kTimeout:
+        case SkyPromptAPI::PromptEventType::kRemovedByMod:
+        case SkyPromptAPI::PromptEventType::kTimingOut:
+            if (!SkyPromptAPI::SendPrompt(GetSingleton(),client_id)) {
+            }
+        default:
+            break;
+    }
+}
+
+void Tutorial::Tutorial5::Sink::Start() const {
+    m_prompts[0].progress = mult+.99f;
+    if (!SkyPromptAPI::SendPrompt(GetSingleton(),client_id)) {
+		logger::error("Failed to send Tutorial4 QTE prompt.");
+    }
 }
 
 void Tutorial::Tutorial0::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {

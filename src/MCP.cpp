@@ -44,7 +44,7 @@ void __stdcall MCP::RenderSettings()
 	}
 
     // Slider for fade speed
-    if (!MCP_API::SliderFloat("Fade Speed", &Settings::fadeSpeed, 0.0f, 0.1f)) {
+    if (!MCP_API::SliderFloat("Fade Speed", &Settings::fadeSpeed, 0.01f, 0.1f)) {
         if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
 

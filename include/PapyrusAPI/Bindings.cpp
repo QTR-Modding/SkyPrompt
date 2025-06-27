@@ -1,5 +1,6 @@
 #include "Bindings.h"
 #include "Sinks.h"
+#include "ClibUtil/editorID.hpp"
 
 namespace {
 
@@ -8,7 +9,7 @@ namespace {
 
     bool SendPrompt(RE::StaticFunctionTag*, const SkyPromptAPI::ClientID clientID, std::string text, const SkyPromptAPI::EventID eventID,
                     const SkyPromptAPI::ActionID actionID, const SkyPromptAPI::PromptType type, RE::TESForm* refForm,
-        RE::BSTArray<uint32_t> devices, RE::BSTArray<uint32_t> keys) {
+        RE::BSTArray<uint32_t> devices, RE::BSTArray<uint32_t> keys, float progress) {
 
         if (devices.size() != keys.size()) return false;
         std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>> bindings;
@@ -18,7 +19,7 @@ namespace {
             bindings.emplace_back(a_device, a_key);
         }
 
-		if (PapyrusAPI::AddPrompt(clientID, text, eventID, actionID, type, refForm, bindings)) {
+		if (PapyrusAPI::AddPrompt(clientID, text, eventID, actionID, type, refForm, bindings, progress)) {
 			std::shared_lock lock(PapyrusAPI::mutex_);
 			if (const auto it = PapyrusAPI::papyrusSinks.find(clientID); it != PapyrusAPI::papyrusSinks.end()) {
 				auto& sinks = it->second;
@@ -43,11 +44,18 @@ namespace {
 		}
     }
 
-    SkyPromptAPI::ClientID RegisterForSkyPromptEvent(RE::StaticFunctionTag*, RE::TESForm* a_form) {
+    SkyPromptAPI::ClientID RegisterForSkyPromptEvent(RE::StaticFunctionTag*, RE::TESForm* a_form, int a_major, int a_minor) {
 
         if (!a_form || a_form->IsDynamicForm()) {
             return 0;
         }
+
+        if (a_major != SkyPromptAPI::MAJOR) {
+	        logger::error("API version mismatch. SkyPromot: {}.{}, Papyrus Quest {}: {}.{}",
+		        SkyPromptAPI::MAJOR, SkyPromptAPI::MINOR, clib_util::editorID::get_editorID(a_form), a_major, a_minor);
+            return 0;
+        }
+
 
 		const auto a_formID = a_form->GetFormID();
 		if (std::unique_lock lock(PapyrusAPI::mutex_); registeredClients.contains(a_formID)) {
