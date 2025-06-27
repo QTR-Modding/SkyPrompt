@@ -35,7 +35,6 @@ void Tutorial::Tutorial3::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
             break;
     }
     if (to_be_deleted.empty()) {
-        //Manager::End(this,client_id);
         SkyPromptAPI::RemovePrompt(this,client_id);
 		Tutorial4::Sink::GetSingleton()->Start();
     }
