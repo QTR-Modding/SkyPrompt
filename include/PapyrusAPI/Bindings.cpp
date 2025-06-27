@@ -50,7 +50,7 @@ namespace {
             return 0;
         }
 
-        if (a_major < SkyPromptAPI::MAJOR) {
+        if (a_major != SkyPromptAPI::MAJOR) {
 	        logger::error("API version mismatch. SkyPromot: {}.{}, Papyrus Quest {}: {}.{}",
 		        SkyPromptAPI::MAJOR, SkyPromptAPI::MINOR, clib_util::editorID::get_editorID(a_form), a_major, a_minor);
             return 0;
