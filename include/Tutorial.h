@@ -75,6 +75,7 @@ namespace Tutorial {
 	}
 
 	namespace Tutorial2 {
+        inline std::atomic_bool showing_tutorial = false;
 
         constexpr std::string_view str1 = "Skip to Next: Triple Press the Button!";
         constexpr std::string_view str2 = "Skip to Next: Triple Press the Button! ";

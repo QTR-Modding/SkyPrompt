@@ -131,6 +131,9 @@ void Tutorial::Tutorial1::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
         if (!SkyPromptAPI::SendPrompt(Tutorial2::Sink::GetSingleton(),client_id)) {
             logger::error("Failed to Send Tutorial2 prompts.");
         }
+        else {
+            Tutorial::Tutorial2::showing_tutorial.store(true);
+        }
     }
 }
 
