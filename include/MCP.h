@@ -29,9 +29,7 @@ namespace MCP {
 		inline float linespacing = 0.267f;
 	    inline float progress_speed = .552f;
 	    inline float lifetime = 5.f;
-#ifndef NDEBUG
-		inline bool draw_debug = true;
-#endif
+		inline bool draw_debug = false;
 
         inline int n_max_buttons = 4;
 		inline std::map<Input::DEVICE,std::vector<uint32_t>> prompt_keys;

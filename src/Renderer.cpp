@@ -1,4 +1,5 @@
 ﻿#include "Renderer.h"
+#include <numbers>
 #include "Hooks.h"
 #include "CLibUtilsQTR/Tasker.hpp"
 #include "IconsFonts.h"
@@ -428,16 +429,31 @@ void FastClampToScreen(ImVec2& point) {
 
 ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
 {
-	if (const auto ref = GetAttachedObject()) {
-        auto geo = Geometry(ref);
+    if (const auto ref = GetAttachedObject()) {
+		RE::NiPoint3 pos;
+		ImVec2 pos2d;
 
-        const auto bound = geo.GetBoundingBox(ref->GetAngle(), ref->GetScale());
+		if (const auto a_head = ref->GetNodeByName(RE::FixedStrings::GetSingleton()->npcHead)) {
+            constexpr float npc_head_size = 15.f;
+			const auto cameraPos = RE::PlayerCamera::GetSingleton()->pos;
+            constexpr float padding = 10.f;
+            const auto npc_head_pos = a_head->world.translate;
+			const auto diff = npc_head_pos - cameraPos;
+			constexpr RE::NiPoint3 z_vec(0.f, 0.f, 1.f);
+			const auto right_vec = diff.UnitCross(z_vec);
+			pos = npc_head_pos + right_vec * npc_head_size;
+			pos2d = WorldToScreenLoc(pos) + ImVec2{(MCP::Settings::prompt_size+padding) * DisplayTweaks::resolutionScale,0};
+		}
+		else {
+            const auto geo = Geometry(ref);
 
-        const RE::NiPoint3 center = (bound.first + bound.second) / 2;
+            const auto bound = geo.GetBoundingBox(ref->GetAngle(), ref->GetScale());
+            const RE::NiPoint3 center = (bound.first + bound.second) / 2;
 
-        const RE::NiPoint3 pos = ref->GetPosition() + RE::NiPoint3{center.x, center.y, bound.second.z + 16};
+            pos = WorldObjects::GetPosition(ref) + RE::NiPoint3{center.x, center.y, bound.second.z + 16};
+            pos2d = WorldToScreenLoc(pos);
+		}
 
-        ImVec2 pos2d = WorldToScreenLoc(pos);
 
         FastClampToScreen(pos2d);
 
@@ -491,7 +507,7 @@ void ImGui::Renderer::SubManager::ButtonStateActions()
 
     {
 	    std::shared_lock lock(q_mutex_);
-	    if (auto button = interactQueue.current_button) {
+	    if (const auto button = interactQueue.current_button) {
 			a_type = button->type;
 			progress_override = button->GetProgressOverride(false);
 			a_interaction = button->interaction;
@@ -815,6 +831,10 @@ void ImGui::Renderer::Manager::RemoveFromQ(const SkyPromptAPI::ClientID a_client
 		    a_manager->RemoveFromQ(a_prompt_sink);
 	    }
 	}
+	{
+        std::unique_lock lock(events_to_send_mutex);
+        events_to_send_.erase(a_prompt_sink);
+    }
 
 	CleanUpQueue();
 
@@ -1291,21 +1311,35 @@ void ImGui::Renderer::Manager::AddEventToSend(const SkyPromptAPI::PromptSink* a_
 	}
 }
 
-void ImGui::Renderer::Manager::SendEvents()
-{
-	std::vector<std::pair<const SkyPromptAPI::PromptSink*, std::vector<SkyPromptAPI::PromptEvent>>> events_copy;
-	{
-		std::unique_lock lock(events_to_send_mutex);
-		events_copy.reserve(events_to_send_.size());
-		for (const auto& [a_sink, events] : events_to_send_) {
-			events_copy.push_back({ a_sink, events });
+void Manager::SendEvents() {
+
+    std::vector<const SkyPromptAPI::PromptSink*> sinks_to_notify;
+
+	std::shared_lock lock(events_to_send_mutex);
+
+    for (const auto& sink : events_to_send_ | std::views::keys) {
+		if (sink) {
+            sinks_to_notify.push_back(sink);
 		}
-	    events_to_send_.clear();
+    }
+
+    for (const auto sink : sinks_to_notify) {
+        std::vector<SkyPromptAPI::PromptEvent> events;
+        if (auto it = events_to_send_.find(sink); it != events_to_send_.end()) {
+            events = it->second;
+        }
+        for (const auto& event : events) {
+			if (!sink || !events_to_send_.contains(sink)) {
+				break;
+			}
+			lock.unlock();
+            sink->ProcessEvent(event);
+			lock.lock();
+        }
 	}
-	for (const auto& [a_sink, events] : events_copy) {
-		for (const auto& prompt_event : events) {
-			if (!a_sink) continue;
-			a_sink->ProcessEvent(prompt_event);
-		}
-	}
+
+	lock.unlock();
+
+	std::unique_lock lock2(events_to_send_mutex);
+	events_to_send_.clear();
 }
