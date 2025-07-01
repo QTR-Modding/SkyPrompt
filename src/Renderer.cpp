@@ -831,6 +831,10 @@ void ImGui::Renderer::Manager::RemoveFromQ(const SkyPromptAPI::ClientID a_client
 		    a_manager->RemoveFromQ(a_prompt_sink);
 	    }
 	}
+	{
+        std::unique_lock lock(events_to_send_mutex);
+        events_to_send_.erase(a_prompt_sink);
+    }
 
 	CleanUpQueue();
 
@@ -1307,21 +1311,37 @@ void ImGui::Renderer::Manager::AddEventToSend(const SkyPromptAPI::PromptSink* a_
 	}
 }
 
-void ImGui::Renderer::Manager::SendEvents()
-{
-	std::vector<std::pair<const SkyPromptAPI::PromptSink*, std::vector<SkyPromptAPI::PromptEvent>>> events_copy;
-	{
-		std::unique_lock lock(events_to_send_mutex);
-		events_copy.reserve(events_to_send_.size());
-		for (const auto& [a_sink, events] : events_to_send_) {
-			events_copy.push_back({ a_sink, events });
-		}
-	    events_to_send_.clear();
+void Manager::SendEvents() {
+
+    std::vector<const SkyPromptAPI::PromptSink*> sinks_to_notify;
+
+	std::shared_lock lock(events_to_send_mutex);
+
+    for (const auto& sink : events_to_send_ | std::views::keys) {
+        sinks_to_notify.push_back(sink);
+    }
+
+    for (const auto* sink : sinks_to_notify) {
+        // Check again if sink is still present, if needed
+        std::vector<SkyPromptAPI::PromptEvent> events;
+        {
+            auto it = events_to_send_.find(sink);
+            if (it != events_to_send_.end()) {
+                events = it->second;
+            }
+        }
+        for (const auto& event : events) {
+			if (!events_to_send_.contains(sink)) {
+				break;
+			}
+			lock.unlock();
+            sink->ProcessEvent(event);
+			lock.lock();
+        }
 	}
-	for (const auto& [a_sink, events] : events_copy) {
-		for (const auto& prompt_event : events) {
-			if (!a_sink) continue;
-			a_sink->ProcessEvent(prompt_event);
-		}
-	}
+
+	lock.unlock();
+
+	std::unique_lock lock2(events_to_send_mutex);
+	events_to_send_.clear();
 }
