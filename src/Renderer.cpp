@@ -1331,7 +1331,7 @@ void Manager::SendEvents() {
             }
         }
         for (const auto& event : events) {
-			if (!events_to_send_.contains(sink)) {
+			if (!sink || !events_to_send_.contains(sink)) {
 				break;
 			}
 			lock.unlock();
