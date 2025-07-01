@@ -12,7 +12,7 @@ extern "C" DLLEXPORT bool ProcessSendPrompt(const SkyPromptAPI::PromptSink* a_si
 extern "C" DLLEXPORT void ProcessRemovePrompt(const SkyPromptAPI::PromptSink* a_sink, SkyPromptAPI::ClientID a_clientID);
 extern "C" DLLEXPORT SkyPromptAPI::ClientID ProcessRequestClientID(int a_major=1, int a_minor=0);
 
-namespace Interactions {
+namespace Service {
     inline std::mutex mutex_;
     inline SkyPromptAPI::ClientID last_clientID = 0;
 };

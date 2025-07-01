@@ -33,6 +33,7 @@ void ProcessRemovePrompt(const SkyPromptAPI::PromptSink* a_sink, const SkyPrompt
     if (a_clientID == 0) {
 		return;
 	}
+
 	const auto manager = MANAGER(ImGui::Renderer);
 	if (!manager->IsInQueue(a_clientID, a_sink)) {
 		return;
@@ -59,12 +60,12 @@ SkyPromptAPI::ClientID ProcessRequestClientID(int a_major, int a_minor)
 		return 0;
 	}
 
-	std::lock_guard lock(Interactions::mutex_);
-	if (Interactions::last_clientID == std::numeric_limits<SkyPromptAPI::ClientID>::max()) {
+	std::lock_guard lock(Service::mutex_);
+	if (Service::last_clientID == std::numeric_limits<SkyPromptAPI::ClientID>::max()) {
 		return 0;
 	}
-	if (MANAGER(ImGui::Renderer)->InitializeClient(Interactions::last_clientID+1)) {
-	    return ++Interactions::last_clientID;
+	if (MANAGER(ImGui::Renderer)->InitializeClient(Service::last_clientID+1)) {
+	    return ++Service::last_clientID;
 	}
 	return 0;
 }
