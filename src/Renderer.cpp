@@ -1323,14 +1323,10 @@ void Manager::SendEvents() {
 		}
     }
 
-    for (const auto* sink : sinks_to_notify) {
-        // Check again if sink is still present, if needed
+    for (const auto sink : sinks_to_notify) {
         std::vector<SkyPromptAPI::PromptEvent> events;
-        {
-            auto it = events_to_send_.find(sink);
-            if (it != events_to_send_.end()) {
-                events = it->second;
-            }
+        if (auto it = events_to_send_.find(sink); it != events_to_send_.end()) {
+            events = it->second;
         }
         for (const auto& event : events) {
 			if (!sink || !events_to_send_.contains(sink)) {
