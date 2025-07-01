@@ -14,5 +14,5 @@ public:
 
     ~Geometry();
     Geometry(RE::TESObjectREFR* obj);
-    std::pair<RE::NiPoint3, RE::NiPoint3> GetBoundingBox(RE::NiPoint3 angle, float scale);
+    std::pair<RE::NiPoint3, RE::NiPoint3> GetBoundingBox(RE::NiPoint3 angle, float scale) const;
 };

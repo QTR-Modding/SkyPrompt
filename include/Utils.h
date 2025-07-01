@@ -25,6 +25,39 @@ public:
 void BeginImGuiWindow(const char* window_name);
 void EndImGuiWindow();
 
+namespace WorldObjects {
+    inline RE::bhkRigidBody* GetRigidBody(const RE::TESObjectREFR* refr) {
+        const auto object3D = refr->Get3D();
+
+        if (!object3D) {
+            return nullptr;
+        }
+        const auto collision = object3D->GetCollisionObject();
+
+        if (!collision) {
+            return nullptr;
+        }
+
+        const auto body = collision->GetRigidBody();
+
+        return body;
+    }
+
+    inline RE::NiPoint3 GetPosition(const RE::TESObjectREFR* obj)
+    {
+        const auto body = GetRigidBody(obj);
+	    if (!body) return obj->GetPosition();
+        RE::hkVector4 havockPosition;
+        body->GetPosition(havockPosition);
+        float components[4];
+        _mm_store_ps(components, havockPosition.quad);
+        RE::NiPoint3 newPosition = {components[0], components[1], components[2]};
+        constexpr float havockToSkyrimConversionRate = 69.9915f;
+        newPosition *= havockToSkyrimConversionRate;
+        return newPosition;
+    }
+}
+
 // https://github.com/SkyrimScripting/MessageBox/blob/ac0ea32af02766582209e784689eb0dd7d731d57/include/SkyrimScripting/MessageBox.h#L9
 class SkyrimMessageBox {
     class MessageBoxResultCallback final : public RE::IMessageBoxCallback {

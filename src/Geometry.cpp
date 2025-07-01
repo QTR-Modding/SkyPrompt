@@ -98,7 +98,7 @@ Geometry::Geometry(RE::TESObjectREFR* obj) {
 
 }
 
-std::pair<RE::NiPoint3, RE::NiPoint3> Geometry::GetBoundingBox(RE::NiPoint3 angle, float scale) {
+std::pair<RE::NiPoint3, RE::NiPoint3> Geometry::GetBoundingBox(const RE::NiPoint3 angle, const float scale) const {
     auto min = RE::NiPoint3{0, 0, 0};
     auto max = RE::NiPoint3{0, 0, 0};
 
