@@ -1318,7 +1318,9 @@ void Manager::SendEvents() {
 	std::shared_lock lock(events_to_send_mutex);
 
     for (const auto& sink : events_to_send_ | std::views::keys) {
-        sinks_to_notify.push_back(sink);
+		if (sink) {
+            sinks_to_notify.push_back(sink);
+		}
     }
 
     for (const auto* sink : sinks_to_notify) {
