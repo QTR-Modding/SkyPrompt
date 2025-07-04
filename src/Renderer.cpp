@@ -499,7 +499,7 @@ void ImGui::Renderer::SubManager::Show(const InteractionButton* button2show)
 
 void ImGui::Renderer::SubManager::ButtonStateActions()
 {
-	buttonState.pressCount = std::min(4,buttonState.pressCount);
+	buttonState.pressCount = std::min(6,buttonState.pressCount);
 
 	SkyPromptAPI::PromptType a_type;
 	float progress_override;
@@ -524,14 +524,14 @@ void ImGui::Renderer::SubManager::ButtonStateActions()
 					RemoveCurrentPrompt();
 					SendEvent(a_interaction, SkyPromptAPI::PromptEventType::kDeclined);
 				}
-				else if (buttonState.pressCount >= 3) {
+				else if (buttonState.pressCount == 3) {
 					NextPrompt();
 				}
 			    buttonState.pressCount = 0;
 			}
-	        else if (buttonState.pressCount > 3) {
+	        else if (buttonState.pressCount == 4 || buttonState.pressCount >= 6) {
 	            NextPrompt();
-		        buttonState.pressCount = 3;
+                buttonState.pressCount = 5;
 	        }
 		}
 	}
