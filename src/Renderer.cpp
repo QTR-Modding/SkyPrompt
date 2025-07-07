@@ -151,14 +151,14 @@ void ButtonQueue::Show(float progress, const InteractionButton* button2show, con
 		return;
 	}
 
+	const auto seconds = GetSecondsSinceLastFrame();
+	if (expired()/* && current_button->alpha>0.f*/) {
+		alpha = std::max(alpha - MCP::Settings::fadeSpeed*seconds*120.f, 0.0f);
+	}
+	else {
+        alpha = std::min(alpha + MCP::Settings::fadeSpeed*seconds*120.f, 1.0f);
+	}
     if (Tutorial::showing_tutorial.load() || !Manager::IsGameFrozen()) {
-	    const auto seconds = GetSecondsSinceLastFrame();
-	    if (expired()/* && current_button->alpha>0.f*/) {
-		    alpha = std::max(alpha - MCP::Settings::fadeSpeed*seconds*120.f, 0.0f);
-	    }
-	    else {
-            alpha = std::min(alpha + MCP::Settings::fadeSpeed*seconds*120.f, 1.0f);
-	    }
 	    elapsed += seconds;
     }
 
@@ -387,56 +387,86 @@ void ImGui::Renderer::SubManager::SendEvent(const Interaction& a_interaction, co
 	}
 }
 
-static ImVec2 WorldToScreenLoc(const RE::NiPoint3 position) {
-    static uintptr_t g_worldToCamMatrix = RELOCATION_ID(519579, 406126).address();         // 2F4C910, 2FE75F0
-    static auto g_viewPort = (RE::NiRect<float>*)RELOCATION_ID(519618, 406160).address();  // 2F4DED0, 2FE8B98
+namespace {
+    ImVec2 WorldToScreenLoc(const RE::NiPoint3 position) {
+        static uintptr_t g_worldToCamMatrix = RELOCATION_ID(519579, 406126).address();         // 2F4C910, 2FE75F0
+        static auto g_viewPort = (RE::NiRect<float>*)RELOCATION_ID(519618, 406160).address();  // 2F4DED0, 2FE8B98
 
-    ImVec2 screenLocOut;
-    const RE::NiPoint3 niWorldLoc(position.x, position.y, position.z);
+        ImVec2 screenLocOut;
+        const RE::NiPoint3 niWorldLoc(position.x, position.y, position.z);
 
-    float zVal;
+        float zVal;
 
-    RE::NiCamera::WorldPtToScreenPt3((float(*)[4])g_worldToCamMatrix, *g_viewPort, niWorldLoc, screenLocOut.x,
-                                     screenLocOut.y, zVal, 1e-5f);
-    const ImVec2 rect = ImGui::GetIO().DisplaySize;
+        RE::NiCamera::WorldPtToScreenPt3((float(*)[4])g_worldToCamMatrix, *g_viewPort, niWorldLoc, screenLocOut.x,
+                                         screenLocOut.y, zVal, 1e-5f);
+        const ImVec2 rect = ImGui::GetIO().DisplaySize;
 
-    screenLocOut.x = rect.x * screenLocOut.x;
-    screenLocOut.y = 1.0f - screenLocOut.y;
-    screenLocOut.y = rect.y * screenLocOut.y;
+        screenLocOut.x = rect.x * screenLocOut.x;
+        screenLocOut.y = 1.0f - screenLocOut.y;
+        screenLocOut.y = rect.y * screenLocOut.y;
 
-    return screenLocOut;
-}
-
-constexpr float CLAMP_MAX_OVERSHOOT = -100;
-void FastClampToScreen(ImVec2& point) {
-    const ImVec2 rect = ImGui::GetIO().DisplaySize;
-    if (point.x < 0.0) {
-        const float overshootX = abs(point.x);
-        if (overshootX > CLAMP_MAX_OVERSHOOT) point.x += overshootX - CLAMP_MAX_OVERSHOOT;
-    } else if (point.x > rect.x) {
-        const float overshootX = point.x - rect.x;
-        if (overshootX > CLAMP_MAX_OVERSHOOT) point.x -= overshootX - CLAMP_MAX_OVERSHOOT;
+        return screenLocOut;
     }
 
-    if (point.y < 0.0) {
-        const float overshootY = abs(point.y);
-        if (overshootY > CLAMP_MAX_OVERSHOOT) point.y += overshootY - CLAMP_MAX_OVERSHOOT;
-    } else if (point.y > rect.y) {
-        const float overshootY = point.y - rect.y;
-        if (overshootY > CLAMP_MAX_OVERSHOOT) point.y -= overshootY - CLAMP_MAX_OVERSHOOT;
+    ImVec2 WorldToScreenLoc(const RE::NiPoint3 position, const RE::NiPointer<RE::NiCamera>& a_cam) {
+        float z;
+	    ImVec2 screenLocOut;
+        RE::NiCamera::WorldPtToScreenPt3(a_cam->GetRuntimeData().worldToCam, a_cam->GetRuntimeData2().port,
+                                  position, screenLocOut.x, screenLocOut.y, z, 1e-5f);
+	    const ImVec2 rect = ImGui::GetIO().DisplaySize;
+        screenLocOut.x = rect.x * screenLocOut.x;
+        screenLocOut.y = 1.0f - screenLocOut.y;
+        screenLocOut.y = rect.y * screenLocOut.y;
+	    return screenLocOut;
+    }
+
+    void OffsetRight(const RE::NiPoint3& a_pos, const RE::NiPoint3& a_cam_pos, RE::NiPoint3& a_out, const float a_offset) {
+        const auto diff = a_pos - a_cam_pos;
+        constexpr RE::NiPoint3 z_vec(0.f, 0.f, 1.f);
+        const auto right_vec = diff.UnitCross(z_vec);
+        a_out = a_pos + right_vec * a_offset;
+    }
+
+    constexpr float CLAMP_MAX_OVERSHOOT = -100;
+
+    void FastClampToScreen(ImVec2& point) {
+        const ImVec2 rect = ImGui::GetIO().DisplaySize;
+        if (point.x < 0.0) {
+            const float overshootX = abs(point.x);
+            if (overshootX > CLAMP_MAX_OVERSHOOT) point.x += overshootX - CLAMP_MAX_OVERSHOOT;
+        } else if (point.x > rect.x) {
+            const float overshootX = point.x - rect.x;
+            if (overshootX > CLAMP_MAX_OVERSHOOT) point.x -= overshootX - CLAMP_MAX_OVERSHOOT;
+        }
+
+        if (point.y < 0.0) {
+            const float overshootY = abs(point.y);
+            if (overshootY > CLAMP_MAX_OVERSHOOT) point.y += overshootY - CLAMP_MAX_OVERSHOOT;
+        } else if (point.y > rect.y) {
+            const float overshootY = point.y - rect.y;
+            if (overshootY > CLAMP_MAX_OVERSHOOT) point.y -= overshootY - CLAMP_MAX_OVERSHOOT;
+        }
     }
 }
 
 ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
 {
     if (const auto ref = GetAttachedObject()) {
-		RE::NiPoint3 pos;
+        constexpr float padding = 10.f;
+        RE::NiPoint3 pos;
 		ImVec2 pos2d;
 
-		if (const auto a_head = ref->GetNodeByName(RE::FixedStrings::GetSingleton()->npcHead)) {
+		if (const auto temp_ref = RE::Inventory3DManager::GetSingleton()->tempRef; temp_ref && ref->GetFormID() == temp_ref->GetFormID()) {
+            if (const auto inv3dmngr = RE::Inventory3DManager::GetSingleton(); !inv3dmngr ->GetRuntimeData().loadedModels.empty()) {
+				if (const auto& model = inv3dmngr->GetRuntimeData().loadedModels.back().spModel) {
+					OffsetRight(model->world.translate,RE::UI3DSceneManager::GetSingleton()->cachedCameraPos,pos,model->worldBound.radius);
+			        pos2d = WorldToScreenLoc(pos,RE::UI3DSceneManager::GetSingleton()->camera) + ImVec2{(MCP::Settings::prompt_size+padding) * DisplayTweaks::resolutionScale,0};
+				}
+			}
+		}
+		else if (const auto a_head = ref->GetNodeByName(RE::FixedStrings::GetSingleton()->npcHead)) {
             constexpr float npc_head_size = 15.f;
 			const auto cameraPos = RE::PlayerCamera::GetSingleton()->pos;
-            constexpr float padding = 10.f;
             const auto npc_head_pos = a_head->world.translate;
 			const auto diff = npc_head_pos - cameraPos;
 			constexpr RE::NiPoint3 z_vec(0.f, 0.f, 1.f);
@@ -499,7 +529,7 @@ void ImGui::Renderer::SubManager::Show(const InteractionButton* button2show)
 
 void ImGui::Renderer::SubManager::ButtonStateActions()
 {
-	buttonState.pressCount = std::min(4,buttonState.pressCount);
+	buttonState.pressCount = std::min(6,buttonState.pressCount);
 
 	SkyPromptAPI::PromptType a_type;
 	float progress_override;
@@ -524,14 +554,14 @@ void ImGui::Renderer::SubManager::ButtonStateActions()
 					RemoveCurrentPrompt();
 					SendEvent(a_interaction, SkyPromptAPI::PromptEventType::kDeclined);
 				}
-				else if (buttonState.pressCount >= 3) {
+				else if (buttonState.pressCount == 3) {
 					NextPrompt();
 				}
 			    buttonState.pressCount = 0;
 			}
-	        else if (buttonState.pressCount > 3) {
+	        else if (buttonState.pressCount == 4 || buttonState.pressCount >= 6) {
 	            NextPrompt();
-		        buttonState.pressCount = 3;
+                buttonState.pressCount = 5;
 	        }
 		}
 	}
@@ -1103,6 +1133,11 @@ InteractionButton::InteractionButton(const Interaction& a_interaction, const Mut
 	mutables = a_mutables;
 	if (const auto a_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_refid)) {
 		attached_object = a_ref->GetHandle();
+	}
+	else if (const auto temp = RE::Inventory3DManager::GetSingleton()->tempRef) {
+	    if (temp->GetFormID() == a_refid) {
+			attached_object = temp->GetHandle();
+	    }
 	}
 	keys = std::move(a_keys);
 	default_key_index = a_default_key_index;
