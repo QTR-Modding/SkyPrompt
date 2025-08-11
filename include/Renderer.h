@@ -34,7 +34,9 @@ struct InteractionButton
     explicit InteractionButton(const Interaction& a_interaction, const Mutables& a_mutables, SkyPromptAPI::PromptType a_type, RefID a_refid, std::map<Input::DEVICE, uint32_t> a_keys, int a_default_key_index);
     bool operator==(const InteractionButton& a_rhs) const { return interaction == a_rhs.interaction; }
     bool operator<(const InteractionButton& a_rhs) const { return interaction < a_rhs.interaction; }
-    [[nodiscard]] std::optional<std::pair<float,float>> Show(float alpha = 0.f, const std::string& extra_text="", float progress=0.f, float button_state = -1.f) const;
+    [[nodiscard]] std::optional<std::pair<float, float>> Show(float alpha, const std::string& extra_text,
+                                                             const float progress, const float button_state,
+                                                             float angle_rad = 0.0f) const;
     float GetProgressOverride(bool increment) const;
 };
 
@@ -53,7 +55,9 @@ struct ButtonQueue {
     void Clear();
     void Reset();
     void WakeUp();
-    void Show(float progress,const InteractionButton* button2show, const ImGui::Renderer::ButtonState& a_button_state);
+    void Show(float progress, const InteractionButton* button2show, const ImGui::Renderer::ButtonState& a_button_state,
+              float angle_rad = 0.0f);
+    ;
     const InteractionButton* AddButton(const InteractionButton& a_button);
     bool RemoveButton(const Interaction& a_interaction);
     [[nodiscard]] bool IsEmpty() const { return buttons.empty(); }
@@ -105,10 +109,10 @@ namespace ImGui::Renderer
         mutable std::atomic<bool> wakeup_queued_{ false };
 
         void ButtonStateActions();
-        void Show(const InteractionButton* button2show);
+        void Show(const InteractionButton* button2show, float angle_rad = 0.0f);
 
     public:
-
+        const ButtonQueue& GetButtonQueue() const { return interactQueue; }
         SubManager() = default;
         ~SubManager();
 
@@ -119,7 +123,7 @@ namespace ImGui::Renderer
         void RemoveFromQ(const SkyPromptAPI::PromptSink* a_prompt_sink);
         void RemoveCurrentPrompt();
         void ResetQueue();
-        void ShowQueue();
+        void ShowQueue(float angle_rad = 0.0f);
         void WakeUpQueue();
         void CleanUpQueue();
         void ClearQueue();
@@ -199,5 +203,13 @@ namespace ImGui::Renderer
 
         bool InitializeClient(SkyPromptAPI::ClientID a_clientID);
         bool CycleClient(bool a_left);
+        struct RenderItem {
+            const InteractionButton* button_data;
+            ImVec2 center_position;
+            float rotation_angle;
+            float alpha;
+            std::string extra_text;
+            // Adicione outros dados se precisar, como 'progress' ou 'button_state'
+        };
 	};
 }
