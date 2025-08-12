@@ -182,7 +182,12 @@ std::optional<std::pair<float, float>> InteractionButton::Show(const float alpha
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     const ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
     const float scale = ImGui::Renderer::GetResolutionScale();
-    const ImVec2 icon_size(MCP::Settings::prompt_size * scale, MCP::Settings::prompt_size * scale);
+    const float icon_size_multiplier = 0.6f;  // 1.0 = 100% (normal), 1.2 = 120% (maior), 0.8 = 80% (menor)
+    const float base_icon_size = MCP::Settings::prompt_size * scale;
+    const ImVec2 icon_size(base_icon_size * icon_size_multiplier, base_icon_size * icon_size_multiplier);
+
+    const float font_size_multiplier = 0.6f;  // 1.0 = 100% (normal), 1.2 = 120% (maior), 0.8 = 80% (menor)
+    const float final_font_size = ImGui::GetFontSize() * font_size_multiplier;
 
     // O centro do ícone é o nosso pivô principal para todo o conjunto
     const ImVec2 icon_center = ImVec2(cursor_pos.x + icon_size.x * 0.5f, cursor_pos.y + icon_size.y * 0.5f);
@@ -197,7 +202,7 @@ std::optional<std::pair<float, float>> InteractionButton::Show(const float alpha
 
     // 1. Define o deslocamento local do texto em relação ao centro do ícone (sem rotação)
     //    O texto começará à direita do ícone, com um pequeno espaçamento.
-    const ImVec2 local_text_offset = {icon_size.x * 0.5f + 5 * scale, -ImGui::GetFontSize() * 0.5f};
+    const ImVec2 local_text_offset = {icon_size.x * 0.5f + 5 * scale, -final_font_size * 0.5f};
 
     // 2. Rotaciona o vetor de deslocamento
     const float cos_a = cosf(angle_rad);
@@ -208,12 +213,11 @@ std::optional<std::pair<float, float>> InteractionButton::Show(const float alpha
     // 3. Calcula a posição final do texto somando o pivô com o deslocamento rotacionado
     const ImVec2 final_text_pos = icon_center + rotated_offset;
 
+    const ImU32 cor_do_texto_override = IM_COL32(255, 255, 255, 200);
     // 4. Chama a função de desenhar texto rotacionado
-    AddTextRotated(draw_list, ImGui::GetFont(), ImGui::GetFontSize(),
-                                    final_text_pos,  // Usa a posição final calculada
-                                    mutables.text_color, a_text.c_str(),
-                                    angle_rad,  // Usa o mesmo ângulo do ícone
-                                    false       // centerText = false (para alinhar a partir do início do texto)
+    AddTextRotated(draw_list, ImGui::GetFont(), final_font_size, final_text_pos, cor_do_texto_override, a_text.c_str(),
+                   angle_rad,
+                   false  // centerText = false (para alinhar a partir do início do texto)
     );
 
     // NOVO: Restaura o clipping original
@@ -1278,6 +1282,74 @@ void ImGui::Renderer::Manager::CleanUpQueue() {
         ReArrange();
     }
 }
+struct RichTextStyle {
+    bool isBold = false;
+    // Poderíamos adicionar mais estilos no futuro, como:
+    // bool isItalic = false;
+    // ImU32 color = IM_COL32_WHITE;
+};
+
+
+void DrawGradientArc(ImDrawList* draw_list, ImVec2 center, float radius, float max_thickness, ImU32 color,
+                     float start_angle, float total_angle, bool enable_glow = false,
+                     float glow_thickness_multiplier = 3.0f, float glow_alpha_multiplier = 0.5f) {
+    const int num_segments = 400;
+
+    if (enable_glow) {
+        const int num_glow_layers = 5;
+        const float min_glow_thickness = 0.5f * GetResolutionScale();
+
+        for (int layer = 0; layer < num_glow_layers; ++layer) {
+            float layer_progress = static_cast<float>(layer) / (num_glow_layers - 1);
+            float current_base_thickness =
+                max_thickness + (glow_thickness_multiplier * max_thickness) * (1.0f - layer_progress);
+            float current_alpha_scale = glow_alpha_multiplier * pow(layer_progress, 2);
+
+            ImVec2 p1_glow = ImVec2(center.x + cosf(start_angle) * radius, center.y + sinf(start_angle) * radius);
+            for (int i = 1; i <= num_segments; ++i) {
+                float progress = static_cast<float>(i) / num_segments;
+                float thickness_multiplier = sin(progress * std::numbers::pi_v<float>);
+                float dynamic_glow_thickness =
+                    std::max(current_base_thickness * thickness_multiplier, min_glow_thickness);
+
+                // --- MUDANÇA AQUI ---
+                // Substituímos o if/else pelo seno para um gradiente perfeitamente suave.
+                float gradient_alpha = sin(progress * std::numbers::pi_v<float>);
+
+                ImU32 glow_segment_color =
+                    ImGui::GetColorU32(ImVec4(((color >> 0) & 0xFF) / 255.0f, ((color >> 8) & 0xFF) / 255.0f,
+                                              ((color >> 16) & 0xFF) / 255.0f, gradient_alpha * current_alpha_scale));
+
+                const float angle = start_angle + progress * total_angle;
+                ImVec2 p2_glow = ImVec2(center.x + cosf(angle) * radius, center.y + sinf(angle) * radius);
+                draw_list->AddLine(p1_glow, p2_glow, glow_segment_color, dynamic_glow_thickness);
+                p1_glow = p2_glow;
+            }
+        }
+    }
+
+    // --- DESENHO DO ARCO PRINCIPAL (COM A MESMA MUDANÇA) ---
+    ImVec2 p1_main = ImVec2(center.x + cosf(start_angle) * radius, center.y + sinf(start_angle) * radius);
+    for (int i = 1; i <= num_segments; ++i) {
+        float progress = static_cast<float>(i) / num_segments;
+        float thickness_multiplier = sin(progress * std::numbers::pi_v<float>);
+        float dynamic_thickness = max_thickness * thickness_multiplier;
+
+        // --- MUDANÇA AQUI ---
+        // Usamos a mesma função seno para a transparência do arco principal.
+        float gradient_alpha = sin(progress * std::numbers::pi_v<float>);
+
+        ImU32 segment_color = ImGui::GetColorU32(ImVec4(((color >> 0) & 0xFF) / 255.0f, ((color >> 8) & 0xFF) / 255.0f,
+                                                        ((color >> 16) & 0xFF) / 255.0f, gradient_alpha));
+
+        const float angle = start_angle + progress * total_angle;
+        ImVec2 p2_main = ImVec2(center.x + cosf(angle) * radius, center.y + sinf(angle) * radius);
+        draw_list->AddLine(p1_main, p2_main, segment_color, dynamic_thickness);
+        p1_main = p2_main;
+    }
+}
+
+
 
 void ImGui::Renderer::Manager::ShowQueue() {
     if (IsPaused()) {
@@ -1289,7 +1361,7 @@ void ImGui::Renderer::Manager::ShowQueue() {
     const ImVec2 line_center(width * 0.5f, height * 0.5f);
 
     // Centro dos BOTÕES, com o deslocamento horizontal que você pode ajustar.
-    const float horizontal_offset = 80.0f;  // Altere este valor para mover os botões
+    const float horizontal_offset = 0.0f;  // Altere este valor para mover os botões
     const ImVec2 buttons_center(width * 0.5f + horizontal_offset, height * 0.5f);
 
     // --- 2. JANELA PRINCIPAL TRANSPARENTE ("SkyPrompt") ---
@@ -1321,30 +1393,41 @@ void ImGui::Renderer::Manager::ShowQueue() {
     }
 
     const float semicircle_radius = 150.0f * GetResolutionScale();
-    const float item_offset = 30.0f * GetResolutionScale();  // Aumentei um pouco para dar mais espaço
+    const float item_offset = 10.0f * GetResolutionScale();  // Aumentei um pouco para dar mais espaço
     const float items_radius = semicircle_radius + item_offset;
-    const float total_arc_angle = std::numbers::pi_v<float>;
-    const float start_angle = -std::numbers::pi_v<float> / 2.0f;
-    float angle_step = (active_manager_count > 1) ? (total_arc_angle / (active_manager_count - 1)) : 0.0f;
-    float current_angle = start_angle;
-    const float thickness = 10.0f * GetResolutionScale(); // grosura da linha
+    // --- ÂNGULOS PARA A LINHA DECORATIVA (Sempre 180 graus) ---
+    const float line_total_arc_angle = std::numbers::pi_v<float>;      // PI = 180 graus
+    const float line_start_angle = -std::numbers::pi_v<float> / 2.0f;  // Começa no topo (-90 graus)
+
+    // --- ÂNGULOS PARA OS BOTÕES (Com padding ajustável) ---
+    const float angular_padding_degrees = 60.0f;  // Altere este valor para agrupar/separar os botões
+    const float angular_padding_rad = angular_padding_degrees * std::numbers::pi_v<float> / 180.0f;
+    const float buttons_total_arc_angle = std::numbers::pi_v<float> - (2.0f * angular_padding_rad);
+    const float buttons_start_angle = (-std::numbers::pi_v<float> / 2.0f) + angular_padding_rad;
+
+    // O passo do ângulo dos botões usa o ângulo total dos botões
+    float angle_step = (active_manager_count > 1) ? (buttons_total_arc_angle / (active_manager_count - 1)) : 0.0f;
+
+    // O ângulo corrente inicial para o loop dos botões
+    float current_angle = buttons_start_angle;
+    const float thickness = 3.0f * GetResolutionScale(); // grosura da linha
     // --- DESENHO DO ARCO COM GRADIENTE (usando line_center) ---
+    // 2. Dentro de Manager::ShowQueue(), substitua o bloco de desenho do arco por isto:
     if (active_manager_count > 0) {
-        const int num_segments = 360;
-        
-        ImVec2 p1 = ImVec2(line_center.x + cosf(start_angle) * semicircle_radius,
-                           line_center.y + sinf(start_angle) * semicircle_radius);
-        for (int i = 1; i <= num_segments; ++i) {
-            float progress = static_cast<float>(i) / static_cast<float>(num_segments);
-            float alpha_multiplier = (progress < 0.5f) ? (progress * 2.0f) : (1.0f - ((progress - 0.5f) * 2.0f));
-            alpha_multiplier = std::clamp(alpha_multiplier, 0.0f, 1.0f);
-            const ImU32 segment_color = IM_COL32(255, 204, 0, static_cast<int>(255 * alpha_multiplier));
-            const float angle = start_angle + progress * total_arc_angle;
-            ImVec2 p2 = ImVec2(line_center.x + cosf(angle) * semicircle_radius,
-                               line_center.y + sinf(angle) * semicircle_radius);
-            background_draw_list->AddLine(p1, p2, segment_color, thickness);
-            p1 = p2;
-        }
+        // Arco 1 (o original)
+        DrawGradientArc(background_draw_list, line_center, semicircle_radius, thickness, IM_COL32(255, 204, 0, 255),
+                        line_start_angle * 0.2f, line_total_arc_angle * 0.2f, true, 6.0f, 0.4f);
+
+        // Arco 2 (um pouco menor e mais fino, com outra cor)
+        DrawGradientArc(background_draw_list, line_center, semicircle_radius - 20.0f, thickness * 0.4f,
+                        IM_COL32(200, 160, 0, 255), line_start_angle * 0.4f, line_total_arc_angle * 0.4f, true, 10.5f,
+                        0.8f);
+
+        DrawGradientArc(background_draw_list, line_center, semicircle_radius - 40.0f, thickness ,
+                        IM_COL32(200, 160, 0, 255), line_start_angle * 0.65f, line_total_arc_angle * 0.65f, true, 4.2f,
+                        0.6f);
+
+        // Você pode adicionar quantos arcos quiser...
     }
 
 
@@ -1362,7 +1445,7 @@ void ImGui::Renderer::Manager::ShowQueue() {
                                 buttons_center.y + items_radius * sin(current_angle)};
 
             // Cria uma janela invisível para cada botão nessa posição
-            ImGui::SetNextWindowPos(promptPos, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+            ImGui::SetNextWindowPos(promptPos, ImGuiCond_Always, ImVec2(0.0f, 0.5f));
             std::string window_name = std::format("PromptWindow_{}", manager_idx++);
 
             // Estilo transparente para a janela do botão (já estava correto)
