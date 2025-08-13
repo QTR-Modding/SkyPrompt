@@ -739,6 +739,7 @@ bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
 	managers = std::move(client_managers.at(client_id));
 	last_clientID = client_id;
 
+	std::shared_lock theme_lock(Theme::m_theme_);
 	Theme::last_theme = Theme::themes.contains(last_clientID) ? *Theme::themes.at(last_clientID) : Theme::default_theme;
 
 	return true;

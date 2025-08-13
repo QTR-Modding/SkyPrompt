@@ -1,4 +1,6 @@
 #pragma once
+#include <shared_mutex>
+
 #include "Settings.h"
 #include "SkyPrompt/API.hpp"
 #include "boost/pfr/core.hpp"
@@ -74,7 +76,8 @@ namespace Theme {
     void LoadThemes();
 
 	inline std::unordered_map<std::string, Theme> themes_loaded;
-	inline std::unordered_map<SkyPromptAPI::ClientID, Theme*> themes;
 
+	inline std::shared_mutex m_theme_;
+	inline std::unordered_map<SkyPromptAPI::ClientID, Theme*> themes;
 	inline auto last_theme = Theme();
 };
