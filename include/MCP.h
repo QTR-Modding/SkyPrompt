@@ -19,16 +19,7 @@ namespace MCP {
 
     namespace Settings {
 
-        inline size_t current_OSP = Theme::default_theme.osp;
-		constexpr float marginX = Theme::default_theme.marginX;
-		constexpr float marginY = Theme::default_theme.marginY;
         inline float fadeSpeed{ 0.02f };
-	    inline float xPercent = Theme::default_theme.xPercent;
-		inline float yPercent = Theme::default_theme.yPercent;
-		inline float prompt_size = Theme::default_theme.prompt_size;
-		inline float icon2font_ratio = Theme::default_theme.icon2font_ratio;
-		inline float linespacing = Theme::default_theme.linespacing;
-	    inline float progress_speed = Theme::default_theme.progress_speed;
 	    inline float lifetime = 5.f;
 		inline bool draw_debug = false;
 

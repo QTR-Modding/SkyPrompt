@@ -1,9 +1,7 @@
 ﻿#include "Renderer.h"
-#include <numbers>
 #include "Hooks.h"
 #include "CLibUtilsQTR/Tasker.hpp"
 #include "IconsFonts.h"
-#include "MCP.h"
 #include "Styles.h"
 #include "Utils.h"
 #include "Geometry.h"
@@ -460,7 +458,10 @@ ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
             if (const auto inv3dmngr = RE::Inventory3DManager::GetSingleton(); !inv3dmngr ->GetRuntimeData().loadedModels.empty()) {
 				if (const auto& model = inv3dmngr->GetRuntimeData().loadedModels.back().spModel) {
 					OffsetRight(model->world.translate,RE::UI3DSceneManager::GetSingleton()->cachedCameraPos,pos,model->worldBound.radius);
-			        pos2d = WorldToScreenLoc(pos,RE::UI3DSceneManager::GetSingleton()->camera) + ImVec2{(MCP::Settings::prompt_size+padding) * DisplayTweaks::resolutionScale,0};
+
+					std::shared_lock lock(Theme::m_theme_);
+				    auto& current_theme = Manager::GetSingleton()->GetCurrentTheme();
+			        pos2d = WorldToScreenLoc(pos,RE::UI3DSceneManager::GetSingleton()->camera) + ImVec2{(current_theme.prompt_size+padding) * DisplayTweaks::resolutionScale,0};
 				}
 			}
 		}
@@ -472,7 +473,10 @@ ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
 			constexpr RE::NiPoint3 z_vec(0.f, 0.f, 1.f);
 			const auto right_vec = diff.UnitCross(z_vec);
 			pos = npc_head_pos + right_vec * npc_head_size;
-			pos2d = WorldToScreenLoc(pos) + ImVec2{(MCP::Settings::prompt_size+padding) * DisplayTweaks::resolutionScale,0};
+
+			std::shared_lock lock(Theme::m_theme_);
+			auto& current_theme = Manager::GetSingleton()->GetCurrentTheme();
+			pos2d = WorldToScreenLoc(pos) + ImVec2{(current_theme.prompt_size+padding) * DisplayTweaks::resolutionScale,0};
 		}
 		else {
             const auto geo = Geometry(ref);
@@ -780,6 +784,14 @@ bool ImGui::Renderer::Manager::CycleClient(const bool a_left)
     return SwitchToClientManager(it->first);
 }
 
+const Theme::Theme& Manager::GetCurrentTheme() const {
+    if (std::shared_lock lock(mutex_);
+		Theme::themes.contains(last_clientID)) {
+        return Theme::themes.at(last_clientID);
+    }
+    return Theme::default_theme;
+}
+
 bool ImGui::Renderer::Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID)
 {
 
@@ -945,8 +957,10 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
     }
 
 	if (!isPressing) {
+		std::shared_lock lock_theme(Theme::m_theme_);
+		auto current_theme = Manager::GetSingleton()->GetCurrentTheme();
 	    std::unique_lock lock(progress_mutex_);
-		if (progress_circle > MCP::Settings::progress_speed) {
+		if (progress_circle > current_theme.progress_speed) {
 			buttonState.pressCount = 0;
 		}
         progress_circle = 0.0f;
@@ -957,8 +971,10 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 	    return false;
 	}
 	{
+		std::shared_lock lock_theme(Theme::m_theme_);
+		auto current_theme = Manager::GetSingleton()->GetCurrentTheme();
 	    std::unique_lock lock(progress_mutex_);
-	    progress_circle += GetSecondsSinceLastFrame() * MCP::Settings::progress_speed*4.f;
+	    progress_circle += GetSecondsSinceLastFrame() * current_theme.progress_speed*4.f;
 	}
 
 	SkyPromptAPI::PromptType a_type = SkyPromptAPI::kSinglePress;
@@ -1199,10 +1215,12 @@ void ImGui::Renderer::Manager::ShowQueue() {
     // Get the screen size
     const auto [width, height] = RE::BSGraphics::Renderer::GetScreenSize();
 
+	std::shared_lock theme_lock(Theme::m_theme_);
+	auto& current_theme = GetCurrentTheme();
     // Calculate position
     const ImVec2 bottomRightPos(
-        width * MCP::Settings::xPercent - MCP::Settings::marginX,
-        height * MCP::Settings::yPercent - MCP::Settings::marginY
+        width * current_theme.xPercent - current_theme.marginX,
+        height * current_theme.yPercent - current_theme.marginY
     );
 
     // Set the window position

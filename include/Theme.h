@@ -1,5 +1,7 @@
 #pragma once
+#include <shared_mutex>
 #include "Settings.h"
+#include "SkyPrompt/API.hpp"
 
 namespace Theme {
 
@@ -9,14 +11,22 @@ namespace Theme {
 		kVertical
 	};
 
-	PromptAlignment toPromptAlignment(const std::string& alignment) {
+    inline PromptAlignment toPromptAlignment(const std::string& alignment) {
 		if (alignment == "Radial") return kRadial;
 		if (alignment == "Horizontal") return kHorizontal;
 		if (alignment == "Vertical") return kVertical;
 		return kVertical; // default
 	}
 
-	struct DefaultTheme {
+	struct Theme {
+
+		uint32_t theme_id = 0; // Default theme ID
+
+	    std::string theme_name = "Default Theme";
+		std::string theme_description = "Default theme for SkyPrompt";
+		std::string theme_author = "Quantumyilmaz";
+		std::string theme_version = "1.0.0";
+
 		size_t osp = 21; // CenterBottomRight
 		float marginX = 20.0f;
 		float marginY = 20.0f;
@@ -34,5 +44,11 @@ namespace Theme {
 		int special_effects; // TODO: e.g. Viny's yellow arcs
 	};
 
-	inline auto inline auto default_theme = Theme::DefaultTheme(); = DefaultTheme();
+	inline auto default_theme = Theme();
+
+    inline void LoadThemes(){};
+
+	inline std::shared_mutex m_theme_;
+	inline std::unordered_map<std::string, Theme> themes_loaded;
+	inline std::unordered_map<SkyPromptAPI::ClientID, Theme> themes;
 };

@@ -87,7 +87,13 @@ namespace IconFont
 		builder.BuildRanges(&ranges);
 
 		const auto resolutionScale = ImGui::Renderer::GetResolutionScale();
-		const auto a_fontsize = MCP::Settings::prompt_size * resolutionScale;
+
+		float a_fontsize;
+		{
+		    std::shared_lock theme_lock(Theme::m_theme_);
+		    auto& prompt_size = ImGui::Renderer::Manager::GetSingleton()->GetCurrentTheme().prompt_size;
+		    a_fontsize = prompt_size * resolutionScale;
+		}
 		//const auto a_iconsize = a_fontsize * 1.f;
 		const auto a_largefontsize = a_fontsize * 1.2f;
 		//const auto a_largeiconsize = a_largefontsize * 1.f;
@@ -287,7 +293,9 @@ namespace {
 
 	float GetIconSize() {
 		const auto a_fontsize = ImGui::GetIO().FontDefault->FontSize;
-        return a_fontsize* MCP::Settings::icon2font_ratio;
+		std::shared_lock theme_lock(Theme::m_theme_);
+		auto& current_theme = ImGui::Renderer::Manager::GetSingleton()->GetCurrentTheme();
+        return a_fontsize * current_theme.icon2font_ratio;
     }
 
 	ImVec2 GetIconSizeImVec() {
@@ -432,7 +440,9 @@ ImVec2 ImGui::ButtonIconWithCircularProgress(const char* a_text, const uint32_t 
     // Move ImGui cursor manually to avoid overlap
     ImGui::Dummy(textSize);  // Moves cursor forward horizontally
 
-	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset * MCP::Settings::linespacing*5);
+	std::shared_lock theme_lock(Theme::m_theme_);
+	auto& current_theme = ImGui::Renderer::Manager::GetSingleton()->GetCurrentTheme();
+	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset * current_theme.linespacing*5);
 
 	return iconCenter;
 }

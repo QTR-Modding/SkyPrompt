@@ -2,8 +2,8 @@
 #include <shared_mutex>
 #include "imgui.h"
 #include "SkyPrompt/API.hpp"
-#include "MCP.h"
 #include "Interaction.h"
+#include "MCP.h"
 
 
 namespace ImGui::Renderer {
@@ -199,5 +199,7 @@ namespace ImGui::Renderer
 
         bool InitializeClient(SkyPromptAPI::ClientID a_clientID);
         bool CycleClient(bool a_left);
-	};
+
+        const Theme::Theme& GetCurrentTheme() const;
+    };
 }
