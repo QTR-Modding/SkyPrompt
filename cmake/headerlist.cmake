@@ -10,6 +10,7 @@ set(headers ${headers}
 	include/Service.h
     include/Interaction.h
     include/Geometry.h
+    include/Theme.h
 	src/ImGui/Graphics.h
     src/ImGui/Styles.h
     src/ImGui/IconsFonts.h

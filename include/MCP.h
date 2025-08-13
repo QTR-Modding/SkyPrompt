@@ -1,6 +1,6 @@
 #pragma once
 #include "Input.h"
-#include "Settings.h"
+#include "Theme.h"
 #include "rapidjson/document.h"
 
 namespace MCP {
@@ -18,16 +18,17 @@ namespace MCP {
     void Register();
 
     namespace Settings {
-        inline size_t current_OSP = 21; // CenterBottomRight
-        constexpr float marginX = 20.0f;
-        constexpr float marginY = 20.0f;
+
+        inline size_t current_OSP = Theme::default_theme.osp;
+		constexpr float marginX = Theme::default_theme.marginX;
+		constexpr float marginY = Theme::default_theme.marginY;
         inline float fadeSpeed{ 0.02f };
-	    inline float xPercent = Presets::OSP::OSPX[1];
-        inline float yPercent = Presets::OSP::OSPY[4];
-        inline float prompt_size = 45.65f;
-		inline float icon2font_ratio = 1.f;
-		inline float linespacing = 0.267f;
-	    inline float progress_speed = .552f;
+	    inline float xPercent = Theme::default_theme.xPercent;
+		inline float yPercent = Theme::default_theme.yPercent;
+		inline float prompt_size = Theme::default_theme.prompt_size;
+		inline float icon2font_ratio = Theme::default_theme.icon2font_ratio;
+		inline float linespacing = Theme::default_theme.linespacing;
+	    inline float progress_speed = Theme::default_theme.progress_speed;
 	    inline float lifetime = 5.f;
 		inline bool draw_debug = false;
 
@@ -57,9 +58,9 @@ namespace MCP {
 		};
 
 		// Settings::Theme
-	    inline std::string font_name = "Jost-Regular";
+	    inline std::string font_name = Theme::default_theme.font_name;
 	    inline std::set<std::string> font_names;
-	    inline float font_shadow = 0.2f;
+		inline float font_shadow = Theme::default_theme.font_shadow;
 
 		void OSPPresetBox();
 		bool FontSettings();

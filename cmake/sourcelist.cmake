@@ -10,6 +10,7 @@ set(sources ${sources}
  	src/Interaction.cpp
  	src/Tutorial.cpp
  	src/Geometry.cpp
+ 	src/Theme.cpp
 	src/ImGui/Graphics.cpp
     src/ImGui/Styles.cpp
     src/ImGui/IconsFonts.cpp
