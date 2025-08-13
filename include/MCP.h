@@ -19,6 +19,7 @@ namespace MCP {
 
     namespace Settings {
 
+		inline size_t current_OSP = 21; // CenterBottomRight
         inline float fadeSpeed{ 0.02f };
 	    inline float lifetime = 5.f;
 		inline bool draw_debug = false;

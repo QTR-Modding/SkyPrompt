@@ -1,5 +1,4 @@
 #include "Utils.h"
-#include "MCP.h"
 #include "Renderer.h"
 #include "imgui.h"
 
@@ -37,10 +36,7 @@ void BeginImGuiWindow(const char* window_name)
 {
     
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-
-	std::shared_lock lock(Theme::m_theme_);
-    auto& prompt_size = ImGui::Renderer::Manager::GetSingleton()->GetCurrentTheme().prompt_size;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.4f*prompt_size, 0.4f*prompt_size)); // Padding for cleaner layout
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.4f*Theme::last_theme.prompt_size, 0.4f*Theme::last_theme.prompt_size)); // Padding for cleaner layout
 
 
     ImGui::Begin(window_name, nullptr,

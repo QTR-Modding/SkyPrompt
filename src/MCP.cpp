@@ -37,9 +37,9 @@ void __stdcall MCP::RenderSettings()
 	MCP_API::Checkbox("Draw Debug", &Settings::draw_debug);
 #endif
 
-    const auto cache = Theme::default_theme.osp;
+    const auto cache = Settings::current_OSP;
     Settings::OSPPresetBox();
-	if (cache != Theme::default_theme.osp) {
+	if (cache != Settings::current_OSP) {
 		settingsChanged = true;
 	}
 
@@ -170,15 +170,15 @@ void MCP::Settings::OSPPresetBox()
 {
 	// Dropdown for OSP Preset
 	MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.25f);
-	const auto current_preset_name= Presets::OSP::OSPPool.to_name(Theme::default_theme.osp);
+	const auto current_preset_name= Presets::OSP::OSPPool.to_name(Settings::current_OSP);
 	if (MCP_API::BeginCombo("On-Screen Position", current_preset_name.data())) {
         for (const auto& all_preset_names = Presets::OSP::OSPnames; 
 			const auto& preset_name : all_preset_names) {
 			const bool isSelected = current_preset_name == preset_name;
 			if (MCP_API::Selectable(preset_name.data(), isSelected)) {
 				if (!isSelected) {
-					Theme::default_theme.osp = std::distance(all_preset_names.begin(), std::ranges::find(all_preset_names, preset_name));
-					const auto [fst, snd] = Presets::OSP::presets.for_level(Theme::default_theme.osp);
+					Settings::current_OSP = std::distance(all_preset_names.begin(), std::ranges::find(all_preset_names, preset_name));
+					const auto [fst, snd] = Presets::OSP::presets.for_level(Settings::current_OSP);
 					Theme::default_theme.xPercent = fst;
 					Theme::default_theme.yPercent = snd;
 

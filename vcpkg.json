@@ -12,6 +12,7 @@
     "magic-enum",
     "directxtex",
     "skyprompt-api",
+    "boost-pfr",
     {
       "name": "imgui",
       "features": [ "dx11-binding", "win32-binding", "freetype", "wchar32" ]

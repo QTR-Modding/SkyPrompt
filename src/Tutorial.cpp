@@ -160,18 +160,10 @@ void Tutorial::ReadMenuFrameworkStrings()
 
 void Tutorial::SwitchToTutorialPos()
 {
-    old_xpos = Theme::default_theme.xPercent;
-	old_ypos = Theme::default_theme.yPercent;
-
-    const auto [fst, snd] = Presets::OSP::presets.for_level(11);
-	Theme::default_theme.xPercent = fst;
-    Theme::default_theme.yPercent = snd;
 }
 
 void Tutorial::SwitchBackFromTutorialPos()
 {
-    Theme::default_theme.xPercent = old_xpos;
-    Theme::default_theme.yPercent = old_ypos;
 }
 
 void Tutorial::Tutorial5::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {

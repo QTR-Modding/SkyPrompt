@@ -4,6 +4,7 @@
 #include "SkyPrompt/API.hpp"
 #include "Interaction.h"
 #include "MCP.h"
+#include "Theme.h"
 
 
 namespace ImGui::Renderer {
@@ -163,10 +164,14 @@ namespace ImGui::Renderer
         bool SwitchToClientManager(SkyPromptAPI::ClientID client_id);
 
         SkyPromptAPI::ClientID last_clientID = 0;
+
         mutable std::shared_mutex mutex_;
         std::atomic<bool> isPaused = false;
+
         std::vector<std::unique_ptr<SubManager>> managers;
+
         std::map<SkyPromptAPI::ClientID, std::vector<std::unique_ptr<SubManager>>> client_managers;
+
         const std::vector<std::unique_ptr<SubManager>>* GetManagerList(SkyPromptAPI::ClientID a_clientID) const;
         std::vector<std::unique_ptr<SubManager>>* GetManagerList(SkyPromptAPI::ClientID a_clientID);
 
@@ -199,7 +204,5 @@ namespace ImGui::Renderer
 
         bool InitializeClient(SkyPromptAPI::ClientID a_clientID);
         bool CycleClient(bool a_left);
-
-        const Theme::Theme& GetCurrentTheme() const;
     };
 }
