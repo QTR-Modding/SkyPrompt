@@ -35,7 +35,6 @@ struct InteractionButton
     explicit InteractionButton(const Interaction& a_interaction, const Mutables& a_mutables, SkyPromptAPI::PromptType a_type, RefID a_refid, std::map<Input::DEVICE, uint32_t> a_keys, int a_default_key_index);
     bool operator==(const InteractionButton& a_rhs) const { return interaction == a_rhs.interaction; }
     bool operator<(const InteractionButton& a_rhs) const { return interaction < a_rhs.interaction; }
-    [[nodiscard]] std::optional<std::pair<float,float>> Show(float alpha = 0.f, const std::string& extra_text="", float progress=0.f, float button_state = -1.f) const;
     float GetProgressOverride(bool increment) const;
 };
 
@@ -60,8 +59,6 @@ struct ButtonQueue {
     [[nodiscard]] bool IsEmpty() const { return buttons.empty(); }
     [[nodiscard]] const InteractionButton* Next() const;
     [[nodiscard]] size_t size() const { return buttons.size(); }
-
-    std::pair<float,float> position = { 0.0f, 0.0f };
 };
 
 namespace ImGui::Renderer

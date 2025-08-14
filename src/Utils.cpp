@@ -1,4 +1,6 @@
 #include "Utils.h"
+
+#include "IconsFonts.h"
 #include "Renderer.h"
 #include "imgui.h"
 
@@ -37,7 +39,6 @@ void BeginImGuiWindow(const char* window_name)
     
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.4f*Theme::last_theme.prompt_size, 0.4f*Theme::last_theme.prompt_size)); // Padding for cleaner layout
-
 
     ImGui::Begin(window_name, nullptr,
 #ifndef NDEBUG

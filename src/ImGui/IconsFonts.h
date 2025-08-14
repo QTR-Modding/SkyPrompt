@@ -227,15 +227,18 @@ namespace ImGui
 
 	void DrawCycleIndicators(SkyPromptAPI::ClientID curr_index, SkyPromptAPI::ClientID queue_size);
 
-	void AddTextWithShadow(
-        ImDrawList* draw_list,
-        ImFont* font,
-        float font_size,
-        ImVec2 position,
-        ImU32 text_color,
-        const char* text);
+	struct RenderInfo {
+		std::string text;
+		uint32_t text_color;
+		const IconFont::IconTexture* texture;
+		float progress;
+		float button_state;
+		float alpha;
+	};
 
-    ImVec2 ButtonIconWithCircularProgress(const char* a_text, uint32_t a_text_color, const IconFont::IconTexture* a_texture, float progress, float button_state=-1.f);
+	inline std::vector<RenderInfo> renderBatch;
+	inline ImVec2 renderBatchCenter{ 0.f, 0.f };
 
+    void RenderSkyPrompt();
 
 }

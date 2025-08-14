@@ -40,41 +40,6 @@ void ImGui::Renderer::RenderPrompts() {
 }
 
 
-std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha, const std::string& extra_text, const float progress, const float button_state) const
-{
-    const auto buttonKey = GetKey();
-	const auto icon_manager = MANAGER(IconFont);
-	if (icon_manager->unavailable_keys.contains(buttonKey)) return std::nullopt;
-	const std::string base_text = mutables.text; // Cache the base text
-	std::string a_text;
-    a_text.reserve(base_text.size() + 1 + extra_text.size()); // Reserve memory to avoid reallocations
-	a_text.append(base_text);
-    if (!extra_text.empty()) { // If extra_text is not empty
-        a_text.append(" ").append(extra_text);
-    }
-
-    const IconFont::IconTexture* buttonIcon = icon_manager->GetIcon(buttonKey);
-    if (!buttonIcon) {
-        logger::error("Button icon not found for key {}", buttonKey);
-		icon_manager->unavailable_keys.insert(buttonKey);
-		return std::nullopt;
-    }
-
-    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
-	std::optional<std::pair<float,float>> a_position;
-    if (buttonIcon->srView.Get()) {
-        const auto position = ImGui::ButtonIconWithCircularProgress(a_text.c_str(), mutables.text_color, buttonIcon, progress, button_state);
-		a_position = { position.x,position.y };
-    } else {
-        logger::error("Button icon texture not loaded for key {}", buttonKey);
-		icon_manager->unavailable_keys.insert(buttonKey);
-    }
-
-    ImGui::PopStyleVar(); // Restore alpha
-
-	return a_position;
-}
-
 namespace {
     float ButtonStateToFloat(const ButtonState& a_button_state) {
 		auto a_press_count = a_button_state.pressCount;
@@ -178,13 +143,40 @@ void ButtonQueue::Show(float progress, const InteractionButton* button2show, con
 	    progress = button_type == SkyPromptAPI::kSinglePress ? -progress_override : progress_override;
 		WakeUp();
     }
-    if (const auto pos = current_button->Show(alpha, extra_text, progress,
-                                              button_type == SkyPromptAPI::kSinglePress
+
+	//
+
+	auto button_state = button_type == SkyPromptAPI::kSinglePress
                                                   ? -1.f
-                                                  : ButtonStateToFloat(a_button_state)); 
-	    pos.has_value()) {
-	    position = pos.value();
+                                                  : ButtonStateToFloat(a_button_state);
+
+	const auto buttonKey = current_button->GetKey();
+	const auto icon_manager = MANAGER(IconFont);
+	if (icon_manager->unavailable_keys.contains(buttonKey)) return;
+	const std::string base_text = current_button->mutables.text; // Cache the base text
+	std::string a_text;
+    a_text.reserve(base_text.size() + 1 + extra_text.size()); // Reserve memory to avoid reallocations
+	a_text.append(base_text);
+    if (!extra_text.empty()) { // If extra_text is not empty
+        a_text.append(" ").append(extra_text);
     }
+
+    const IconFont::IconTexture* buttonIcon = icon_manager->GetIcon(buttonKey);
+    if (!buttonIcon) {
+        logger::error("Button icon not found for key {}", buttonKey);
+		icon_manager->unavailable_keys.insert(buttonKey);
+    }
+
+    //ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
+
+    if (buttonIcon->srView.Get()) {
+		ImGui::renderBatch.emplace_back(a_text.c_str(), current_button->mutables.text_color, buttonIcon, progress,button_state, alpha);
+    } else {
+        logger::error("Button icon texture not loaded for key {}", buttonKey);
+		icon_manager->unavailable_keys.insert(buttonKey);
+    }
+
+    //ImGui::PopStyleVar(); // Restore alpha
 }
 
 
@@ -1207,12 +1199,12 @@ void ImGui::Renderer::Manager::ShowQueue() {
         height * Theme::last_theme.yPercent - Theme::last_theme.marginY
     );
 
-    // Set the window position
+	// Set the window position
     ImGui::SetNextWindowPos(bottomRightPos, ImGuiCond_Always, ImVec2(1.0f, 1.0f)); // Pivot at the bottom-right
-
 	BeginImGuiWindow("SkyPrompt");
-
-	std::map<RefID,std::vector<SubManager*>> object_managers;
+    std::map<RefID,std::vector<SubManager*>> object_managers;
+	ImGui::renderBatch.clear();
+	renderBatchCenter = bottomRightPos;
 
 	for (std::shared_lock lock(mutex_);
 		auto& a_manager : managers) {
@@ -1222,6 +1214,8 @@ void ImGui::Renderer::Manager::ShowQueue() {
 		}
 		a_manager->ShowQueue();
 	}
+
+	RenderSkyPrompt();
 
 	if (MCP::Settings::cycle_controls.load()) {
 
@@ -1245,18 +1239,20 @@ void ImGui::Renderer::Manager::ShowQueue() {
         }
 	}
 
-	EndImGuiWindow();
+    EndImGuiWindow();
 
 	int i = 0;
 	for (std::shared_lock lock(mutex_);
 		const auto& managers_ : object_managers | std::views::values) {
-		auto window_pos = managers_[0]->GetAttachedObjectPos();
+	    auto window_pos = managers_[0]->GetAttachedObjectPos();
+		ImGui::renderBatch.clear();
 		SetNextWindowPos(window_pos, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 		BeginImGuiWindow(std::format("SkyPromptHover{}",i++).c_str());
 		for (const auto a_manager : managers_) {
 			a_manager->ShowQueue();
 		}
-	    EndImGuiWindow();
+		RenderSkyPrompt();
+		EndImGuiWindow();
 	}
 }
 

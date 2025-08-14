@@ -79,5 +79,5 @@ namespace Theme {
 
 	inline std::shared_mutex m_theme_;
 	inline std::unordered_map<SkyPromptAPI::ClientID, Theme*> themes;
-	inline auto last_theme = Theme();
+	inline auto last_theme = default_theme;
 };

@@ -39,6 +39,8 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     }
 	logger::info("ImGui icons loaded.");
 
+    Theme::LoadThemes();
+
     if (const auto messaging = SKSE::GetMessagingInterface()) {
         messaging->RegisterListener(OnMessage);
     }
