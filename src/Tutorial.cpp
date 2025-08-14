@@ -19,13 +19,14 @@ void Tutorial::Tutorial3::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
             }
             return;
         case SkyPromptAPI::PromptEventType::kDeclined:
-            to_be_deleted.erase(event.prompt.actionID);
-            if (to_be_deleted.size() < 3) {
+            //to_be_deleted.erase(event.prompt.actionID);
+            if (to_be_deleted.size() < 2) {
                 const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_delete_t).count();
                 if (delta > 200) {
                     SkyPromptAPI::RemovePrompt(this,client_id);
                     if (SkyPromptAPI::SendPrompt(this,client_id)) {
                         to_be_deleted = {0,1};
+						return;
                     }
                 }
             }
@@ -112,12 +113,13 @@ void Tutorial::Tutorial1::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
             }
             return;
         case SkyPromptAPI::PromptEventType::kDeclined:
-            if (to_be_deleted.size() < 3) {
+            if (to_be_deleted.size() < 2) {
                 const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_delete_t).count();
                 if (delta < 100) {
                     SkyPromptAPI::RemovePrompt(this,client_id);
                     if (SkyPromptAPI::SendPrompt(this,client_id)) {
                         to_be_deleted = {0,1};
+                        return;
                     }
                 }
             }

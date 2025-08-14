@@ -155,7 +155,10 @@ namespace Tutorial {
 			        Tutorial0::to_be_deleted = {0,1};
 			        Tutorial1::to_be_deleted = {0,1};
 			        Tutorial2::to_be_deleted = {0,1};
-			        Tutorial3::to_be_deleted = {0,1};		        
+			        Tutorial3::to_be_deleted = {0,1};
+					if (!SkyPromptAPI::RequestTheme(client_id,"skyprompt_tutorial")) {
+						logger::error("Failed to request skyprompt_tutorial theme.");
+					}
 			        ShowTutorial();
 				    showing_tutorial.store(true);
 			    }
