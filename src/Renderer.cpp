@@ -25,10 +25,12 @@ void ImGui::Renderer::RenderPrompts() {
 		manager->ResetQueue();
 		return;
 	}
+
 	if (MCP::Settings::shouldReloadPromptSize.exchange(false)) {
 		ImGui::Styles::GetSingleton()->RefreshStyle();
 		return;
 	}
+
 	if (manager->IsPaused()) {
 		manager->Start();
 	}
@@ -1200,7 +1202,6 @@ void ImGui::Renderer::Manager::ShowQueue() {
 	BeginImGuiWindow("SkyPrompt");
     std::map<RefID,std::vector<SubManager*>> object_managers;
 	ImGui::renderBatch.clear();
-	renderBatchCenter = bottomRightPos;
 
 	for (std::shared_lock lock(mutex_);
 		auto& a_manager : managers) {
@@ -1242,7 +1243,6 @@ void ImGui::Renderer::Manager::ShowQueue() {
 		const auto& managers_ : object_managers | std::views::values) {
 	    auto window_pos = managers_[0]->GetAttachedObjectPos();
 		ImGui::renderBatch.clear();
-		renderBatchCenter = window_pos;
 		SetNextWindowPos(window_pos, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 		BeginImGuiWindow(std::format("SkyPromptHover{}",i++).c_str());
 		for (const auto a_manager : managers_) {

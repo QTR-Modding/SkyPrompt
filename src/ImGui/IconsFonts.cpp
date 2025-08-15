@@ -6,6 +6,7 @@
 #include <imgui_impl_dx11.h>
 #include <numbers>
 #include "MCP.h"
+#include "SkyPrompt/AddOns.hpp"
 
 
 namespace IconFont
@@ -389,7 +390,8 @@ namespace {
         // 5) Center the text in this row
         const float textOffset = (rowHeight - textSize.y) * 0.5f;
         ImGui::SetCursorPosY(startY + textOffset);
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + circle_radius - radius);
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + circle_radius - radius + (rowHeight - textSize.y) * 0.5f);
+
 
         AddTextWithShadow(a_drawlist, ImGui::GetFont(), ImGui::GetFontSize(), 
                           ImGui::GetCursorScreenPos(), a_text_color ? a_text_color : IM_COL32(255, 255, 255, 255), a_text);
@@ -495,7 +497,7 @@ namespace {
         const ImVec2 iconSzV = { iconSz, iconSz };
 
         const float circleDia = iconSz * 1.25f;
-        const float outerR    = circleDia * 0.5f;            // ring outer radius (same as you use for rings)
+        const float outerR    = circleDia * 0.5f;
 
         // Tangential footprint should be the ring's outer diameter, not iconSz.
         // Also mimic SameLine spacing a bit so neighboring rings don't kiss.
@@ -561,12 +563,10 @@ namespace {
                 }
             }
 
-            // --- text placement: exact flat-equivalent clearance ---
             const ImVec2 textSize = ImGui::CalcTextSize(ri.text.c_str());
 
             const float circle_radius = iconSz * 1.25f * 0.5f;
 
-            // this is the piece you were missing vs. flat SameLine()
             const float spacing = ImGui::GetStyle().ItemSpacing.x;
 
             // distance from icon center to the *inner edge* of text in the flat layout:
@@ -607,38 +607,119 @@ namespace {
     {
         if (batch.empty()) return;
 
-        const float iconSz      = GetIconSize();
-        const float circleDia   = iconSz * 1.25f;           // ring outer diameter
-        const float rowWidth    = circleDia;                // horizontal footprint per item
-        const float itemSpacing = lineSpacingPx;            // horizontal gap (like vertical spacing)
+        const float iconSz    = GetIconSize();
+        const float circleDia = iconSz * 1.25f;
+        ImFont* font          = ImGui::GetFont();
+        const float fs        = ImGui::GetFontSize();
 
-        const int n = static_cast<int>(batch.size());
-        const float totalWidth = n * rowWidth + (n - 1) * itemSpacing;
+        struct ItemDim
+        {
+            float width;
+            float height;
+            float textWidth;
+            float textHeight;
+            float textPad; // icon-to-text gap
+        };
+        std::vector<ItemDim> dims;
+        dims.reserve(batch.size());
 
-        // Starting cursor so that the whole batch is horizontally centered at current cursor position
+        // Measure each item's width (circle + vertical-style text padding + text)
+        for (auto& ri : batch)
+        {
+            const ImVec2 textSize = ImGui::CalcTextSize(ri.text.c_str());
+            const float circle_radius = circleDia * 0.5f;
+            const float radius        = iconSz * 0.5f;
+            const float rowHeight     = std::max(circleDia, textSize.y);
+
+            // Same padding formula as ButtonIconWithCircularProgress
+            const float textPad = circle_radius - radius + (rowHeight - textSize.y) * 0.5f;
+
+            const float totalWidth = circleDia + textPad + textSize.x;
+            dims.push_back({ totalWidth, rowHeight, textSize.x, textSize.y, textPad });
+        }
+
+        // Total width of batch including spacing
+        float totalWidth = 0.0f;
+        for (size_t i = 0; i < dims.size(); ++i)
+        {
+            totalWidth += dims[i].width;
+            if (i != dims.size() - 1)
+                totalWidth += lineSpacingPx; // gap between items
+        }
+
+        // Start so that batch is centered at current cursor
         ImVec2 startPos = ImGui::GetCursorScreenPos();
         startPos.x -= totalWidth * 0.5f;
 
-        for (int i = 0; i < n; ++i)
+        ImDrawList* dl = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
+
+        float xCursor = startPos.x;
+        const float yCenter = startPos.y + dims[0].height * 0.5f; // vertical center line
+
+        for (size_t i = 0; i < batch.size(); ++i)
         {
             const auto& ri = batch[i];
+            const auto& dim = dims[i];
 
-            // Calculate X position for this item
-            ImVec2 pos = startPos;
-            pos.x += i * (rowWidth + itemSpacing);
-            ImGui::SetCursorScreenPos(pos);
+            // Icon center position
+            const ImVec2 iconCenter{
+                xCursor + circleDia * 0.5f,
+                yCenter
+            };
 
-            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ri.alpha);
-            ButtonIconWithCircularProgress(
-                ri.text.c_str(),
-                ri.text_color,
-                ri.texture,
-                ri.progress,
-                ri.button_state
-            );
-            ImGui::PopStyleVar();
+            // --- Icon ---
+            if (ri.texture && ri.texture->srView.Get())
+            {
+                ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ri.alpha);
+                AddImageRotated(dl, (ImTextureID)ri.texture->srView.Get(), iconCenter, { iconSz, iconSz }, 0.0f);
+                ImGui::PopStyleVar();
+            }
+
+            {
+                const float outerR = circleDia * 0.5f;
+                const float thick  = outerR / 6.f;
+
+                if (MCP::Settings::SpecialCommands::visualize) {
+                    if (ri.button_state < 3.f) {
+                        if (ri.button_state > 2.f) DrawCross2(dl, iconCenter, outerR * 0.6f, thick);
+                        if (ri.button_state > 1.f) DrawCross1(dl, iconCenter, outerR * 0.6f, thick);
+                    } else if (ri.progress > 0.f) {
+                        DrawDeleteAll(dl, iconCenter, outerR, thick, ri.progress);
+                    } else {
+                        DrawSkipPrompt(dl, iconCenter, outerR, thick);
+                    }
+                }
+
+                const bool singlePress = (ri.progress < 0.f);
+                if (singlePress || ri.button_state > 0.f) {
+                    DrawProgressMark(dl, iconCenter, outerR, thick);
+                    if (!singlePress) {
+                        DrawHoldMark(dl, iconCenter, outerR, iconSz * 0.5f);
+                    }
+                    if (ri.button_state < 3.f) {
+                        const float startDeg = singlePress ? 360.f * (1.f + ri.progress)
+                                                           : ImGui::Renderer::progress_circle_offset_deg;
+                        const float prog     = singlePress ? -ri.progress
+                                                           : ri.progress - ImGui::Renderer::progress_circle_offset;
+                        DrawProgressCircle(dl, iconCenter, outerR, thick, std::max(prog, 0.f),
+                                           RE::deg_to_rad(startDeg));
+                    }
+                }
+            }
+
+            const ImVec2 textPos{
+                xCursor + circleDia + dim.textPad,
+                yCenter - dim.textHeight * 0.5f
+            };
+
+            const ImU32 color  = ri.text_color ? ri.text_color : IM_COL32(255,255,255,255);
+            AddTextWithShadow(dl, font, fs, textPos, color, ri.text.c_str());
+
+            // Advance cursor for next item
+            xCursor += dim.width + lineSpacingPx;
         }
     }
+
 }
 
 
@@ -693,7 +774,7 @@ void ImGui::RenderSkyPrompt()
 {
 	const auto& curr_theme = Theme::last_theme;
 	const auto prompt_alignment = curr_theme->prompt_alignment;
-	const auto special_effects = curr_theme->special_effects;
+	const auto special_effect = curr_theme->special_effect;
 
 	switch (prompt_alignment) {
 	    case Theme::PromptAlignment::kVertical:
@@ -711,17 +792,23 @@ void ImGui::RenderSkyPrompt()
 		case Theme::PromptAlignment::kRadial: {
             const float lineSpacingPx = ImGui::GetFontSize() * curr_theme->linespacing;
             const float iconSize      = ImGui::GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
-            const float baseRadius    = iconSize * 4;
+            const float baseRadius    = iconSize * 3;
+            auto a_center = ImGui::GetWindowPos();
 
-            RenderPromptsRadialRotated(ImGui::renderBatchCenter-ImVec2(baseRadius,0),
+            RenderPromptsRadialRotated(a_center,
                                               ImGui::renderBatch,
                                               lineSpacingPx, baseRadius,0.0f); // ray to the right
             break;
         }
 	}
 
-	switch (special_effects) {
-	}
+    if (special_effect > 0) {
+        auto a_center = ImGui::GetWindowPos();
+        const auto a_size = ImGui::GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
+        SkyPrompt::AddOns::RenderSpecialEffect(special_effect, a_center, a_size);
+    }
+
+
 }
 
 

@@ -3,7 +3,6 @@
 #include "Graphics.h"
 #include <unordered_set>
 #include "MCP.h"
-#include "imgui_internal.h"
 
 
 namespace IconFont
@@ -239,7 +238,6 @@ namespace ImGui
 	void DrawCycleIndicators(SkyPromptAPI::ClientID curr_index, SkyPromptAPI::ClientID queue_size);
 
 	inline std::vector<RenderInfo> renderBatch;
-	inline ImVec2 renderBatchCenter{ 0.f, 0.f };
 
     void RenderSkyPrompt();
 
