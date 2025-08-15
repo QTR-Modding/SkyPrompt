@@ -34,7 +34,9 @@ Theme::Theme::Theme(const ThemeBlock& block) {
 	special_integers = block.special_integers.get();
 	special_strings = block.special_strings.get();
 	special_floats = block.special_floats.get();
-	special_bools = block.special_bools.get();
+	for (const auto& a_bool : block.special_bools.get()) {
+		special_bools.push_back(a_bool);
+	}
 
 	hide_in_menu = block.hide_in_menu.get();
 

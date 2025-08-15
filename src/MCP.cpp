@@ -5,6 +5,7 @@
 #include "rapidjson/stringbuffer.h"
 #include "Hooks.h"
 #include "Settings.h"
+#include "Theme.h"
 #include "Tutorial.h"
 #include "SKSEMCP/SKSEMenuFramework.hpp"
 

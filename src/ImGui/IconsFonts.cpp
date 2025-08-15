@@ -720,6 +720,18 @@ namespace {
         }
     }
 
+    SkyPrompt::AddOns::SpecialEffects::SpecialsView
+    GetSpecialsView(const Theme::Theme& t)
+    {
+        SkyPrompt::AddOns::SpecialEffects::SpecialsView v;
+        v.effectID = t.special_effect;
+        v.integers = std::span{ t.special_integers };
+        v.strings  = std::span{ t.special_strings };
+        v.floats   = std::span{ t.special_floats };
+        v.bools    = std::span{ t.special_bools };
+        return v;
+    }
+
 }
 
 
@@ -814,7 +826,7 @@ void ImGui::RenderSkyPrompt()
     if (special_effect > 0) {
         const auto a_center = ImGui::GetWindowPos();
         const auto a_size = ImGui::GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
-        SkyPrompt::AddOns::RenderSpecialEffect(special_effect, a_center, a_size);
+        SkyPrompt::AddOns::RenderSpecialEffect(GetSpecialsView(*curr_theme), a_center, a_size, ImGui::Renderer::GetResolutionScale());
     }
 
 

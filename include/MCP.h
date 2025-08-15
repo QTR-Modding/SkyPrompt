@@ -1,6 +1,5 @@
 #pragma once
 #include "Input.h"
-#include "Theme.h"
 #include "rapidjson/document.h"
 
 namespace MCP {
@@ -50,9 +49,9 @@ namespace MCP {
 		};
 
 		// Settings::Theme
-	    inline std::string font_name = Theme::default_theme.font_name;
+		inline std::string font_name = "Jost-Regular";
 	    inline std::set<std::string> font_names;
-		inline float font_shadow = Theme::default_theme.font_shadow;
+		inline float font_shadow = 0.2f;
 
 		void OSPPresetBox();
 		bool FontSettings();

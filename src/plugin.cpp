@@ -4,6 +4,7 @@
 #include "MCP.h"
 #include "Settings.h"
 #include "Styles.h"
+#include "Theme.h"
 #include "Utils.h"
 #include "PapyrusAPI/Bindings.h"
 #include "Tutorial.h"

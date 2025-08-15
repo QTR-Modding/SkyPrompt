@@ -1,6 +1,5 @@
 #pragma once
 #include <shared_mutex>
-
 #include "Settings.h"
 #include "SkyPrompt/API.hpp"
 #include "boost/pfr/core.hpp"
@@ -78,7 +77,7 @@ namespace Theme {
 		std::vector<uint32_t> special_integers;
 		std::vector<std::string> special_strings;
 		std::vector<float> special_floats;
-		std::vector<bool> special_bools;
+		std::vector<uint8_t> special_bools;
 
 		bool hide_in_menu = false;
 
