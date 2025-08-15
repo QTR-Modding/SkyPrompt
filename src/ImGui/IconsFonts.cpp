@@ -772,9 +772,18 @@ void ImGui::DrawCycleIndicators(SkyPromptAPI::ClientID curr_index, SkyPromptAPI:
 
 void ImGui::RenderSkyPrompt()
 {
+    if (renderBatch.empty()) {
+        return;
+    }
+
 	const auto& curr_theme = Theme::last_theme;
 	const auto prompt_alignment = curr_theme->prompt_alignment;
 	const auto special_effect = curr_theme->special_effect;
+
+    std::ranges::sort(ImGui::renderBatch,
+                      [](const ImGui::RenderInfo& a, const ImGui::RenderInfo& b) {
+                          return a.row < b.row;
+                      });
 
 	switch (prompt_alignment) {
 	    case Theme::PromptAlignment::kVertical:
@@ -793,7 +802,7 @@ void ImGui::RenderSkyPrompt()
             const float lineSpacingPx = ImGui::GetFontSize() * curr_theme->linespacing;
             const float iconSize      = ImGui::GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
             const float baseRadius    = iconSize * 3;
-            auto a_center = ImGui::GetWindowPos();
+            const auto a_center = ImGui::GetWindowPos();
 
             RenderPromptsRadialRotated(a_center,
                                               ImGui::renderBatch,
@@ -803,7 +812,7 @@ void ImGui::RenderSkyPrompt()
 	}
 
     if (special_effect > 0) {
-        auto a_center = ImGui::GetWindowPos();
+        const auto a_center = ImGui::GetWindowPos();
         const auto a_size = ImGui::GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
         SkyPrompt::AddOns::RenderSpecialEffect(special_effect, a_center, a_size);
     }

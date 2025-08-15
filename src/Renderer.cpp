@@ -170,7 +170,8 @@ void ButtonQueue::Show(float progress, const InteractionButton* button2show, con
     }
 
     if (buttonIcon->srView.Get()) {
-		ImGui::renderBatch.emplace_back(a_text.c_str(), current_button->mutables.text_color, buttonIcon, progress,button_state, alpha);
+		ImGui::renderBatch.emplace_back(a_text.c_str(), current_button->mutables.text_color, buttonIcon, progress,
+                                        button_state, alpha, current_button->interaction.event);
     } else {
         logger::error("Button icon texture not loaded for key {}", buttonKey);
 		icon_manager->unavailable_keys.insert(buttonKey);

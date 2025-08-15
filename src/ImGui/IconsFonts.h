@@ -2,6 +2,8 @@
 #include "SkyPrompt/API.hpp"
 #include "Graphics.h"
 #include <unordered_set>
+
+#include "Interaction.h"
 #include "MCP.h"
 
 
@@ -230,6 +232,8 @@ namespace ImGui
 		float progress;
 		float button_state;
 		float alpha;
+
+		SCENES::Event row = 0; // Row index for vertical alignment
 	};
 
 
