@@ -357,6 +357,14 @@ bool MCP::Settings::CycleControls()
     return settingsChanged;
 }
 
+void MCP::Settings::ReloadThemes()
+{
+	std::unique_lock lock(Theme::m_theme_);
+	for (auto& a_theme : Theme::themes_loaded | std::views::values){
+		a_theme.ReLoad();
+	}
+}
+
 void MCP::Settings::to_json()
 {
 	using namespace rapidjson;
@@ -662,6 +670,10 @@ void __stdcall MCP::RenderTheme()
 	bool changed = false;
 
 	if (Settings::FontSettings()) changed = true;
+	if (MCP_API::Button("Reload Themes")) {
+		Settings::ReloadThemes();
+		changed = true;
+	}
 
 	if (changed) {
 		Settings::to_json();

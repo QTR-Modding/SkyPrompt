@@ -59,6 +59,8 @@ namespace MCP {
 		void LoadDefaultPromptKeys();
 		bool CycleControls();
 
+		void ReloadThemes();
+
         void to_json();
         void from_json();
 
