@@ -25,6 +25,7 @@ Theme::Theme::Theme(const ThemeBlock& block) {
 
 	font_name = block.font_name.get();
 	font_shadow = block.font_shadow.get();
+	progress_speed = block.progress_speed.get();
 
 	prompt_alignment = toPromptAlignment(block.prompt_alignment.get());
 
