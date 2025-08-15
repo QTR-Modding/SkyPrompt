@@ -6,7 +6,6 @@
 #include <imgui_impl_dx11.h>
 #include <numbers>
 #include "MCP.h"
-#include "Utils.h"
 
 
 namespace IconFont
@@ -91,7 +90,7 @@ namespace IconFont
 
 		float a_fontsize;
 		{
-		    const auto& prompt_size = Theme::last_theme.prompt_size;
+		    const auto& prompt_size = Theme::last_theme->prompt_size;
 		    a_fontsize = prompt_size * resolutionScale;
 		}
 		//const auto a_iconsize = a_fontsize * 1.f;
@@ -113,7 +112,7 @@ namespace IconFont
 	{
 		const auto& io = ImGui::GetIO();
 
-		const auto& font_name = Theme::last_theme.font_name;
+		const auto& font_name = Theme::last_theme->font_name;
 		auto a_fontName = fontPath + (MCP::Settings::font_names.contains(font_name) ? font_name : *MCP::Settings::font_names.begin()) + ".ttf";
 		const auto a_font = io.Fonts->AddFontFromFileTTF(a_fontName.c_str(), a_fontSize, nullptr, a_ranges.Data);
 		if (!a_font) {
@@ -295,7 +294,7 @@ namespace {
 
 	float GetIconSize() {
 		const auto a_fontsize = ImGui::GetIO().FontDefault->FontSize;
-        return a_fontsize * Theme::last_theme.icon2font_ratio;
+        return a_fontsize * Theme::last_theme->icon2font_ratio;
     }
 
 	ImVec2 GetIconSizeImVec() {
@@ -308,7 +307,7 @@ namespace {
     {
         if (!draw_list || !font || !text || !*text) return;
 
-        const auto shadow_color = IM_COL32(0, 0, 0, 255 * Theme::last_theme.font_shadow);
+        const auto shadow_color = IM_COL32(0, 0, 0, 255 * Theme::last_theme->font_shadow);
         draw_list->AddText(font, font_size, position + ImVec2(2.5f, 2.5f), shadow_color, text);
         draw_list->AddText(font, font_size, position, text_color, text);
     }
@@ -398,11 +397,216 @@ namespace {
         // Move ImGui cursor manually to avoid overlap
         ImGui::Dummy(textSize);  // Moves cursor forward horizontally
 
-	    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset * Theme::last_theme.linespacing*5);
+	    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset * Theme::last_theme->linespacing*5);
 
 	    return iconCenter;
     }
+
+    void AddImageRotated(ImDrawList* dl, const ImTextureID tex,
+                                const ImVec2 center, const ImVec2 size,
+                                const float angle, const ImU32 col = IM_COL32_WHITE)
+    {
+        const auto h = ImVec2(size.x * 0.5f, size.y * 0.5f);
+        const float c = cosf(angle), s = sinf(angle);
+
+        auto rot = [&](const ImVec2 p) -> ImVec2 {
+            return ImVec2(center.x + (p.x * c - p.y * s),
+                          center.y + (p.x * s + p.y * c));
+        };
+
+        // Quad corners before rotation (relative to center)
+        const ImVec2 p0 = rot(ImVec2(-h.x, -h.y));
+        const ImVec2 p1 = rot(ImVec2(+h.x, -h.y));
+        const ImVec2 p2 = rot(ImVec2(+h.x, +h.y));
+        const ImVec2 p3 = rot(ImVec2(-h.x, +h.y));
+
+        // Standard UVs
+        const ImVec2 uv0(0,0), uv1(1,0), uv2(1,1), uv3(0,1);
+        dl->AddImageQuad(tex, p0, p1, p2, p3, uv0, uv1, uv2, uv3, col);
+    }
+
+    // helper: do NOT push/pop clip; caller controls clip once per frame
+    void AddTextRotated(ImDrawList* dl, ImFont* font, const float font_size,
+                        const ImVec2 pivot, const ImU32 col,
+                        const char* text_begin, const char* text_end,
+                        const float angle, const bool center_on_pivot = true)
+    {
+        if (!text_begin) return;
+        if (!text_end) text_end = text_begin + strlen(text_begin);
+
+        ImVec2 topleft = pivot;
+        if (center_on_pivot) {
+            const ImVec2 ts = ImGui::CalcTextSize(text_begin, text_end);
+            topleft.x -= ts.x * 0.5f;
+            topleft.y -= ts.y * 0.5f;
+        }
+
+        const int vtx_start = dl->VtxBuffer.Size;
+        // use the current clip on the draw list
+        const ImVec4 clip = dl->_ClipRectStack.back();
+        font->RenderText(dl, font_size, topleft, col, clip, text_begin, text_end, 0.0f, false);
+        const int vtx_end = dl->VtxBuffer.Size;
+
+        const float c = cosf(angle), s = sinf(angle);
+        for (int i = vtx_start; i < vtx_end; ++i) {
+            const ImVec2 p = dl->VtxBuffer[i].pos;
+            const ImVec2 d = { p.x - pivot.x, p.y - pivot.y };
+            dl->VtxBuffer[i].pos.x = pivot.x + d.x * c - d.y * s;
+            dl->VtxBuffer[i].pos.y = pivot.y + d.x * s + d.y * c;
+        }
+    }
+
+    void DrawTriangleRotated(ImDrawList* dl, const ImVec2 center,
+                                       const float outer_radius, const float inner_radius,
+                                       const float angle, const ImU32 col)
+    {
+        const float tri_w = inner_radius * 0.5f;
+        const float tri_h = inner_radius * 0.25f;
+
+        // local (unrotated) vertices – tip is “up” (toward -Y)
+        const auto p1 = ImVec2(0.0f, -outer_radius + tri_h);   // tip (closer to center)
+        const auto p2 = ImVec2(-tri_w * 0.5f, -outer_radius - tri_h);
+        const auto p3 = ImVec2(+tri_w * 0.5f, -outer_radius - tri_h);
+
+        const float c = cosf(angle), s = sinf(angle);
+        auto rot = [&](const ImVec2 p) {
+            return ImVec2(center.x + p.x * c - p.y * s,
+                          center.y + p.x * s + p.y * c);
+        };
+
+        dl->AddTriangleFilled(rot(p1), rot(p2), rot(p3), col);
+    }
+
+	void RenderPromptsRadialRotated(const ImVec2 center,
+                                       const std::vector<ImGui::RenderInfo>& batch,
+                                       const float lineSpacingPx,
+                                       const float baseRadius,
+                                       const float startAngleRad)
+    {
+        if (batch.empty()) return;
+
+        ImDrawList* dl = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
+        ImFont*     font = ImGui::GetFont();
+        const float fs   = ImGui::GetFontSize();
+
+        dl->PushClipRectFullScreen();
+
+        const float iconSz   = ImGui::GetIO().FontDefault->FontSize * Theme::last_theme->icon2font_ratio;
+        const ImVec2 iconSzV = { iconSz, iconSz };
+
+        const float circleDia = iconSz * 1.25f;
+        const float outerR    = circleDia * 0.5f;            // ring outer radius (same as you use for rings)
+
+        // Tangential footprint should be the ring's outer diameter, not iconSz.
+        // Also mimic SameLine spacing a bit so neighboring rings don't kiss.
+        const float arcSpacing = ImGui::GetStyle().ItemSpacing.x; // small extra gap (pixels)
+        const float rowFootprint = circleDia;
+
+        // Final angular step (radians per item)
+        const float r     = std::max(baseRadius, iconSz * 1.6f);
+        const float step = std::max(0.001f, (rowFootprint + arcSpacing + lineSpacingPx) / r);
+
+        const int   n      = static_cast<int>(batch.size());
+        const float firstA = startAngleRad - 0.5f * (n - 1) * step;          // center on the ray
+
+
+        for (int i = 0; i < n; ++i) {
+            const auto& ri = batch[i];
+            const float a  = firstA + i * step;
+
+            // position on ring
+            const ImVec2 iconCenter{ center.x + r * cosf(a), center.y + r * sinf(a) };
+
+            // orient along the radius; flip on left hemisphere to keep text upright
+            float orient = a;
+            if (cosf(a) < 0.0f) orient += IM_PI;
+
+            // --- icon ---
+            if (ri.texture && ri.texture->srView.Get()) {
+                ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ri.alpha);
+                AddImageRotated(dl, (ImTextureID)ri.texture->srView.Get(), iconCenter, iconSzV, orient);
+                ImGui::PopStyleVar();
+            }
+
+            // --- rings/progress (unchanged) ---
+            {
+                const float thick     = outerR / 6.f;
+
+                if (MCP::Settings::SpecialCommands::visualize) {
+                    if (ri.button_state < 3.f) {
+                        if (ri.button_state > 2.f) DrawCross2(dl, iconCenter, outerR * 0.6f, thick);
+                        if (ri.button_state > 1.f) DrawCross1(dl, iconCenter, outerR * 0.6f, thick);
+                    } else if (ri.progress > 0.f) {
+                        DrawDeleteAll(dl, iconCenter, outerR, thick, ri.progress);
+                    } else {
+                        DrawSkipPrompt(dl, iconCenter, outerR, thick);
+                    }
+                }
+
+                const bool singlePress = (ri.progress < 0.f);
+                if (singlePress || ri.button_state > 0.f) {
+                    DrawProgressMark(dl, iconCenter, outerR, thick);
+                    if (!singlePress) {
+                        const float tri_angle = a;
+                        constexpr ImU32 tri_col   = IM_COL32(255, 255, 255, 180);
+                        DrawTriangleRotated(dl, iconCenter, outerR, iconSz * 0.5f, tri_angle, tri_col);
+                    }
+                    if (ri.button_state < 3.f) {
+                        const float startDeg = singlePress ? 360.f * (1.f + ri.progress)
+                                                           : ImGui::Renderer::progress_circle_offset_deg;
+                        const float prog     = singlePress ? -ri.progress
+                                                           : ri.progress - ImGui::Renderer::progress_circle_offset;
+                        DrawProgressCircle(dl, iconCenter, outerR, thick, std::max(prog, 0.f),
+                                           RE::deg_to_rad(startDeg));
+                    }
+                }
+            }
+
+            // --- text placement: exact flat-equivalent clearance ---
+            const ImVec2 textSize = ImGui::CalcTextSize(ri.text.c_str());
+
+            const float circle_radius = iconSz * 1.25f * 0.5f;
+
+            // this is the piece you were missing vs. flat SameLine()
+            const float spacing = ImGui::GetStyle().ItemSpacing.x;
+
+            // distance from icon center to the *inner edge* of text in the flat layout:
+            //   iconCenter + radius (icon right edge)
+            // + spacing (SameLine gap)
+            // + (circle_radius - radius) (ring clearance)
+            // simplifies to: spacing + circle_radius
+            const float near_edge_clearance = spacing + circle_radius;
+
+            // place the *text center* so that its inner edge sits at that clearance
+            const float center_dist = near_edge_clearance + textSize.x * 0.5f;
+
+            // move along the outward normal; keep zero offset along tangent
+            const ImVec2 normal = { cosf(a), sinf(a) };
+            const ImVec2 textCenter = {
+                iconCenter.x + normal.x * center_dist,
+                iconCenter.y + normal.y * center_dist
+            };
+
+            // draw rotated text centered on this pivot
+            const ImU32 color  = ri.text_color ? ri.text_color : IM_COL32(255,255,255,255);
+            const ImU32 shadow = IM_COL32(0, 0, 0, static_cast<int>(255 * Theme::last_theme->font_shadow * ri.alpha));
+
+            AddTextRotated(dl, font, fs, {textCenter.x + 2.5f, textCenter.y + 2.5f}, shadow,
+                           ri.text.c_str(), nullptr, orient, /*center_on_pivot=*/true);
+
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ri.alpha);
+            AddTextRotated(dl, font, fs, textCenter, color,
+                           ri.text.c_str(), nullptr, orient, /*center_on_pivot=*/true);
+            ImGui::PopStyleVar();
+
+        }
+
+        dl->PopClipRect();
+    }
+
+
 }
+
 
 ImVec2 ImGui::ButtonIcon(const IconFont::IconTexture* a_texture)
 {
@@ -452,27 +656,34 @@ void ImGui::DrawCycleIndicators(SkyPromptAPI::ClientID curr_index, SkyPromptAPI:
 void ImGui::RenderSkyPrompt()
 {
 	const auto& curr_theme = Theme::last_theme;
-	const auto prompt_alignment = curr_theme.prompt_alignment;
-	const auto special_effects = curr_theme.special_effects;
+	const auto prompt_alignment = curr_theme->prompt_alignment;
+	const auto special_effects = curr_theme->special_effects;
 
-	auto a_center = renderBatchCenter;
 	switch (prompt_alignment) {
 	    case Theme::PromptAlignment::kVertical:
-			//RenderPromptsRadialAuto(a_center, renderBatch, curr_theme.linespacing);
 			for (const auto& a_renderInfo : renderBatch) {
+				ImGui::PushStyleVar(ImGuiStyleVar_Alpha, a_renderInfo.alpha);
 				ButtonIconWithCircularProgress(a_renderInfo.text.c_str(), a_renderInfo.text_color,
 														 a_renderInfo.texture, a_renderInfo.progress,
 														 a_renderInfo.button_state);
+				ImGui::PopStyleVar();
 			}
 			break;
 		case Theme::PromptAlignment::kHorizontal:
-		default:
 			break;
+		case Theme::PromptAlignment::kRadial: {
+            const float lineSpacingPx = ImGui::GetFontSize() * curr_theme->linespacing;
+            const float iconSize      = ImGui::GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
+            const float baseRadius    = iconSize * 4;
+
+            RenderPromptsRadialRotated(ImGui::renderBatchCenter-ImVec2(baseRadius,0),
+                                              ImGui::renderBatch,
+                                              lineSpacingPx, baseRadius,0.0f); // ray to the right
+            break;
+        }
 	}
 
 	switch (special_effects) {
-		default:
-			break;
 	}
 }
 

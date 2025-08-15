@@ -167,16 +167,12 @@ void ButtonQueue::Show(float progress, const InteractionButton* button2show, con
 		icon_manager->unavailable_keys.insert(buttonKey);
     }
 
-    //ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
-
     if (buttonIcon->srView.Get()) {
 		ImGui::renderBatch.emplace_back(a_text.c_str(), current_button->mutables.text_color, buttonIcon, progress,button_state, alpha);
     } else {
         logger::error("Button icon texture not loaded for key {}", buttonKey);
 		icon_manager->unavailable_keys.insert(buttonKey);
     }
-
-    //ImGui::PopStyleVar(); // Restore alpha
 }
 
 
@@ -450,7 +446,7 @@ ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
             if (const auto inv3dmngr = RE::Inventory3DManager::GetSingleton(); !inv3dmngr ->GetRuntimeData().loadedModels.empty()) {
 				if (const auto& model = inv3dmngr->GetRuntimeData().loadedModels.back().spModel) {
 					OffsetRight(model->world.translate,RE::UI3DSceneManager::GetSingleton()->cachedCameraPos,pos,model->worldBound.radius);
-			        pos2d = WorldToScreenLoc(pos,RE::UI3DSceneManager::GetSingleton()->camera) + ImVec2{(Theme::last_theme.prompt_size+padding) * DisplayTweaks::resolutionScale,0};
+			        pos2d = WorldToScreenLoc(pos,RE::UI3DSceneManager::GetSingleton()->camera) + ImVec2{(Theme::last_theme->prompt_size+padding) * DisplayTweaks::resolutionScale,0};
 				}
 			}
 		}
@@ -462,7 +458,7 @@ ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
 			constexpr RE::NiPoint3 z_vec(0.f, 0.f, 1.f);
 			const auto right_vec = diff.UnitCross(z_vec);
 			pos = npc_head_pos + right_vec * npc_head_size;
-			pos2d = WorldToScreenLoc(pos) + ImVec2{(Theme::last_theme.prompt_size+padding) * DisplayTweaks::resolutionScale,0};
+			pos2d = WorldToScreenLoc(pos) + ImVec2{(Theme::last_theme->prompt_size+padding) * DisplayTweaks::resolutionScale,0};
 		}
 		else {
             const auto geo = Geometry(ref);
@@ -732,7 +728,7 @@ bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
 	last_clientID = client_id;
 
 	std::shared_lock theme_lock(Theme::m_theme_);
-	Theme::last_theme = Theme::themes.contains(last_clientID) ? *Theme::themes.at(last_clientID) : Theme::default_theme;
+	Theme::last_theme = Theme::themes.contains(last_clientID) ? Theme::themes.at(last_clientID) : &Theme::default_theme;
 
 	return true;
 }
@@ -940,7 +936,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 
 	if (!isPressing) {
 	    std::unique_lock lock(progress_mutex_);
-		if (progress_circle > Theme::last_theme.progress_speed) {
+		if (progress_circle > Theme::last_theme->progress_speed) {
 			buttonState.pressCount = 0;
 		}
         progress_circle = 0.0f;
@@ -952,7 +948,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 	}
 	{
 	    std::unique_lock lock(progress_mutex_);
-	    progress_circle += GetSecondsSinceLastFrame() * Theme::last_theme.progress_speed*4.f;
+	    progress_circle += GetSecondsSinceLastFrame() * Theme::last_theme->progress_speed*4.f;
 	}
 
 	SkyPromptAPI::PromptType a_type = SkyPromptAPI::kSinglePress;
@@ -1195,8 +1191,8 @@ void ImGui::Renderer::Manager::ShowQueue() {
 
     // Calculate position
     const ImVec2 bottomRightPos(
-        width * Theme::last_theme.xPercent - Theme::last_theme.marginX,
-        height * Theme::last_theme.yPercent - Theme::last_theme.marginY
+        width * Theme::last_theme->xPercent - Theme::last_theme->marginX,
+        height * Theme::last_theme->yPercent - Theme::last_theme->marginY
     );
 
 	// Set the window position
@@ -1246,6 +1242,7 @@ void ImGui::Renderer::Manager::ShowQueue() {
 		const auto& managers_ : object_managers | std::views::values) {
 	    auto window_pos = managers_[0]->GetAttachedObjectPos();
 		ImGui::renderBatch.clear();
+		renderBatchCenter = window_pos;
 		SetNextWindowPos(window_pos, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 		BeginImGuiWindow(std::format("SkyPromptHover{}",i++).c_str());
 		for (const auto a_manager : managers_) {

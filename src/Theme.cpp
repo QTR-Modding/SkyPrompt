@@ -30,6 +30,42 @@ Theme::Theme::Theme(const ThemeBlock& block) {
 
 }
 
+void Theme::Theme::ReLoad()
+{
+	constexpr std::string_view themesFolder = R"(Data\SKSE\Plugins\SkyPrompt\themes)";
+    if (!std::filesystem::exists(themesFolder)) {
+        logger::error("Mod folder does not exist: {}", themesFolder);
+        return;
+    }
+    for (const auto& file  : std::filesystem::directory_iterator(themesFolder)) {
+		if (!file.is_regular_file() || file.path().extension() != ".json") {
+			continue; // Skip non-JSON files
+        }
+		if (theme_name != file.path().stem().string()) {
+			continue; // Skip if the theme name does not match the file name
+        }
+		rapidjson::Document doc;
+		// Load the JSON file
+		std::ifstream ifs(file.path());
+		if (!ifs.is_open()) {
+            logger::error("Failed to open file: {}", file.path().string());
+            return;
+		}
+		std::string json_str((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		ifs.close();
+		doc.Parse(json_str.c_str());
+        if (doc.HasParseError()) {
+            logger::error("JSON Parse Error at offset {}: {}", doc.GetErrorOffset(), doc.GetParseError());
+			return;
+		}
+		ThemeBlock data;
+		data.load(doc);
+		*this = Theme(data); // Update the theme with the new data
+
+        return;
+    }
+}
+
 void Theme::LoadThemes() {
 
 	constexpr std::string_view themesFolder = R"(Data\SKSE\Plugins\SkyPrompt\themes)";
@@ -63,7 +99,7 @@ void Theme::LoadThemes() {
         data.load(doc);
         Theme a_theme(data);
 
-        if (auto& a_name = a_theme.theme_name; 
+        if (auto& a_name = a_theme.theme_name;
 			!a_name.empty() && !themes_loaded.contains(a_name)) {
             themes_loaded[a_name] = a_theme;
             logger::info("Loaded theme: {}", a_name);

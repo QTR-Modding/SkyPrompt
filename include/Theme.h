@@ -69,6 +69,8 @@ namespace Theme {
 
 		Theme() = default;
 		Theme(const ThemeBlock& block);
+
+		void ReLoad();
 	};
 
 	inline auto default_theme = Theme();
@@ -79,5 +81,5 @@ namespace Theme {
 
 	inline std::shared_mutex m_theme_;
 	inline std::unordered_map<SkyPromptAPI::ClientID, Theme*> themes;
-	inline auto last_theme = default_theme;
+	inline Theme* last_theme = &default_theme;
 };
