@@ -53,6 +53,7 @@ find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
 find_path(SKSE_MCP_INCLUDE_DIRS "SKSEMCP/utils.hpp")
 find_path(CLIB_UTILS_QTR_INCLUDE_DIRS "ClibUtilsQTR/utils.hpp")
 find_path(SkyPromptAPI_INCLUDE_DIRS "SkyPrompt/API.hpp")
+find_path(SkyPromptAddOn_INCLUDE_DIRS "SkyPrompt/AddOns.hpp")
 
 file(
   GLOB_RECURSE
@@ -101,6 +102,7 @@ target_include_directories(
     ${SKSE_MCP_INCLUDE_DIRS}
     ${CLIB_UTILS_QTR}
     ${SkyPromptAPI_INCLUDE_DIRS}
+    ${SkyPromptAddOn_INCLUDE_DIRS}
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 	${CMAKE_CURRENT_SOURCE_DIR}/src
 	${CMAKE_CURRENT_SOURCE_DIR}/src/ImGui

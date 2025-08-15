@@ -243,7 +243,5 @@ namespace ImGui
 
     void RenderSkyPrompt();
 
-
-
 }
 

@@ -12,6 +12,7 @@
     "magic-enum",
     "directxtex",
     "skyprompt-api",
+    "skyprompt-addon",
     "boost-pfr",
     {
       "name": "imgui",

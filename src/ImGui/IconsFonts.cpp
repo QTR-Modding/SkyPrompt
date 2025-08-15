@@ -528,7 +528,6 @@ namespace {
                 ImGui::PopStyleVar();
             }
 
-            // --- rings/progress (unchanged) ---
             {
                 const float thick     = outerR / 6.f;
 
@@ -557,7 +556,7 @@ namespace {
                         const float prog     = singlePress ? -ri.progress
                                                            : ri.progress - ImGui::Renderer::progress_circle_offset;
                         DrawProgressCircle(dl, iconCenter, outerR, thick, std::max(prog, 0.f),
-                                           RE::deg_to_rad(startDeg));
+                                           RE::deg_to_rad(startDeg)+orient);
                     }
                 }
             }
@@ -592,11 +591,11 @@ namespace {
             const ImU32 shadow = IM_COL32(0, 0, 0, static_cast<int>(255 * Theme::last_theme->font_shadow * ri.alpha));
 
             AddTextRotated(dl, font, fs, {textCenter.x + 2.5f, textCenter.y + 2.5f}, shadow,
-                           ri.text.c_str(), nullptr, orient, /*center_on_pivot=*/true);
+                           ri.text.c_str(), nullptr, orient, true);
 
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ri.alpha);
             AddTextRotated(dl, font, fs, textCenter, color,
-                           ri.text.c_str(), nullptr, orient, /*center_on_pivot=*/true);
+                           ri.text.c_str(), nullptr, orient, true);
             ImGui::PopStyleVar();
 
         }
@@ -604,8 +603,45 @@ namespace {
         dl->PopClipRect();
     }
 
+    void RenderPromptsHorizontalCentered(const std::vector<ImGui::RenderInfo>& batch, float lineSpacingPx)
+    {
+        if (batch.empty()) return;
 
+        const float iconSz      = GetIconSize();
+        const float circleDia   = iconSz * 1.25f;           // ring outer diameter
+        const float rowWidth    = circleDia;                // horizontal footprint per item
+        const float itemSpacing = lineSpacingPx;            // horizontal gap (like vertical spacing)
+
+        const int n = static_cast<int>(batch.size());
+        const float totalWidth = n * rowWidth + (n - 1) * itemSpacing;
+
+        // Starting cursor so that the whole batch is horizontally centered at current cursor position
+        ImVec2 startPos = ImGui::GetCursorScreenPos();
+        startPos.x -= totalWidth * 0.5f;
+
+        for (int i = 0; i < n; ++i)
+        {
+            const auto& ri = batch[i];
+
+            // Calculate X position for this item
+            ImVec2 pos = startPos;
+            pos.x += i * (rowWidth + itemSpacing);
+            ImGui::SetCursorScreenPos(pos);
+
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ri.alpha);
+            ButtonIconWithCircularProgress(
+                ri.text.c_str(),
+                ri.text_color,
+                ri.texture,
+                ri.progress,
+                ri.button_state
+            );
+            ImGui::PopStyleVar();
+        }
+    }
 }
+
+
 
 
 ImVec2 ImGui::ButtonIcon(const IconFont::IconTexture* a_texture)
@@ -670,6 +706,7 @@ void ImGui::RenderSkyPrompt()
 			}
 			break;
 		case Theme::PromptAlignment::kHorizontal:
+			RenderPromptsHorizontalCentered(renderBatch, ImGui::GetFontSize() * curr_theme->linespacing);
 			break;
 		case Theme::PromptAlignment::kRadial: {
             const float lineSpacingPx = ImGui::GetFontSize() * curr_theme->linespacing;
