@@ -160,14 +160,6 @@ void Tutorial::ReadMenuFrameworkStrings()
 	MF_GP_mode = clib_util::ini::get_value(ini, temp4, "General", "ToggleModeGamePad");
 }
 
-void Tutorial::SwitchToTutorialPos()
-{
-}
-
-void Tutorial::SwitchBackFromTutorialPos()
-{
-}
-
 void Tutorial::Tutorial5::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
     if (event.prompt.eventID && event.type == SkyPromptAPI::kAccepted) {
         Manager::End(this,client_id);
