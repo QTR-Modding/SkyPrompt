@@ -730,7 +730,12 @@ bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
 	last_clientID = client_id;
 
 	std::shared_lock theme_lock(Theme::m_theme_);
+	const auto last_theme = Theme::last_theme;
 	Theme::last_theme = Theme::themes.contains(last_clientID) ? Theme::themes.at(last_clientID) : &Theme::default_theme;
+
+	if (last_theme != Theme::last_theme) {
+        MCP::refreshStyle.store(true);
+	}
 
 	return true;
 }
