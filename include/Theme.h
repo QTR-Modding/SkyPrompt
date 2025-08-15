@@ -30,6 +30,8 @@ namespace Theme {
 		Field<float, rapidjson::Value> font_shadow = { "font_shadow", 0.2f };
 		Field<std::string, rapidjson::Value> prompt_alignment = { "prompt_alignment", "vertical" }; // e.g. radial
 
+		Field<uint32_t, rapidjson::Value> special_effect = { "special_effect", 0 }; // TODO: e.g. Viny's yellow arcs
+
         void load(rapidjson::Value& a_block) {
             boost::pfr::for_each_field(*this, [&](auto& field) {
                 field.load(a_block);
@@ -65,7 +67,7 @@ namespace Theme {
 		float font_shadow = 0.2f;
 
 		PromptAlignment prompt_alignment = kVertical;
-		int special_effects = 0; // TODO: e.g. Viny's yellow arcs
+		uint32_t special_effect = 0; // TODO: e.g. Viny's yellow arcs
 
 		Theme() = default;
 		Theme(const ThemeBlock& block);

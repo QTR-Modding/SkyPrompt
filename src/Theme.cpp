@@ -28,6 +28,8 @@ Theme::Theme::Theme(const ThemeBlock& block) {
 
 	prompt_alignment = toPromptAlignment(block.prompt_alignment.get());
 
+	special_effect = block.special_effect.get();
+
 }
 
 void Theme::Theme::ReLoad()
