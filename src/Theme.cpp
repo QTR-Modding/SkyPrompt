@@ -31,6 +31,13 @@ Theme::Theme::Theme(const ThemeBlock& block) {
 
 	special_effect = block.special_effect.get();
 
+	special_integers = block.special_integers.get();
+	special_strings = block.special_strings.get();
+	special_floats = block.special_floats.get();
+	special_bools = block.special_bools.get();
+
+	hide_in_menu = block.hide_in_menu.get();
+
 }
 
 void Theme::Theme::ReLoad()

@@ -30,7 +30,13 @@ namespace Theme {
 		Field<float, rapidjson::Value> font_shadow = { "font_shadow", 0.2f };
 		Field<std::string, rapidjson::Value> prompt_alignment = { "prompt_alignment", "vertical" }; // e.g. radial
 
-		Field<uint32_t, rapidjson::Value> special_effect = { "special_effect", 0 }; // TODO: e.g. Viny's yellow arcs
+		Field<uint32_t, rapidjson::Value> special_effect = { "special_effect", 0 };
+		Field<std::vector<uint32_t>, rapidjson::Value> special_integers = { "special_integers", {} };
+		Field<std::vector<std::string>, rapidjson::Value> special_strings = { "special_strings", {} };
+		Field<std::vector<float>, rapidjson::Value> special_floats = { "special_floats", {} };
+		Field<std::vector<bool>, rapidjson::Value> special_bools = { "special_bools", {} };
+
+		Field<bool, rapidjson::Value> hide_in_menu = { "hide_in_menu", false};
 
         void load(rapidjson::Value& a_block) {
             boost::pfr::for_each_field(*this, [&](auto& field) {
@@ -67,10 +73,17 @@ namespace Theme {
 		float font_shadow = 0.2f;
 
 		PromptAlignment prompt_alignment = kVertical;
-		uint32_t special_effect = 0; // TODO: e.g. Viny's yellow arcs
+		uint32_t special_effect = 0;
+
+		std::vector<uint32_t> special_integers;
+		std::vector<std::string> special_strings;
+		std::vector<float> special_floats;
+		std::vector<bool> special_bools;
+
+		bool hide_in_menu = false;
 
 		Theme() = default;
-		Theme(const ThemeBlock& block);
+        explicit Theme(const ThemeBlock& block);
 
 		void ReLoad();
 	};
