@@ -455,7 +455,7 @@ ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
 		}
 		else if (const auto a_head = ref->GetNodeByName(RE::FixedStrings::GetSingleton()->npcHead)) {
             constexpr float npc_head_size = 15.f;
-			const auto cameraPos = RE::PlayerCamera::GetSingleton()->pos;
+			const auto cameraPos = RE::PlayerCamera::GetSingleton()->GetRuntimeData2().pos;
             const auto npc_head_pos = a_head->world.translate;
 			const auto diff = npc_head_pos - cameraPos;
 			constexpr RE::NiPoint3 z_vec(0.f, 0.f, 1.f);
