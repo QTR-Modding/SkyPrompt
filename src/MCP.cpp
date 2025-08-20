@@ -45,7 +45,7 @@ void __stdcall MCP::RenderSettings()
 	}
 
     // Slider for fade speed
-    if (!MCP_API::SliderFloat("Fade Speed", &Settings::fadeSpeed, 0.01f, 0.1f)) {
+    if (!MCP_API::SliderFloat("Fade Speed", &Theme::default_theme.fadeSpeed, 0.01f, 0.1f)) {
         if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
 
@@ -58,6 +58,16 @@ void __stdcall MCP::RenderSettings()
     if (!MCP_API::SliderFloat("Y Percent", &Theme::default_theme.yPercent, 0.0f, 1.0f)) {
         if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
+
+	// Slider for Margin X
+	if (!MCP_API::SliderFloat("Margin X", &Theme::default_theme.marginX, -1000.0f, 1000.0f)) {
+        if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    }
+
+	// Slider for Margin Y
+	if (!MCP_API::SliderFloat("Margin Y", &Theme::default_theme.marginY, -1000.0f, 1000.0f)) {
+		if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+	}
 
     // Slider for Prompt Size
     if (!MCP_API::SliderFloat("Prompt Size", &Theme::default_theme.prompt_size, 15.0f, 100.0f)) {
@@ -182,6 +192,8 @@ void MCP::Settings::OSPPresetBox()
 					const auto [fst, snd] = Presets::OSP::presets.for_level(Settings::current_OSP);
 					Theme::default_theme.xPercent = fst;
 					Theme::default_theme.yPercent = snd;
+					Theme::default_theme.marginX = 0.f;
+					Theme::default_theme.marginY = 0.f;
 
 				}
 			}
@@ -377,9 +389,11 @@ void MCP::Settings::to_json()
 
 	Value root(kObjectType);
 
-	root.AddMember("fadeSpeed", fadeSpeed, allocator);
+	root.AddMember("fadeSpeed", Theme::default_theme.fadeSpeed, allocator);
 	root.AddMember("xPercent", Theme::default_theme.xPercent, allocator);
 	root.AddMember("yPercent", Theme::default_theme.yPercent, allocator);
+	root.AddMember("marginX", Theme::default_theme.marginX, allocator);
+	root.AddMember("marginY", Theme::default_theme.marginY, allocator);
 	root.AddMember("prompt_size", Theme::default_theme.prompt_size, allocator);
 	root.AddMember("icon2font_ratio", Theme::default_theme.icon2font_ratio, allocator);
 	root.AddMember("linespacing", Theme::default_theme.linespacing, allocator);
@@ -493,7 +507,7 @@ void MCP::Settings::from_json()
 	auto& mcp = doc["MCP"];
 
 	if (mcp.HasMember("fadeSpeed")) {
-		fadeSpeed = mcp["fadeSpeed"].GetFloat();
+		Theme::default_theme.fadeSpeed = mcp["fadeSpeed"].GetFloat();
 	}
 	if (mcp.HasMember("xPercent")) {
 		Theme::default_theme.xPercent = mcp["xPercent"].GetFloat();
