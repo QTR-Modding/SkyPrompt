@@ -118,10 +118,10 @@ void ButtonQueue::Show(float progress, const InteractionButton* button2show, con
 
 	const auto seconds = GetSecondsSinceLastFrame();
 	if (expired()/* && current_button->alpha>0.f*/) {
-		alpha = std::max(alpha - MCP::Settings::fadeSpeed*seconds*120.f, 0.0f);
+		alpha = std::max(alpha - Theme::last_theme->fadeSpeed*seconds*120.f, 0.0f);
 	}
 	else {
-        alpha = std::min(alpha + MCP::Settings::fadeSpeed*seconds*120.f, 1.0f);
+        alpha = std::min(alpha + Theme::last_theme->fadeSpeed*seconds*120.f, 1.0f);
 	}
     if (Tutorial::showing_tutorial.load() || !Manager::IsGameFrozen()) {
 	    elapsed += seconds;
@@ -1198,9 +1198,10 @@ void ImGui::Renderer::Manager::ShowQueue() {
     const auto [width, height] = RE::BSGraphics::Renderer::GetScreenSize();
 
     // Calculate position
+	auto resScale = GetResolutionScale();
     const ImVec2 bottomRightPos(
-        width * Theme::last_theme->xPercent - Theme::last_theme->marginX,
-        height * Theme::last_theme->yPercent - Theme::last_theme->marginY
+        width * Theme::last_theme->xPercent - Theme::last_theme->marginX * resScale ,
+        height * Theme::last_theme->yPercent - Theme::last_theme->marginY * resScale
     );
 
 	// Set the window position
@@ -1248,6 +1249,8 @@ void ImGui::Renderer::Manager::ShowQueue() {
 	for (std::shared_lock lock(mutex_);
 		const auto& managers_ : object_managers | std::views::values) {
 	    auto window_pos = managers_[0]->GetAttachedObjectPos();
+		window_pos.x -= Theme::last_theme->marginX * resScale;
+		window_pos.y -= Theme::last_theme->marginY * resScale;
 		ImGui::renderBatch.clear();
 		SetNextWindowPos(window_pos, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 		BeginImGuiWindow(std::format("SkyPromptHover{}",i++).c_str());
