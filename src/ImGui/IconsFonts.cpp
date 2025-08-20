@@ -205,6 +205,16 @@ namespace IconFont
 
 namespace {
 
+    // Utility: scale a packed ImU32 color's alpha by factor in [0,1]
+    ImU32 MulAlpha(ImU32 c, float a)
+    {
+        a = ImClamp(a, 0.0f, 1.0f);
+        const int A = (c >> IM_COL32_A_SHIFT) & 0xFF;
+        const int newA = static_cast<int>(A * a + 0.5f);
+        return (c & ~IM_COL32_A_MASK) | (static_cast<ImU32>(newA) << IM_COL32_A_SHIFT);
+    }
+
+
     void DrawCircle(ImDrawList* drawList, const ImVec2 a_center, const float a_radius, const float progress, const float thickness,
         const std::optional<uint32_t> a_color = std::nullopt, const std::optional<float> start_angle = std::nullopt)
     {
@@ -350,7 +360,7 @@ namespace {
         const float radius = iconSize.y * 0.5f;
 	    const float thickness = radius / 6.f;
 	    const float circle_radius = circleDiameter / 2.f;
-
+        
 	    const auto a_drawlist = ImGui::GetWindowDrawList();
 
 
@@ -406,7 +416,7 @@ namespace {
 
     void AddImageRotated(ImDrawList* dl, const ImTextureID tex,
                                 const ImVec2 center, const ImVec2 size,
-                                const float angle, const ImU32 col = IM_COL32_WHITE)
+                                const float angle, const ImU32 col)
     {
         const auto h = ImVec2(size.x * 0.5f, size.y * 0.5f);
         const float c = cosf(angle), s = sinf(angle);
@@ -525,9 +535,7 @@ namespace {
 
             // --- icon ---
             if (ri.texture && ri.texture->srView.Get()) {
-                ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ri.alpha);
-                AddImageRotated(dl, (ImTextureID)ri.texture->srView.Get(), iconCenter, iconSzV, orient);
-                ImGui::PopStyleVar();
+                AddImageRotated(dl, (ImTextureID)ri.texture->srView.Get(), iconCenter, iconSzV, orient, IM_COL32(255,255,255,static_cast<int>(255 * ri.alpha)));
             }
 
             {
@@ -586,18 +594,15 @@ namespace {
                 iconCenter.y + normal.y * center_dist
             };
 
+
             // draw rotated text centered on this pivot
-            const ImU32 color  = ri.text_color ? ri.text_color : IM_COL32(255,255,255,255);
-            const ImU32 shadow = IM_COL32(0, 0, 0, static_cast<int>(255 * Theme::last_theme->font_shadow * ri.alpha));
+            const ImU32 color  = MulAlpha(ri.text_color ? ri.text_color : IM_COL32(255,255,255,255), ri.alpha);
+            const ImU32 shadow = MulAlpha(IM_COL32(0,0,0,static_cast<int>(255 * Theme::last_theme->font_shadow)), ri.alpha);
 
-            AddTextRotated(dl, font, fs, {textCenter.x + 2.5f, textCenter.y + 2.5f}, shadow,
-                           ri.text.c_str(), nullptr, orient, true);
-
-            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ri.alpha);
-            AddTextRotated(dl, font, fs, textCenter, color,
-                           ri.text.c_str(), nullptr, orient, true);
-            ImGui::PopStyleVar();
-
+            AddTextRotated(dl, font, fs, {textCenter.x + 2.5f, textCenter.y + 2.5f},
+                           shadow, ri.text.c_str(), nullptr, orient, true);
+            AddTextRotated(dl, font, fs, textCenter,
+                           color,  ri.text.c_str(), nullptr, orient, true);
         }
 
         dl->PopClipRect();
@@ -670,9 +675,8 @@ namespace {
             // --- Icon ---
             if (ri.texture && ri.texture->srView.Get())
             {
-                ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ri.alpha);
-                AddImageRotated(dl, (ImTextureID)ri.texture->srView.Get(), iconCenter, { iconSz, iconSz }, 0.0f);
-                ImGui::PopStyleVar();
+                AddImageRotated(dl, (ImTextureID)ri.texture->srView.Get(), iconCenter, { iconSz, iconSz }, 0.0f, 
+					IM_COL32(255, 255, 255, static_cast<int>(255 * ri.alpha)));
             }
 
             {
@@ -717,6 +721,7 @@ namespace {
 
             // Advance cursor for next item
             xCursor += dim.width + lineSpacingPx;
+
         }
     }
 
