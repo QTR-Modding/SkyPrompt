@@ -515,6 +515,12 @@ void MCP::Settings::from_json()
 	if (mcp.HasMember("yPercent")) {
 		Theme::default_theme.yPercent = mcp["yPercent"].GetFloat();
 	}
+	if (mcp.HasMember("marginX")) {
+		Theme::default_theme.marginX = mcp["marginX"].GetFloat();
+	}
+	if (mcp.HasMember("marginY")) {
+		Theme::default_theme.marginY = mcp["marginY"].GetFloat();
+	}
 	if (mcp.HasMember("prompt_size")) {
 		Theme::default_theme.prompt_size = mcp["prompt_size"].GetFloat();
 	}
