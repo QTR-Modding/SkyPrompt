@@ -208,12 +208,12 @@ bool MCP::Settings::FontSettings()
 	auto changed = false;
 
 	MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.25f);
-	if (MCP_API::BeginCombo("Font", font_name.c_str())) {
+	if (MCP_API::BeginCombo("Font", Theme::default_theme.font_name.c_str())) {
         for (const auto& font : Settings::font_names) {
-            const bool isSelected = font_name == font;
+            const bool isSelected = Theme::default_theme.font_name == font;
             if (MCP_API::Selectable(font.c_str(), isSelected)) {
                 if (!isSelected) {
-                    font_name = font;
+                    Theme::default_theme.font_name = font;
                     changed = true;
                 }
             }
@@ -223,7 +223,7 @@ bool MCP::Settings::FontSettings()
 	}
 
 	MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.25f);
-	if (!MCP_API::SliderFloat("Font Shadow", &font_shadow, 0.f, 1.f)) {
+	if (!MCP_API::SliderFloat("Font Shadow", &Theme::default_theme.font_shadow, 0.f, 1.f)) {
 		if (MCP_API::IsItemDeactivatedAfterEdit()) {
 			changed = true;
 		}
@@ -455,8 +455,8 @@ void MCP::Settings::to_json()
 
 	// theme
 	Value theme(kObjectType);
-	theme.AddMember("font_name", Value(font_name.c_str(), allocator).Move(), allocator);
-	theme.AddMember("font_shadow", font_shadow, allocator);
+	theme.AddMember("font_name", Value(Theme::default_theme.font_name.c_str(), allocator).Move(), allocator);
+	theme.AddMember("font_shadow", Theme::default_theme.font_shadow, allocator);
 	// theme:: file name for active icon, like font_name
 	root.AddMember("Theme", theme, allocator);
 
@@ -625,9 +625,11 @@ void MCP::Settings::from_json()
 
 	if (mcp.HasMember("Theme")) {
 		const rapidjson::Value& theme = mcp["Theme"];
-		if (theme.HasMember("font_name")) font_name = theme["font_name"].GetString();
-		if (theme.HasMember("font_shadow")) font_shadow = theme["font_shadow"].GetFloat();
+		if (theme.HasMember("font_name")) Theme::default_theme.font_name= theme["font_name"].GetString();
+		if (theme.HasMember("font_shadow")) Theme::default_theme.font_shadow = theme["font_shadow"].GetFloat();
 	}
+
+	refreshStyle.store(true);
 }
 
 void __stdcall MCP::RenderControls()
@@ -698,6 +700,7 @@ void __stdcall MCP::RenderTheme()
 
 	if (changed) {
 		Settings::to_json();
+		refreshStyle.store(true);
 	}
 }
 
