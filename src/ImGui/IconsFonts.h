@@ -2,6 +2,8 @@
 #include "SkyPrompt/API.hpp"
 #include "Graphics.h"
 #include <unordered_set>
+
+#include "Interaction.h"
 #include "MCP.h"
 
 
@@ -223,21 +225,25 @@ namespace IconFont
 
 namespace ImGui
 {
+	struct RenderInfo {
+		std::string text;
+		uint32_t text_color;
+		const IconFont::IconTexture* texture;
+		float progress;
+		float button_state;
+		float alpha;
+
+		SCENES::Event row = 0; // Row index for vertical alignment
+	};
+
+
     ImVec2 ButtonIcon(const IconFont::IconTexture* a_texture);
 
 	void DrawCycleIndicators(SkyPromptAPI::ClientID curr_index, SkyPromptAPI::ClientID queue_size);
 
-	void AddTextWithShadow(
-        ImDrawList* draw_list,
-        ImFont* font,
-        float font_size,
-        ImVec2 position,
-        ImU32 text_color,
-        const char* text,
-        ImU32 shadow_color = IM_COL32(0, 0, 0, 255*MCP::Settings::font_shadow),
-        ImVec2 shadow_offset = ImVec2(2.5f, 2.5f));
+	inline std::vector<RenderInfo> renderBatch;
 
-    ImVec2 ButtonIconWithCircularProgress(const char* a_text, uint32_t a_text_color, const IconFont::IconTexture* a_texture, float progress, float button_state=-1.f);
-
+    void RenderSkyPrompt();
 
 }
+

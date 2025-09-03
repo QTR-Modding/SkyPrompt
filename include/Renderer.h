@@ -2,8 +2,9 @@
 #include <shared_mutex>
 #include "imgui.h"
 #include "SkyPrompt/API.hpp"
-#include "MCP.h"
 #include "Interaction.h"
+#include "MCP.h"
+#include "Theme.h"
 
 
 namespace ImGui::Renderer {
@@ -34,7 +35,6 @@ struct InteractionButton
     explicit InteractionButton(const Interaction& a_interaction, const Mutables& a_mutables, SkyPromptAPI::PromptType a_type, RefID a_refid, std::map<Input::DEVICE, uint32_t> a_keys, int a_default_key_index);
     bool operator==(const InteractionButton& a_rhs) const { return interaction == a_rhs.interaction; }
     bool operator<(const InteractionButton& a_rhs) const { return interaction < a_rhs.interaction; }
-    [[nodiscard]] std::optional<std::pair<float,float>> Show(float alpha = 0.f, const std::string& extra_text="", float progress=0.f, float button_state = -1.f) const;
     float GetProgressOverride(bool increment) const;
 };
 
@@ -59,8 +59,6 @@ struct ButtonQueue {
     [[nodiscard]] bool IsEmpty() const { return buttons.empty(); }
     [[nodiscard]] const InteractionButton* Next() const;
     [[nodiscard]] size_t size() const { return buttons.size(); }
-
-    std::pair<float,float> position = { 0.0f, 0.0f };
 };
 
 namespace ImGui::Renderer
@@ -163,10 +161,14 @@ namespace ImGui::Renderer
         bool SwitchToClientManager(SkyPromptAPI::ClientID client_id);
 
         SkyPromptAPI::ClientID last_clientID = 0;
+
         mutable std::shared_mutex mutex_;
         std::atomic<bool> isPaused = false;
+
         std::vector<std::unique_ptr<SubManager>> managers;
+
         std::map<SkyPromptAPI::ClientID, std::vector<std::unique_ptr<SubManager>>> client_managers;
+
         const std::vector<std::unique_ptr<SubManager>>* GetManagerList(SkyPromptAPI::ClientID a_clientID) const;
         std::vector<std::unique_ptr<SubManager>>* GetManagerList(SkyPromptAPI::ClientID a_clientID);
 
@@ -199,5 +201,5 @@ namespace ImGui::Renderer
 
         bool InitializeClient(SkyPromptAPI::ClientID a_clientID);
         bool CycleClient(bool a_left);
-	};
+    };
 }

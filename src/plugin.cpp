@@ -4,6 +4,7 @@
 #include "MCP.h"
 #include "Settings.h"
 #include "Styles.h"
+#include "Theme.h"
 #include "Utils.h"
 #include "PapyrusAPI/Bindings.h"
 #include "Tutorial.h"
@@ -38,6 +39,8 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
 		return false;
     }
 	logger::info("ImGui icons loaded.");
+
+    Theme::LoadThemes();
 
     if (const auto messaging = SKSE::GetMessagingInterface()) {
         messaging->RegisterListener(OnMessage);

@@ -1,5 +1,6 @@
 #include "Service.h"
 #include "Renderer.h"
+#include "Theme.h"
 
 bool ProcessSendPrompt(const SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID) {
 
@@ -68,4 +69,26 @@ SkyPromptAPI::ClientID ProcessRequestClientID(int a_major, int a_minor)
 	    return ++Service::last_clientID;
 	}
 	return 0;
+}
+
+bool ProcessRequestTheme(SkyPromptAPI::ClientID a_clientID, std::string_view theme_name)
+{
+	if (a_clientID == 0) {
+		logger::error("Invalid ClientID: {}", a_clientID);
+		return false;
+	}
+	if (theme_name.empty()) {
+		logger::error("Theme name cannot be empty");
+		return false;
+	}
+	if (auto theme_str = std::string(theme_name); Theme::themes_loaded.contains(theme_str)){
+	    std::unique_lock lock(Theme::m_theme_);
+		auto& a_theme = Theme::themes_loaded.at(theme_str);
+	    a_theme.ReLoad();
+		Theme::themes[a_clientID] = &a_theme;
+		return true;
+	} else {
+		logger::error("Theme not found: {}", theme_str);
+		return false;
+	}
 }

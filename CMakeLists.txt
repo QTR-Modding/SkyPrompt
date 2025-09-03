@@ -16,7 +16,7 @@ cmake_minimum_required(VERSION 3.21)
 # Set your project name. This will be the name of your SKSE .dll file.
 set(AUTHOR_NAME "Quantumyilmaz")
 set(PRODUCT_NAME "SkyPrompt")
-project(${PRODUCT_NAME} VERSION 2.3.0.0 LANGUAGES CXX)
+project(${PRODUCT_NAME} VERSION 2.3.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
@@ -53,6 +53,7 @@ find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
 find_path(SKSE_MCP_INCLUDE_DIRS "SKSEMCP/utils.hpp")
 find_path(CLIB_UTILS_QTR_INCLUDE_DIRS "ClibUtilsQTR/utils.hpp")
 find_path(SkyPromptAPI_INCLUDE_DIRS "SkyPrompt/API.hpp")
+find_path(SkyPromptAddOn_INCLUDE_DIRS "SkyPrompt/AddOns.hpp")
 
 file(
   GLOB_RECURSE
@@ -101,6 +102,7 @@ target_include_directories(
     ${SKSE_MCP_INCLUDE_DIRS}
     ${CLIB_UTILS_QTR}
     ${SkyPromptAPI_INCLUDE_DIRS}
+    ${SkyPromptAddOn_INCLUDE_DIRS}
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 	${CMAKE_CURRENT_SOURCE_DIR}/src
 	${CMAKE_CURRENT_SOURCE_DIR}/src/ImGui

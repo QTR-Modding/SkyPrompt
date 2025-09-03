@@ -19,13 +19,14 @@ void Tutorial::Tutorial3::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
             }
             return;
         case SkyPromptAPI::PromptEventType::kDeclined:
-            to_be_deleted.erase(event.prompt.actionID);
-            if (to_be_deleted.size() < 3) {
+            //to_be_deleted.erase(event.prompt.actionID);
+            if (to_be_deleted.size() < 2) {
                 const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_delete_t).count();
                 if (delta > 200) {
                     SkyPromptAPI::RemovePrompt(this,client_id);
                     if (SkyPromptAPI::SendPrompt(this,client_id)) {
                         to_be_deleted = {0,1};
+						return;
                     }
                 }
             }
@@ -112,12 +113,13 @@ void Tutorial::Tutorial1::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
             }
             return;
         case SkyPromptAPI::PromptEventType::kDeclined:
-            if (to_be_deleted.size() < 3) {
+            if (to_be_deleted.size() < 2) {
                 const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_delete_t).count();
                 if (delta < 100) {
                     SkyPromptAPI::RemovePrompt(this,client_id);
                     if (SkyPromptAPI::SendPrompt(this,client_id)) {
                         to_be_deleted = {0,1};
+                        return;
                     }
                 }
             }
@@ -156,22 +158,6 @@ void Tutorial::ReadMenuFrameworkStrings()
     std::ranges::transform(MF_GP_key, MF_GP_key.begin(),[](const unsigned char c) { return std::toupper(c); });
 	std::string temp4 = "DoublePress";
 	MF_GP_mode = clib_util::ini::get_value(ini, temp4, "General", "ToggleModeGamePad");
-}
-
-void Tutorial::SwitchToTutorialPos()
-{
-    old_xpos = MCP::Settings::xPercent;
-	old_ypos = MCP::Settings::yPercent;
-
-    const auto [fst, snd] = Presets::OSP::presets.for_level(11);
-	MCP::Settings::xPercent = fst;
-    MCP::Settings::yPercent = snd;
-}
-
-void Tutorial::SwitchBackFromTutorialPos()
-{
-    MCP::Settings::xPercent = old_xpos;
-    MCP::Settings::yPercent = old_ypos;
 }
 
 void Tutorial::Tutorial5::Sink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {

@@ -1,6 +1,5 @@
 #pragma once
 #include "Input.h"
-#include "Settings.h"
 #include "rapidjson/document.h"
 
 namespace MCP {
@@ -18,16 +17,8 @@ namespace MCP {
     void Register();
 
     namespace Settings {
-        inline size_t current_OSP = 21; // CenterBottomRight
-        constexpr float marginX = 20.0f;
-        constexpr float marginY = 20.0f;
-        inline float fadeSpeed{ 0.02f };
-	    inline float xPercent = Presets::OSP::OSPX[1];
-        inline float yPercent = Presets::OSP::OSPY[4];
-        inline float prompt_size = 45.65f;
-		inline float icon2font_ratio = 1.f;
-		inline float linespacing = 0.267f;
-	    inline float progress_speed = .552f;
+
+		inline size_t current_OSP = 21; // CenterBottomRight
 	    inline float lifetime = 5.f;
 		inline bool draw_debug = false;
 
@@ -57,14 +48,14 @@ namespace MCP {
 		};
 
 		// Settings::Theme
-	    inline std::string font_name = "Jost-Regular";
 	    inline std::set<std::string> font_names;
-	    inline float font_shadow = 0.2f;
 
 		void OSPPresetBox();
 		bool FontSettings();
 		void LoadDefaultPromptKeys();
 		bool CycleControls();
+
+		void ReloadThemes();
 
         void to_json();
         void from_json();

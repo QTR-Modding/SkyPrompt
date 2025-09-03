@@ -1,9 +1,7 @@
 ﻿#include "Renderer.h"
-#include <numbers>
 #include "Hooks.h"
 #include "CLibUtilsQTR/Tasker.hpp"
 #include "IconsFonts.h"
-#include "MCP.h"
 #include "Styles.h"
 #include "Utils.h"
 #include "Geometry.h"
@@ -27,10 +25,12 @@ void ImGui::Renderer::RenderPrompts() {
 		manager->ResetQueue();
 		return;
 	}
+
 	if (MCP::Settings::shouldReloadPromptSize.exchange(false)) {
 		ImGui::Styles::GetSingleton()->RefreshStyle();
 		return;
 	}
+
 	if (manager->IsPaused()) {
 		manager->Start();
 	}
@@ -41,41 +41,6 @@ void ImGui::Renderer::RenderPrompts() {
 	manager->ShowQueue();
 }
 
-
-std::optional<std::pair<float,float>> InteractionButton::Show(const float alpha, const std::string& extra_text, const float progress, const float button_state) const
-{
-    const auto buttonKey = GetKey();
-	const auto icon_manager = MANAGER(IconFont);
-	if (icon_manager->unavailable_keys.contains(buttonKey)) return std::nullopt;
-	const std::string base_text = mutables.text; // Cache the base text
-	std::string a_text;
-    a_text.reserve(base_text.size() + 1 + extra_text.size()); // Reserve memory to avoid reallocations
-	a_text.append(base_text);
-    if (!extra_text.empty()) { // If extra_text is not empty
-        a_text.append(" ").append(extra_text);
-    }
-
-    const IconFont::IconTexture* buttonIcon = icon_manager->GetIcon(buttonKey);
-    if (!buttonIcon) {
-        logger::error("Button icon not found for key {}", buttonKey);
-		icon_manager->unavailable_keys.insert(buttonKey);
-		return std::nullopt;
-    }
-
-    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
-	std::optional<std::pair<float,float>> a_position;
-    if (buttonIcon->srView.Get()) {
-        const auto position = ImGui::ButtonIconWithCircularProgress(a_text.c_str(), mutables.text_color, buttonIcon, progress, button_state);
-		a_position = { position.x,position.y };
-    } else {
-        logger::error("Button icon texture not loaded for key {}", buttonKey);
-		icon_manager->unavailable_keys.insert(buttonKey);
-    }
-
-    ImGui::PopStyleVar(); // Restore alpha
-
-	return a_position;
-}
 
 namespace {
     float ButtonStateToFloat(const ButtonState& a_button_state) {
@@ -153,10 +118,10 @@ void ButtonQueue::Show(float progress, const InteractionButton* button2show, con
 
 	const auto seconds = GetSecondsSinceLastFrame();
 	if (expired()/* && current_button->alpha>0.f*/) {
-		alpha = std::max(alpha - MCP::Settings::fadeSpeed*seconds*120.f, 0.0f);
+		alpha = std::max(alpha - Theme::last_theme->fadeSpeed*seconds*120.f, 0.0f);
 	}
 	else {
-        alpha = std::min(alpha + MCP::Settings::fadeSpeed*seconds*120.f, 1.0f);
+        alpha = std::min(alpha + Theme::last_theme->fadeSpeed*seconds*120.f, 1.0f);
 	}
     if (Tutorial::showing_tutorial.load() || !Manager::IsGameFrozen()) {
 	    elapsed += seconds;
@@ -180,12 +145,36 @@ void ButtonQueue::Show(float progress, const InteractionButton* button2show, con
 	    progress = button_type == SkyPromptAPI::kSinglePress ? -progress_override : progress_override;
 		WakeUp();
     }
-    if (const auto pos = current_button->Show(alpha, extra_text, progress,
-                                              button_type == SkyPromptAPI::kSinglePress
+
+	//
+
+	auto button_state = button_type == SkyPromptAPI::kSinglePress
                                                   ? -1.f
-                                                  : ButtonStateToFloat(a_button_state)); 
-	    pos.has_value()) {
-	    position = pos.value();
+                                                  : ButtonStateToFloat(a_button_state);
+
+	const auto buttonKey = current_button->GetKey();
+	const auto icon_manager = MANAGER(IconFont);
+	if (icon_manager->unavailable_keys.contains(buttonKey)) return;
+	const std::string base_text = current_button->mutables.text; // Cache the base text
+	std::string a_text;
+    a_text.reserve(base_text.size() + 1 + extra_text.size()); // Reserve memory to avoid reallocations
+	a_text.append(base_text);
+    if (!extra_text.empty()) { // If extra_text is not empty
+        a_text.append(" ").append(extra_text);
+    }
+
+    const IconFont::IconTexture* buttonIcon = icon_manager->GetIcon(buttonKey);
+    if (!buttonIcon) {
+        logger::error("Button icon not found for key {}", buttonKey);
+		icon_manager->unavailable_keys.insert(buttonKey);
+    }
+
+    if (buttonIcon->srView.Get()) {
+		ImGui::renderBatch.emplace_back(a_text.c_str(), current_button->mutables.text_color, buttonIcon, progress,
+                                        button_state, alpha, current_button->interaction.event);
+    } else {
+        logger::error("Button icon texture not loaded for key {}", buttonKey);
+		icon_manager->unavailable_keys.insert(buttonKey);
     }
 }
 
@@ -460,19 +449,19 @@ ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
             if (const auto inv3dmngr = RE::Inventory3DManager::GetSingleton(); !inv3dmngr ->GetRuntimeData().loadedModels.empty()) {
 				if (const auto& model = inv3dmngr->GetRuntimeData().loadedModels.back().spModel) {
 					OffsetRight(model->world.translate,RE::UI3DSceneManager::GetSingleton()->cachedCameraPos,pos,model->worldBound.radius);
-			        pos2d = WorldToScreenLoc(pos,RE::UI3DSceneManager::GetSingleton()->camera) + ImVec2{(MCP::Settings::prompt_size+padding) * DisplayTweaks::resolutionScale,0};
+			        pos2d = WorldToScreenLoc(pos,RE::UI3DSceneManager::GetSingleton()->camera) + ImVec2{(Theme::last_theme->prompt_size+padding) * DisplayTweaks::resolutionScale,0};
 				}
 			}
 		}
 		else if (const auto a_head = ref->GetNodeByName(RE::FixedStrings::GetSingleton()->npcHead)) {
             constexpr float npc_head_size = 15.f;
-			const auto cameraPos = RE::PlayerCamera::GetSingleton()->pos;
+			const auto cameraPos = RE::PlayerCamera::GetSingleton()->GetRuntimeData2().pos;
             const auto npc_head_pos = a_head->world.translate;
 			const auto diff = npc_head_pos - cameraPos;
 			constexpr RE::NiPoint3 z_vec(0.f, 0.f, 1.f);
 			const auto right_vec = diff.UnitCross(z_vec);
 			pos = npc_head_pos + right_vec * npc_head_size;
-			pos2d = WorldToScreenLoc(pos) + ImVec2{(MCP::Settings::prompt_size+padding) * DisplayTweaks::resolutionScale,0};
+			pos2d = WorldToScreenLoc(pos) + ImVec2{(Theme::last_theme->prompt_size+padding) * DisplayTweaks::resolutionScale,0};
 		}
 		else {
             const auto geo = Geometry(ref);
@@ -740,6 +729,15 @@ bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
 
 	managers = std::move(client_managers.at(client_id));
 	last_clientID = client_id;
+
+	std::shared_lock theme_lock(Theme::m_theme_);
+	const auto last_theme = Theme::last_theme;
+	Theme::last_theme = Theme::themes.contains(last_clientID) ? Theme::themes.at(last_clientID) : &Theme::default_theme;
+
+	if (last_theme != Theme::last_theme) {
+        MCP::refreshStyle.store(true);
+	}
+
 	return true;
 }
 
@@ -946,7 +944,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 
 	if (!isPressing) {
 	    std::unique_lock lock(progress_mutex_);
-		if (progress_circle > MCP::Settings::progress_speed) {
+		if (progress_circle > Theme::last_theme->progress_speed) {
 			buttonState.pressCount = 0;
 		}
         progress_circle = 0.0f;
@@ -958,7 +956,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 	}
 	{
 	    std::unique_lock lock(progress_mutex_);
-	    progress_circle += GetSecondsSinceLastFrame() * MCP::Settings::progress_speed*4.f;
+	    progress_circle += GetSecondsSinceLastFrame() * Theme::last_theme->progress_speed*4.f;
 	}
 
 	SkyPromptAPI::PromptType a_type = SkyPromptAPI::kSinglePress;
@@ -1200,17 +1198,17 @@ void ImGui::Renderer::Manager::ShowQueue() {
     const auto [width, height] = RE::BSGraphics::Renderer::GetScreenSize();
 
     // Calculate position
+	auto resScale = GetResolutionScale();
     const ImVec2 bottomRightPos(
-        width * MCP::Settings::xPercent - MCP::Settings::marginX,
-        height * MCP::Settings::yPercent - MCP::Settings::marginY
+        width * Theme::last_theme->xPercent - Theme::last_theme->marginX * resScale ,
+        height * Theme::last_theme->yPercent - Theme::last_theme->marginY * resScale
     );
 
-    // Set the window position
+	// Set the window position
     ImGui::SetNextWindowPos(bottomRightPos, ImGuiCond_Always, ImVec2(1.0f, 1.0f)); // Pivot at the bottom-right
-
 	BeginImGuiWindow("SkyPrompt");
-
-	std::map<RefID,std::vector<SubManager*>> object_managers;
+    std::map<RefID,std::vector<SubManager*>> object_managers;
+	ImGui::renderBatch.clear();
 
 	for (std::shared_lock lock(mutex_);
 		auto& a_manager : managers) {
@@ -1220,6 +1218,8 @@ void ImGui::Renderer::Manager::ShowQueue() {
 		}
 		a_manager->ShowQueue();
 	}
+
+	RenderSkyPrompt();
 
 	if (MCP::Settings::cycle_controls.load()) {
 
@@ -1243,18 +1243,22 @@ void ImGui::Renderer::Manager::ShowQueue() {
         }
 	}
 
-	EndImGuiWindow();
+    EndImGuiWindow();
 
 	int i = 0;
 	for (std::shared_lock lock(mutex_);
 		const auto& managers_ : object_managers | std::views::values) {
-		auto window_pos = managers_[0]->GetAttachedObjectPos();
+	    auto window_pos = managers_[0]->GetAttachedObjectPos();
+		window_pos.x -= Theme::last_theme->marginX * resScale;
+		window_pos.y -= Theme::last_theme->marginY * resScale;
+		ImGui::renderBatch.clear();
 		SetNextWindowPos(window_pos, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 		BeginImGuiWindow(std::format("SkyPromptHover{}",i++).c_str());
 		for (const auto a_manager : managers_) {
 			a_manager->ShowQueue();
 		}
-	    EndImGuiWindow();
+		RenderSkyPrompt();
+		EndImGuiWindow();
 	}
 }
 

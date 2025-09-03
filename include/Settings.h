@@ -58,19 +58,18 @@ namespace Presets {
 
 		// for promptsize 54.6
         constexpr std::array OSPX = { // X offsets for on-screen positions
-			0.584f, // center
-			0.913f, // right
-			0.751f, // right slight
-			0.250f, // left
-			0.415f, // left slight
-
+			0.560f, // center
+			1.000f, // right
+			0.780f, // right slight
+			0.120f, // left
+			0.340f, // left slight
 		};
 		constexpr std::array OSPY = { // Y offsets for on-screen positions
-			0.981f, // bottom
-			0.210f, // top
-			0.650f, // center
-			0.460f, // center top
-			0.815f, // center bottom
+			1.0f, // bottom
+			0.100f, // top
+			0.550f, // center
+			0.325f, // center top
+			0.775f, // center bottom
 		};
 
 		std::array<std::pair<float, float>, NOSPs> getOSPs();
