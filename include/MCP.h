@@ -19,7 +19,6 @@ namespace MCP {
     namespace Settings {
 
 		inline size_t current_OSP = 21; // CenterBottomRight
-        inline float fadeSpeed{ 0.02f };
 	    inline float lifetime = 5.f;
 		inline bool draw_debug = false;
 
@@ -49,9 +48,7 @@ namespace MCP {
 		};
 
 		// Settings::Theme
-		inline std::string font_name = "Jost-Regular";
 	    inline std::set<std::string> font_names;
-		inline float font_shadow = 0.2f;
 
 		void OSPPresetBox();
 		bool FontSettings();

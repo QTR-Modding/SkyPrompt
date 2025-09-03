@@ -1,6 +1,5 @@
 #pragma once
 #include <shared_mutex>
-#include "Settings.h"
 #include "SkyPrompt/API.hpp"
 #include "boost/pfr/core.hpp"
 #include "CLibUtilsQTR/PresetHelpers/Config.hpp"
@@ -16,14 +15,15 @@ namespace Theme {
 		Field<std::string, rapidjson::Value> theme_author = { "author","" };
 		Field<std::string, rapidjson::Value> theme_version = { "version","" };
 
-		Field<float, rapidjson::Value> marginX = { "marginX", 20.0f };
-		Field<float, rapidjson::Value> marginY = { "marginY", 20.0f };
-		Field<float, rapidjson::Value> xPercent = { "xPercent", Presets::OSP::OSPX[1] };
-		Field<float, rapidjson::Value> yPercent = { "yPercent", Presets::OSP::OSPY[4] };
+		Field<float, rapidjson::Value> marginX = { "marginX", 0.0f };
+		Field<float, rapidjson::Value> marginY = { "marginY", 0.0f };
+		Field<float, rapidjson::Value> xPercent = { "xPercent", 0.85f };
+		Field<float, rapidjson::Value> yPercent = { "yPercent", 0.85f };
 		Field<float, rapidjson::Value> prompt_size = { "prompt_size", 45.65f };
 		Field<float, rapidjson::Value> icon2font_ratio = { "icon2font_ratio", 1.f };
 		Field<float, rapidjson::Value> linespacing = { "linespacing", 0.267f };
 		Field<float, rapidjson::Value> progress_speed = { "progress_speed", .552f };
+		Field<float, rapidjson::Value> fadeSpeed = { "fadeSpeed", .02f };
 
 		Field<std::string, rapidjson::Value> font_name = { "font_name", "Jost-Regular" };
 		Field<float, rapidjson::Value> font_shadow = { "font_shadow", 0.2f };
@@ -59,14 +59,15 @@ namespace Theme {
 		std::string theme_author = "Quantumyilmaz";
 		std::string theme_version = "1.0.0";
 
-		float marginX = 20.0f;
-		float marginY = 20.0f;
-		float xPercent = Presets::OSP::OSPX[1];
-		float yPercent = Presets::OSP::OSPY[4];
+		float marginX = 0.f;
+		float marginY = 0.f;
+		float xPercent = 0.85f;
+		float yPercent = 0.85f;
 		float prompt_size = 45.65f;
 		float icon2font_ratio = 1.f;
 		float linespacing = 0.267f;
 		float progress_speed = .552f;
+		float fadeSpeed = .02f;
 
 		std::string font_name = "Jost-Regular";
 		float font_shadow = 0.2f;

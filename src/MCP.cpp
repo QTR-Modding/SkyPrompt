@@ -45,7 +45,7 @@ void __stdcall MCP::RenderSettings()
 	}
 
     // Slider for fade speed
-    if (!MCP_API::SliderFloat("Fade Speed", &Settings::fadeSpeed, 0.01f, 0.1f)) {
+    if (!MCP_API::SliderFloat("Fade Speed", &Theme::default_theme.fadeSpeed, 0.01f, 0.1f)) {
         if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
 
@@ -58,6 +58,16 @@ void __stdcall MCP::RenderSettings()
     if (!MCP_API::SliderFloat("Y Percent", &Theme::default_theme.yPercent, 0.0f, 1.0f)) {
         if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
+
+	// Slider for Margin X
+	if (!MCP_API::SliderFloat("Margin X", &Theme::default_theme.marginX, -1000.0f, 1000.0f)) {
+        if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    }
+
+	// Slider for Margin Y
+	if (!MCP_API::SliderFloat("Margin Y", &Theme::default_theme.marginY, -1000.0f, 1000.0f)) {
+		if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+	}
 
     // Slider for Prompt Size
     if (!MCP_API::SliderFloat("Prompt Size", &Theme::default_theme.prompt_size, 15.0f, 100.0f)) {
@@ -182,6 +192,8 @@ void MCP::Settings::OSPPresetBox()
 					const auto [fst, snd] = Presets::OSP::presets.for_level(Settings::current_OSP);
 					Theme::default_theme.xPercent = fst;
 					Theme::default_theme.yPercent = snd;
+					Theme::default_theme.marginX = 0.f;
+					Theme::default_theme.marginY = 0.f;
 
 				}
 			}
@@ -196,12 +208,12 @@ bool MCP::Settings::FontSettings()
 	auto changed = false;
 
 	MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.25f);
-	if (MCP_API::BeginCombo("Font", font_name.c_str())) {
+	if (MCP_API::BeginCombo("Font", Theme::default_theme.font_name.c_str())) {
         for (const auto& font : Settings::font_names) {
-            const bool isSelected = font_name == font;
+            const bool isSelected = Theme::default_theme.font_name == font;
             if (MCP_API::Selectable(font.c_str(), isSelected)) {
                 if (!isSelected) {
-                    font_name = font;
+                    Theme::default_theme.font_name = font;
                     changed = true;
                 }
             }
@@ -211,7 +223,7 @@ bool MCP::Settings::FontSettings()
 	}
 
 	MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.25f);
-	if (!MCP_API::SliderFloat("Font Shadow", &font_shadow, 0.f, 1.f)) {
+	if (!MCP_API::SliderFloat("Font Shadow", &Theme::default_theme.font_shadow, 0.f, 1.f)) {
 		if (MCP_API::IsItemDeactivatedAfterEdit()) {
 			changed = true;
 		}
@@ -377,9 +389,11 @@ void MCP::Settings::to_json()
 
 	Value root(kObjectType);
 
-	root.AddMember("fadeSpeed", fadeSpeed, allocator);
+	root.AddMember("fadeSpeed", Theme::default_theme.fadeSpeed, allocator);
 	root.AddMember("xPercent", Theme::default_theme.xPercent, allocator);
 	root.AddMember("yPercent", Theme::default_theme.yPercent, allocator);
+	root.AddMember("marginX", Theme::default_theme.marginX, allocator);
+	root.AddMember("marginY", Theme::default_theme.marginY, allocator);
 	root.AddMember("prompt_size", Theme::default_theme.prompt_size, allocator);
 	root.AddMember("icon2font_ratio", Theme::default_theme.icon2font_ratio, allocator);
 	root.AddMember("linespacing", Theme::default_theme.linespacing, allocator);
@@ -441,8 +455,8 @@ void MCP::Settings::to_json()
 
 	// theme
 	Value theme(kObjectType);
-	theme.AddMember("font_name", Value(font_name.c_str(), allocator).Move(), allocator);
-	theme.AddMember("font_shadow", font_shadow, allocator);
+	theme.AddMember("font_name", Value(Theme::default_theme.font_name.c_str(), allocator).Move(), allocator);
+	theme.AddMember("font_shadow", Theme::default_theme.font_shadow, allocator);
 	// theme:: file name for active icon, like font_name
 	root.AddMember("Theme", theme, allocator);
 
@@ -493,13 +507,19 @@ void MCP::Settings::from_json()
 	auto& mcp = doc["MCP"];
 
 	if (mcp.HasMember("fadeSpeed")) {
-		fadeSpeed = mcp["fadeSpeed"].GetFloat();
+		Theme::default_theme.fadeSpeed = mcp["fadeSpeed"].GetFloat();
 	}
 	if (mcp.HasMember("xPercent")) {
 		Theme::default_theme.xPercent = mcp["xPercent"].GetFloat();
 	}
 	if (mcp.HasMember("yPercent")) {
 		Theme::default_theme.yPercent = mcp["yPercent"].GetFloat();
+	}
+	if (mcp.HasMember("marginX")) {
+		Theme::default_theme.marginX = mcp["marginX"].GetFloat();
+	}
+	if (mcp.HasMember("marginY")) {
+		Theme::default_theme.marginY = mcp["marginY"].GetFloat();
 	}
 	if (mcp.HasMember("prompt_size")) {
 		Theme::default_theme.prompt_size = mcp["prompt_size"].GetFloat();
@@ -605,9 +625,11 @@ void MCP::Settings::from_json()
 
 	if (mcp.HasMember("Theme")) {
 		const rapidjson::Value& theme = mcp["Theme"];
-		if (theme.HasMember("font_name")) font_name = theme["font_name"].GetString();
-		if (theme.HasMember("font_shadow")) font_shadow = theme["font_shadow"].GetFloat();
+		if (theme.HasMember("font_name")) Theme::default_theme.font_name= theme["font_name"].GetString();
+		if (theme.HasMember("font_shadow")) Theme::default_theme.font_shadow = theme["font_shadow"].GetFloat();
 	}
+
+	refreshStyle.store(true);
 }
 
 void __stdcall MCP::RenderControls()
@@ -678,6 +700,7 @@ void __stdcall MCP::RenderTheme()
 
 	if (changed) {
 		Settings::to_json();
+		refreshStyle.store(true);
 	}
 }
 

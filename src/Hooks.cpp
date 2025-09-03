@@ -22,8 +22,8 @@ LRESULT WndProc::thunk(const HWND hWnd, const UINT uMsg, const WPARAM wParam, co
 void CreateD3DAndSwapChain::thunk() {
     func();
 
-    if (const auto renderer = RE::BSGraphics::Renderer::GetSingleton()) {
-        swapChain = reinterpret_cast<IDXGISwapChain*>(RE::BSGraphics::Renderer::GetRendererData()->renderWindows[0].swapChain);
+    if (const auto renderer = RE::BSGraphics::Renderer::GetRendererDataSingleton()) {
+        swapChain = reinterpret_cast<IDXGISwapChain*>(renderer->renderWindows[0].swapChain);
         if (!swapChain) {
             logger::error("couldn't find swapChain");
             return;
@@ -35,8 +35,8 @@ void CreateD3DAndSwapChain::thunk() {
             return;
         }
 
-        device = reinterpret_cast<ID3D11Device*>(RE::BSGraphics::Renderer::GetRendererData()->forwarder);
-        context = reinterpret_cast<ID3D11DeviceContext*>(RE::BSGraphics::Renderer::GetRendererData()->context);
+        device = reinterpret_cast<ID3D11Device*>(renderer->forwarder);
+        context = reinterpret_cast<ID3D11DeviceContext*>(renderer->context);
 
         logger::info("Initializing ImGui...");
 
