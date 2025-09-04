@@ -127,6 +127,7 @@ namespace ImGui::Renderer
         void Stop();
         bool UpdateProgressCircle(bool isPressing);
         uint32_t GetPromptKey() const;
+        SkyPromptAPI::PromptType GetPromptType() const;
         void NextPrompt();
         bool HasPrompt() const;
         bool IsHidden() const;
@@ -193,6 +194,7 @@ namespace ImGui::Renderer
         bool IsHidden() const;
         SubManager* GetSubManagerByKey(uint32_t a_prompt_key) const;
         std::vector<uint32_t> GetPromptKeys() const;
+        std::vector<std::pair<SkyPromptAPI::PromptType,uint32_t>> GetPromptButtons() const;
 
         void ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func);
         void AddEventToSend(const SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::Prompt& a_prompt, SkyPromptAPI::PromptEventType event_type, 
