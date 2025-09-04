@@ -171,9 +171,11 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 
 	if (const auto button_event = event->AsButtonEvent()) {
 		const auto key = input_manager->Convert(button_event->GetIDCode(),button_event->GetDevice());
-        for (const auto prompt_keys = render_manager->GetPromptKeys(); const auto& prompt_key : prompt_keys) {
+        for (const auto prompt_buttons = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] : prompt_buttons) {
             if (prompt_key!=0 && prompt_key == key) {
-			    block = true;
+                if (prompt_type != SkyPromptAPI::kHint) {
+			        block = true;
+                }
 			    const auto now = std::chrono::steady_clock::now();
                 if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
 					submanager->buttonState.isPressing = button_event->IsPressed();
@@ -203,9 +205,11 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 	}
 	else if (const auto mouse_event = event->AsMouseMoveEvent()) {
         constexpr auto key = SkyPromptAPI::kMouseMove;
-		for (const auto prompt_keys = render_manager->GetPromptKeys(); const auto & prompt_key : prompt_keys) {
+		for (const auto prompt_keys = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] : prompt_keys) {
 			if (prompt_key != 0 && prompt_key == key) {
-				block = true;
+				if (prompt_type != SkyPromptAPI::kHint) {
+			        block = true;
+                }
 				if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
                     submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove, {static_cast<float>(mouse_event->mouseInputX),static_cast<float>(mouse_event->mouseInputY)});
 					submanager->UpdateProgressCircle(mouse_event->mouseInputX != 0 || mouse_event->mouseInputY != 0);
@@ -215,9 +219,11 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 	}
 	else if (const auto thumbstick_event = event->AsThumbstickEvent()) {
 		const auto key = thumbstick_event->IsLeft() ? SkyPromptAPI::kThumbstickMoveL : SkyPromptAPI::kThumbstickMoveR;
-		for (const auto prompt_keys = render_manager->GetPromptKeys(); const auto & prompt_key : prompt_keys) {
+		for (const auto prompt_keys = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] : prompt_keys) {
 			if (prompt_key != 0 && prompt_key == key) {
-				block = true;
+				if (prompt_type != SkyPromptAPI::kHint) {
+			        block = true;
+                }
 				if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
 					submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove, { thumbstick_event->xValue,thumbstick_event->yValue });
 					submanager->UpdateProgressCircle(thumbstick_event->xValue != 0.f || thumbstick_event->yValue != 0.f);

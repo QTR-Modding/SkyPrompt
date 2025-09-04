@@ -65,7 +65,9 @@ namespace {
 
 float InteractionButton::GetProgressOverride(const bool increment) const {
 
-	if (type != SkyPromptAPI::kSinglePress) {
+	const bool has_progress = type == SkyPromptAPI::kHold || type == SkyPromptAPI::kHoldAndKeep;
+
+	if (has_progress) {
 		return 0.f;
 	}
 	if (!increment) {
@@ -141,16 +143,15 @@ void ButtonQueue::Show(float progress, const InteractionButton* button2show, con
     }
 
     const auto button_type = current_button->type;
+	const bool has_progress = button_type == SkyPromptAPI::kHold || button_type == SkyPromptAPI::kHoldAndKeep;
     if (const auto progress_override = current_button->GetProgressOverride(true); progress_override>EPSILON) {
-	    progress = button_type == SkyPromptAPI::kSinglePress ? -progress_override : progress_override;
+	    progress = has_progress ? progress_override : -progress_override;
 		WakeUp();
     }
 
 	//
 
-	auto button_state = button_type == SkyPromptAPI::kSinglePress
-                                                  ? -1.f
-                                                  : ButtonStateToFloat(a_button_state);
+	auto button_state = has_progress ? ButtonStateToFloat(a_button_state) : -1.f;
 
 	const auto buttonKey = current_button->GetKey();
 	const auto icon_manager = MANAGER(IconFont);
@@ -536,7 +537,9 @@ void ImGui::Renderer::SubManager::ButtonStateActions()
 		}
 	}
 
-	if (a_type != SkyPromptAPI::kSinglePress) {
+	const bool has_progress = a_type == SkyPromptAPI::kHold || a_type == SkyPromptAPI::kHoldAndKeep;
+
+	if (has_progress) {
 	    if (const auto now = std::chrono::steady_clock::now(); !buttonState.isPressing) {
 		    if (now - buttonState.lastPressTime > maxIntervalBetweenPresses) {
 				if (buttonState.pressCount == 2) {
@@ -970,11 +973,13 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 		}
 	}
 
-    if (std::shared_lock lock(progress_mutex_); progress_circle > (a_type == SkyPromptAPI::kSinglePress ? 0.f : progress_circle_max)) {
+	const bool has_progress = a_type == SkyPromptAPI::kHold || a_type == SkyPromptAPI::kHoldAndKeep;
+
+    if (std::shared_lock lock(progress_mutex_); progress_circle > (has_progress ? progress_circle_max : 0.f)) {
         progress_circle = a_type == SkyPromptAPI::kHoldAndKeep ? progress_circle_max : 0.0f;
 		lock.unlock();
 
-        if (buttonState.pressCount == 3 && a_type != SkyPromptAPI::kSinglePress) {
+        if (buttonState.pressCount == 3 && has_progress) {
             buttonState.pressCount = 0;
             ClearQueue(SkyPromptAPI::kDeclined);
         }
@@ -1002,6 +1007,13 @@ uint32_t ImGui::Renderer::SubManager::GetPromptKey() const {
 		return interactQueue.current_button->GetKey();
 	}
 	return 0;
+}
+
+SkyPromptAPI::PromptType SubManager::GetPromptType() const {
+	if (std::shared_lock lock(q_mutex_); interactQueue.current_button) {
+		return interactQueue.current_button->type;
+	}
+	return SkyPromptAPI::kSinglePress;
 }
 
 void ImGui::Renderer::SubManager::NextPrompt() {
@@ -1198,7 +1210,7 @@ void ImGui::Renderer::Manager::ShowQueue() {
     const auto [width, height] = RE::BSGraphics::Renderer::GetScreenSize();
 
     // Calculate position
-	auto resScale = GetResolutionScale();
+	const auto resScale = GetResolutionScale();
     const ImVec2 bottomRightPos(
         width * Theme::last_theme->xPercent - Theme::last_theme->marginX * resScale ,
         height * Theme::last_theme->yPercent - Theme::last_theme->marginY * resScale
@@ -1329,6 +1341,21 @@ std::vector<uint32_t> ImGui::Renderer::Manager::GetPromptKeys() const
 		}
 	}
 	return keys;
+}
+
+std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> ImGui::Renderer::Manager::GetPromptButtons() const
+{
+	std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> buttons;
+	for (std::shared_lock lock(mutex_); const auto& a_manager : managers) {
+		if (a_manager->IsHidden()) {
+			continue;
+		}
+		if (const auto key = a_manager->GetPromptKey(); key != 0) {
+			auto type = a_manager->GetPromptType();
+			buttons.emplace_back(type, key);
+		}
+	}
+	return buttons;
 }
 
 void ImGui::Renderer::Manager::ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func) {
