@@ -373,8 +373,8 @@ bool MCP::Settings::CycleControls()
 void MCP::Settings::ReloadThemes()
 {
 	std::unique_lock lock(Theme::m_theme_);
-	for (auto& a_theme : Theme::themes_loaded | std::views::values){
-		a_theme.ReLoad();
+	for (auto& [filename,a_theme] : Theme::themes_loaded){
+		a_theme.ReLoad(filename);
 	}
 }
 

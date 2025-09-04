@@ -43,7 +43,7 @@ Theme::Theme::Theme(const ThemeBlock& block) {
 
 }
 
-void Theme::Theme::ReLoad()
+void Theme::Theme::ReLoad(std::string_view a_filename)
 {
 	constexpr std::string_view themesFolder = R"(Data\SKSE\Plugins\SkyPrompt\themes)";
     if (!std::filesystem::exists(themesFolder)) {
@@ -54,7 +54,7 @@ void Theme::Theme::ReLoad()
 		if (!file.is_regular_file() || file.path().extension() != ".json") {
 			continue; // Skip non-JSON files
         }
-		if (theme_name != file.path().stem().string()) {
+		if (a_filename != file.path().stem().string()) {
 			continue; // Skip if the theme name does not match the file name
         }
 		rapidjson::Document doc;

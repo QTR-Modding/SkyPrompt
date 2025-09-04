@@ -85,7 +85,7 @@ namespace Theme {
 		Theme() = default;
         explicit Theme(const ThemeBlock& block);
 
-		void ReLoad();
+		void ReLoad(std::string_view a_filename);
 	};
 
 	inline auto default_theme = Theme();

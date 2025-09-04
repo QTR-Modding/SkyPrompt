@@ -84,7 +84,7 @@ bool ProcessRequestTheme(SkyPromptAPI::ClientID a_clientID, std::string_view the
 	if (auto theme_str = std::string(theme_name); Theme::themes_loaded.contains(theme_str)){
 	    std::unique_lock lock(Theme::m_theme_);
 		auto& a_theme = Theme::themes_loaded.at(theme_str);
-	    a_theme.ReLoad();
+	    a_theme.ReLoad(theme_str);
 		Theme::themes[a_clientID] = &a_theme;
 		return true;
 	} else {
