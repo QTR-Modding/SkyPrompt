@@ -92,7 +92,11 @@ void Theme::LoadThemes() {
 			continue; // Skip non-JSON files
 		}
 
-        logger::info("Found JSON file: {}", file.path().filename().string());
+        const auto filename = file.path().stem().string();
+        if (filename.empty()) {
+            continue;
+        }
+        logger::info("Found JSON file: {}", filename);
         rapidjson::Document doc;
         // Load the JSON file
         std::ifstream ifs(file.path());
@@ -112,8 +116,7 @@ void Theme::LoadThemes() {
         data.load(doc);
         Theme a_theme(data);
 
-        if (auto& a_name = a_theme.theme_name;
-			!a_name.empty() && !themes_loaded.contains(a_name)) {
+        if (auto& a_name = filename; !themes_loaded.contains(a_name)) {
             themes_loaded[a_name] = a_theme;
             logger::info("Loaded theme: {}", a_name);
         } else {
