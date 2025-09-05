@@ -14,6 +14,7 @@ Theme::Theme::Theme(const ThemeBlock& block) {
 	theme_author = block.theme_author.get();
 	theme_version = block.theme_version.get();
 
+    n_max_buttons = block.n_max_buttons.get();
 	marginX = block.marginX.get();
 	marginY = block.marginY.get();
 	xPercent = block.xPercent.get();

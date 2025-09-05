@@ -22,7 +22,6 @@ namespace MCP {
 	    inline float lifetime = 5.f;
 		inline bool draw_debug = false;
 
-        inline int n_max_buttons = 4;
 		inline std::map<Input::DEVICE,std::vector<uint32_t>> prompt_keys;
         inline std::map<Input::DEVICE, uint32_t> cycle_L;
         inline std::map<Input::DEVICE, uint32_t> cycle_R;
