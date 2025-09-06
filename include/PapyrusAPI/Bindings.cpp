@@ -7,8 +7,8 @@ namespace {
     std::shared_mutex mutex_;
     std::unordered_map<RE::FormID,std::pair<SkyPromptAPI::ClientID,bool>> registeredClients;
 
-    bool SendPrompt(RE::StaticFunctionTag*, const SkyPromptAPI::ClientID clientID, std::string text, const SkyPromptAPI::EventID eventID,
-                    const SkyPromptAPI::ActionID actionID, const SkyPromptAPI::PromptType type, RE::TESForm* refForm,
+    bool SendPrompt(RE::StaticFunctionTag*, SkyPromptAPI::ClientID clientID, std::string text, SkyPromptAPI::EventID eventID,
+                    SkyPromptAPI::ActionID actionID, SkyPromptAPI::PromptType type, RE::TESForm* refForm,
         RE::BSTArray<uint32_t> devices, RE::BSTArray<uint32_t> keys, float progress) {
 
         if (devices.size() != keys.size()) return false;
@@ -31,7 +31,7 @@ namespace {
 		return false;
     }
 
-    void RemovePrompt(RE::StaticFunctionTag*, const SkyPromptAPI::ClientID clientID, const SkyPromptAPI::EventID eventID, const SkyPromptAPI::ActionID actionID) {
+    void RemovePrompt(RE::StaticFunctionTag*, SkyPromptAPI::ClientID clientID, SkyPromptAPI::EventID eventID, SkyPromptAPI::ActionID actionID) {
 		std::shared_lock lock(PapyrusAPI::mutex_);
 		if (const auto it = PapyrusAPI::papyrusSinks.find(clientID); it != PapyrusAPI::papyrusSinks.end()) {
 			auto& sinks = it->second;
@@ -105,6 +105,10 @@ namespace {
         }
         return false;
     }
+
+    bool RequestTheme(RE::StaticFunctionTag*, SkyPromptAPI::ClientID clientID, std::string theme_name) {
+        return SkyPromptAPI::RequestTheme(clientID, theme_name);
+    }
 }
 
 bool PapyrusAPI::Register(RE::BSScript::IVirtualMachine* vm) {
@@ -112,6 +116,7 @@ bool PapyrusAPI::Register(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("UnregisterFromSkyPromptEvent", "SkyPrompt", UnregisterFromSkyPromptEvent);
     vm->RegisterFunction("SendPrompt", "SkyPrompt", SendPrompt);
     vm->RegisterFunction("RemovePrompt", "SkyPrompt", RemovePrompt);
+    vm->RegisterFunction("RequestTheme", "SkyPrompt", RequestTheme);
 
     return true;
 }

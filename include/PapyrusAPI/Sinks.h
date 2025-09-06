@@ -6,6 +6,7 @@ namespace PapyrusAPI {
 	inline SKSE::RegistrationSet<int, int, int, int, float, float, float> skyPromptEvents("OnSkyPromptEvent"sv);
 
 	using PromptKey = std::pair<SkyPromptAPI::EventID,SkyPromptAPI::ActionID>;
+
 	class PapyrusSink final : public SkyPromptAPI::PromptSink {
 	public:
 		explicit PapyrusSink(const SkyPromptAPI::ClientID a_clientID) : last_type(), clientID(a_clientID){};
