@@ -44,4 +44,6 @@ namespace ImGui::Renderer
         static void InstallHook(const REL::VariantID& varID);
     };
 
+	void InstallInputHook();
+
 }

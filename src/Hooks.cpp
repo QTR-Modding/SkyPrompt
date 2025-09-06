@@ -119,9 +119,6 @@ void ImGui::Renderer::Install()
 	const REL::Relocation<std::uintptr_t> target2{REL::RelocationID(75461, 77246)}; // BSGraphics::Renderer::End
     DrawHook::func = trampoline.write_call<5>(target2.address() + 0x9, DrawHook::thunk);
 
-    const REL::Relocation<std::uintptr_t> target3{REL::RelocationID(67315, 68617)};
-    InputHook::func = trampoline.write_call<5>(target3.address() + 0x7B, InputHook::thunk);
-
     MenuHook<RE::LoadingMenu>::InstallHook(RE::VTABLE_LoadingMenu[0]);
 }
 
@@ -233,6 +230,12 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 	}
 
 	return block;
+}
+
+void ImGui::Renderer::InstallInputHook() {
+    auto& trampoline = SKSE::GetTrampoline();
+    const REL::Relocation<std::uintptr_t> target3{REL::RelocationID(67315, 68617)};
+    InputHook::func = trampoline.write_call<5>(target3.address() + 0x7B, InputHook::thunk);
 }
 
 template <typename MenuType>

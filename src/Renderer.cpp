@@ -696,7 +696,7 @@ SubManager* ImGui::Renderer::Manager::Add2Q(
 		++index;
 	}
 
-    if (manager_list->size() < MCP::Settings::n_max_buttons) {
+    if (manager_list->size() < Theme::last_theme->n_max_buttons) {
 	    // if no manager has the event, make a new manager
 	    manager_list->emplace_back(std::make_unique<SubManager>());
 	}

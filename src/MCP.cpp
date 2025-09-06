@@ -416,7 +416,7 @@ void MCP::Settings::to_json()
 	root.AddMember("enabled_devices", enabled_devices_, allocator);
 
 	// n_max_buttons
-	root.AddMember("n_max_buttons", n_max_buttons, allocator);
+	root.AddMember("n_max_buttons", Theme::default_theme.n_max_buttons, allocator);
 
 	// keys
 	Value prompt_keys_json(kObjectType);
@@ -555,7 +555,7 @@ void MCP::Settings::from_json()
 
 	// n_max_buttons
 	if (mcp.HasMember("n_max_buttons")) {
-		n_max_buttons = mcp["n_max_buttons"].GetInt();
+		Theme::default_theme.n_max_buttons = mcp["n_max_buttons"].GetInt();
 	}
 
 	// prompt keys
@@ -647,7 +647,7 @@ void __stdcall MCP::RenderControls()
 	}
 
 	// need max number of buttons slider
-	if (!MCP_API::SliderInt("Max Buttons", &Settings::n_max_buttons, 1, 4)) {
+	if (!MCP_API::SliderInt("Max Buttons", &Theme::default_theme.n_max_buttons, 1, 4)) {
 		if (MCP_API::IsItemDeactivatedAfterEdit()) {
 			settingsChanged = true;
 		}
@@ -663,7 +663,7 @@ void __stdcall MCP::RenderControls()
 	DeviceBox("##device_selection");
 
 	if (current_device != Input::DEVICE::kUnknown) {
-	    for (auto i = 0; i < Settings::n_max_buttons; i++) {
+	    for (auto i = 0; i < Theme::default_theme.n_max_buttons; i++) {
 		    std::map<Input::DEVICE,uint32_t> curr_controls;
 		    for (const auto& [device, key] : Settings::prompt_keys) {
 			    curr_controls[device] = key.at(i);
