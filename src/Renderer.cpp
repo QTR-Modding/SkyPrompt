@@ -454,15 +454,24 @@ ImVec2 ImGui::Renderer::SubManager::GetAttachedObjectPos() const
 				}
 			}
 		}
-		else if (const auto a_head = ref->GetNodeByName(RE::FixedStrings::GetSingleton()->npcHead)) {
-            constexpr float npc_head_size = 15.f;
+		else if (const auto a_head = [&]() -> RE::NiAVObject* {
+			if (auto actor = ref->As<RE::Actor>()) {
+				if (auto middle = actor->GetMiddleHighProcess()) {
+					return middle->headNode; // Retorna o nó da cabeça cacheado
+				}
+			}
+			return nullptr;
+			}()) {
+			constexpr float npc_head_size = 15.f;
 			const auto cameraPos = RE::PlayerCamera::GetSingleton()->GetRuntimeData2().pos;
-            const auto npc_head_pos = a_head->world.translate;
+			const auto npc_head_pos = a_head->world.translate;
 			const auto diff = npc_head_pos - cameraPos;
 			constexpr RE::NiPoint3 z_vec(0.f, 0.f, 1.f);
+
+			// Lógica matemática original preservada
 			const auto right_vec = diff.UnitCross(z_vec);
 			pos = npc_head_pos + right_vec * npc_head_size;
-			pos2d = WorldToScreenLoc(pos) + ImVec2{(Theme::last_theme->prompt_size+padding) * DisplayTweaks::resolutionScale,0};
+			pos2d = WorldToScreenLoc(pos) + ImVec2{ (Theme::last_theme->prompt_size + padding) * DisplayTweaks::resolutionScale, 0 };
 		}
 		else {
             const auto geo = Geometry(ref);
