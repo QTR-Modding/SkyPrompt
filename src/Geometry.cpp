@@ -11,22 +11,20 @@ namespace {
     }
 
 
-    void EachGeometry(const RE::TESObjectREFR* obj, const std::function<void(RE::BSGeometry* o3d, RE::BSGraphics::TriShape*)>& callback) {
+    void EachGeometry(const RE::TESObjectREFR* obj,
+                      const std::function<void(RE::BSGeometry* o3d, RE::BSGraphics::TriShape*)>& callback) {
         if (const auto d3d = obj->Get3D()) {
+            RE::BSVisit::TraverseScenegraphGeometries(
+                d3d, [&](RE::BSGeometry* a_geometry) -> RE::BSVisit::BSVisitControl {
+                    const auto& model = a_geometry->GetGeometryRuntimeData();
 
-            RE::BSVisit::TraverseScenegraphGeometries(d3d, [&](RE::BSGeometry* a_geometry) -> RE::BSVisit::BSVisitControl {
+                    if (const auto triShape = model.rendererData) {
+                        callback(a_geometry, triShape);
+                    }
 
-                const auto& model = a_geometry->GetGeometryRuntimeData();
-
-                if (const auto triShape = model.rendererData) {
-
-                    callback(a_geometry, triShape);
-                }
-
-                return RE::BSVisit::BSVisitControl::kContinue;
-            });
-
-        } 
+                    return RE::BSVisit::BSVisitControl::kContinue;
+                });
+        }
     }
 }
 
@@ -39,9 +37,9 @@ void Geometry::FetchVertexes(const RE::BSGeometry* o3d, RE::BSGraphics::TriShape
         for (uint32_t i = 0; i < numPoints; i += stride) {
             const uint8_t* currentVertex = vertexData + i;
 
-            const float* position =
+            auto position =
                 reinterpret_cast<const float*>(currentVertex + triShape->vertexDesc.GetAttributeOffset(
-                                                                   RE::BSGraphics::Vertex::Attribute::VA_POSITION));
+                                                   RE::BSGraphics::Vertex::Attribute::VA_POSITION));
 
             auto pos = RE::NiPoint3{position[0], position[1], position[2]};
             pos = o3d->local * pos;
@@ -49,10 +47,11 @@ void Geometry::FetchVertexes(const RE::BSGeometry* o3d, RE::BSGraphics::TriShape
         }
     }
 }
+
 void Geometry::FetchIndexes(const RE::BSGraphics::TriShape* triShape) {
     const auto numIndexes = GetBufferLength(triShape->indexBuffer) / sizeof(uint16_t);
 
-    const auto offset = static_cast<uint16_t>(indexes.size()); 
+    const auto offset = static_cast<uint16_t>(indexes.size());
     indexes.reserve(indexes.size() + numIndexes);
 
     for (auto i = 0; i < numIndexes; i++) {
@@ -70,8 +69,7 @@ RE::NiPoint3 Geometry::Rotate(const RE::NiPoint3& A, const RE::NiPoint3& angles)
 Geometry::~Geometry() = default;
 
 Geometry::Geometry(RE::TESObjectREFR* obj) {
-
-        this->obj = obj;
+    this->obj = obj;
     EachGeometry(obj, [this](const RE::BSGeometry* o3d, RE::BSGraphics::TriShape* triShape) -> void {
         FetchVertexes(o3d, triShape);
         //FetchIndexes(triShape);
@@ -95,7 +93,6 @@ Geometry::Geometry(RE::TESObjectREFR* obj) {
         positions.push_back(RE::NiPoint3(to.x, to.y, to.z));
         positions.push_back(RE::NiPoint3(from.x, to.y, to.z));
     }
-
 }
 
 std::pair<RE::NiPoint3, RE::NiPoint3> Geometry::GetBoundingBox(const RE::NiPoint3 angle, const float scale) const {
@@ -126,5 +123,4 @@ std::pair<RE::NiPoint3, RE::NiPoint3> Geometry::GetBoundingBox(const RE::NiPoint
     }
 
     return std::pair(min, max);
-
 }

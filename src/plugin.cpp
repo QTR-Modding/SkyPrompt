@@ -11,7 +11,7 @@
 
 void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
-	    SpeedProfiler profiler("Plugin load (Part 2)");
+        SpeedProfiler profiler("Plugin load (Part 2)");
 
         ImGui::Renderer::InstallInputHook();
 
@@ -23,25 +23,25 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
             Tutorial::Manager::Start();
         }
     }
-	if (message->type == SKSE::MessagingInterface::kInputLoaded) {
-		if (MCP::Settings::prompt_keys.empty()) {
-			MCP::Settings::LoadDefaultPromptKeys();
-		}
-	}
+    if (message->type == SKSE::MessagingInterface::kInputLoaded) {
+        if (MCP::Settings::prompt_keys.empty()) {
+            MCP::Settings::LoadDefaultPromptKeys();
+        }
+    }
 }
 
 SKSEPluginLoad(const SKSE::LoadInterface *skse) {
-	SpeedProfiler profiler("Plugin load (Part 1)");
+    SpeedProfiler profiler("Plugin load (Part 1)");
     SetupLog();
     SKSE::Init(skse);
 
     logger::info("Plugin loaded");
 
     if (!MANAGER(IconFont)->IsImGuiIconsInstalled()) {
-		logger::error("Failed to load ImGui icons.");
-		return false;
+        logger::error("Failed to load ImGui icons.");
+        return false;
     }
-	logger::info("ImGui icons loaded.");
+    logger::info("ImGui icons loaded.");
 
     Theme::LoadThemes();
 
@@ -50,8 +50,8 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     }
 
     Settings::GetSingleton()->LoadSettings();
-	ImGui::Styles::GetSingleton()->RefreshStyle();
-	ImGui::Renderer::Install();
+    ImGui::Styles::GetSingleton()->RefreshStyle();
+    ImGui::Renderer::Install();
 
     return true;
 }
