@@ -7,19 +7,21 @@ const std::string mod_folder = "Data/SKSE/Plugins/" + mod_name + "/";
 inline auto json_folder = mod_folder + "settings.json";
 
 class SpeedProfiler {
-	std::chrono::time_point<std::chrono::steady_clock> start_time;
-	std::chrono::time_point<std::chrono::steady_clock> end_time;
-	std::string name;
+    std::chrono::time_point<std::chrono::steady_clock> start_time;
+    std::chrono::time_point<std::chrono::steady_clock> end_time;
+    std::string name;
+
 public:
     explicit SpeedProfiler(const std::string& name) {
-		start_time = std::chrono::steady_clock::now();
-		this->name = name;
-	}
-	~SpeedProfiler() {
-		end_time = std::chrono::steady_clock::now();
-		std::chrono::duration<double> elapsed_seconds = end_time - start_time;
-		logger::info("{}: Elapsed time: {}", name, elapsed_seconds.count());
-	}
+        start_time = std::chrono::steady_clock::now();
+        this->name = name;
+    }
+
+    ~SpeedProfiler() {
+        end_time = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed_seconds = end_time - start_time;
+        logger::info("{}: Elapsed time: {}", name, elapsed_seconds.count());
+    }
 };
 
 void BeginImGuiWindow(const char* window_name);
@@ -43,10 +45,9 @@ namespace WorldObjects {
         return body;
     }
 
-    inline RE::NiPoint3 GetPosition(const RE::TESObjectREFR* obj)
-    {
+    inline RE::NiPoint3 GetPosition(const RE::TESObjectREFR* obj) {
         const auto body = GetRigidBody(obj);
-	    if (!body) return obj->GetPosition();
+        if (!body) return obj->GetPosition();
         RE::hkVector4 havockPosition;
         body->GetPosition(havockPosition);
         float components[4];
@@ -65,7 +66,10 @@ class SkyrimMessageBox {
 
     public:
         ~MessageBoxResultCallback() override = default;
-        explicit MessageBoxResultCallback(const std::function<void(unsigned int)>& callback) : _callback(callback) {}
+
+        explicit MessageBoxResultCallback(const std::function<void(unsigned int)>& callback) : _callback(callback) {
+        }
+
         void Run(Message message) override {
             _callback(static_cast<unsigned int>(message));
         }

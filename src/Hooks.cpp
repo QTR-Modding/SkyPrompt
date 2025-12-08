@@ -12,7 +12,7 @@
 using namespace ImGui::Renderer;
 
 LRESULT WndProc::thunk(const HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM lParam) {
-    auto& io = ImGui::GetIO();
+    auto& io = GetIO();
     if (uMsg == WM_KILLFOCUS) {
         io.ClearInputKeys();
     }
@@ -41,9 +41,9 @@ void CreateD3DAndSwapChain::thunk() {
 
         logger::info("Initializing ImGui...");
 
-        ImGui::CreateContext();
+        CreateContext();
 
-        auto& io = ImGui::GetIO();
+        auto& io = GetIO();
         io.ConfigFlags = ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
         io.IniFilename = nullptr;
 
@@ -79,7 +79,7 @@ void DrawHook::thunk(std::uint32_t a_timer) {
         return;
     }
 
-    ImGui::Styles::GetSingleton()->OnStyleRefresh();
+    Styles::GetSingleton()->OnStyleRefresh();
 
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
@@ -87,47 +87,45 @@ void DrawHook::thunk(std::uint32_t a_timer) {
         // trick imgui into rendering at game's real resolution (ie. if upscaled with Display Tweaks)
         static const auto screenSize = RE::BSGraphics::Renderer::GetScreenSize();
 
-        auto& io = ImGui::GetIO();
+        auto& io = GetIO();
         io.DisplaySize.x = static_cast<float>(screenSize.width);
         io.DisplaySize.y = static_cast<float>(screenSize.height);
     }
-    ImGui::NewFrame();
+    NewFrame();
     {
         RenderPrompts();
     }
-    ImGui::EndFrame();
-    ImGui::Render();
-    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+    EndFrame();
+    Render();
+    ImGui_ImplDX11_RenderDrawData(GetDrawData());
 }
 
 
-void ImGui::Renderer::UpdateMaxIntervalBetweenPresses()
-{
+void ImGui::Renderer::UpdateMaxIntervalBetweenPresses() {
     const auto responsiveness = MCP::Settings::SpecialCommands::responsiveness;
-	// at responsiveness == 1, the max interval between presses is 220ms
-	// at responsiveness == 0, the max interval between presses is 1000ms
-	maxIntervalBetweenPresses = std::chrono::milliseconds(static_cast<int>(1000 - (780)*responsiveness));
+    // at responsiveness == 1, the max interval between presses is 220ms
+    // at responsiveness == 0, the max interval between presses is 1000ms
+    maxIntervalBetweenPresses = std::chrono::milliseconds(static_cast<int>(1000 - (780) * responsiveness));
 }
 
-void ImGui::Renderer::Install()
-{
+void ImGui::Renderer::Install() {
     auto& trampoline = SKSE::GetTrampoline();
     constexpr size_t size_per_hook = 14;
-	trampoline.create(size_per_hook*3);
-    const REL::Relocation<std::uintptr_t> target{REL::RelocationID(75595, 77226)};  // BSGraphics::InitD3D
-    CreateD3DAndSwapChain::func = trampoline.write_call<5>(target.address() + REL::Relocate(0x9, 0x275), CreateD3DAndSwapChain::thunk);
+    trampoline.create(size_per_hook * 3);
+    const REL::Relocation<std::uintptr_t> target{REL::RelocationID(75595, 77226)}; // BSGraphics::InitD3D
+    CreateD3DAndSwapChain::func = trampoline.write_call<5>(target.address() + REL::Relocate(0x9, 0x275),
+                                                           CreateD3DAndSwapChain::thunk);
 
-	const REL::Relocation<std::uintptr_t> target2{REL::RelocationID(75461, 77246)}; // BSGraphics::Renderer::End
+    const REL::Relocation<std::uintptr_t> target2{REL::RelocationID(75461, 77246)}; // BSGraphics::Renderer::End
     DrawHook::func = trampoline.write_call<5>(target2.address() + 0x9, DrawHook::thunk);
 
     MenuHook<RE::LoadingMenu>::InstallHook(RE::VTABLE_LoadingMenu[0]);
 }
 
-void ImGui::Renderer::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::InputEvent* const* a_event)
-{
-	if (!a_dispatcher || !a_event || !MCP::Settings::initialized) {
-		return func(a_dispatcher, a_event);
-	}
+void InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::InputEvent* const* a_event) {
+    if (!a_dispatcher || !a_event || !MCP::Settings::initialized) {
+        return func(a_dispatcher, a_event);
+    }
 
     auto first = *a_event;
     auto last = *a_event;
@@ -156,81 +154,85 @@ void ImGui::Renderer::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_di
     }
 }
 
-bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
-{
+bool InputHook::ProcessInput(RE::InputEvent* event) {
     bool block = false;
 
     const auto render_manager = MANAGER(ImGui::Renderer);
-	if (render_manager->IsPaused()) return block;
-	if (render_manager->IsHidden()) return block;
+    if (render_manager->IsPaused()) return block;
+    if (render_manager->IsHidden()) return block;
 
     const auto input_manager = MANAGER(Input);
-	input_manager->UpdateInputDevice(event);
+    input_manager->UpdateInputDevice(event);
 
-	if (const auto button_event = event->AsButtonEvent()) {
-		const auto key = input_manager->Convert(button_event->GetIDCode(),button_event->GetDevice());
-        for (const auto prompt_buttons = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] : prompt_buttons) {
-            if (prompt_key!=0 && prompt_key == key) {
+    if (const auto button_event = event->AsButtonEvent()) {
+        const auto key = input_manager->Convert(button_event->GetIDCode(), button_event->GetDevice());
+        for (const auto prompt_buttons = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] :
+             prompt_buttons) {
+            if (prompt_key != 0 && prompt_key == key) {
                 if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
-			        block = true;
+                    block = true;
                 }
-			    const auto now = std::chrono::steady_clock::now();
+                const auto now = std::chrono::steady_clock::now();
                 if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
-					submanager->buttonState.isPressing = button_event->IsPressed();
+                    submanager->buttonState.isPressing = button_event->IsPressed();
                     if (button_event->IsDown()) {
                         submanager->buttonState.pressCount++;
                         submanager->buttonState.lastPressTime = now;
-                        submanager->SendEvent(submanager->GetCurrentInteraction(),SkyPromptAPI::PromptEventType::kDown);
-					}
-					else if (button_event->IsUp()) {
-						submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kUp);
-					}
-                    if (submanager->buttonState.pressCount>0 || !submanager->buttonState.isPressing) {
-					    submanager->UpdateProgressCircle(submanager->buttonState.isPressing);
+                        submanager->SendEvent(submanager->GetCurrentInteraction(),
+                                              SkyPromptAPI::PromptEventType::kDown);
+                    } else if (button_event->IsUp()) {
+                        submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kUp);
+                    }
+                    if (submanager->buttonState.pressCount > 0 || !submanager->buttonState.isPressing) {
+                        submanager->UpdateProgressCircle(submanager->buttonState.isPressing);
                     }
                 }
-		    }
-		}
-
-	    if (!block && button_event->IsDown()) {
-			const auto device = input_manager->GetInputDevice();
-            const bool is_L = key == MCP::Settings::cycle_L[device];
-			const bool is_R = key == MCP::Settings::cycle_R[device];
-		    if (is_L || is_R) {
-				block = Manager::GetSingleton()->CycleClient(is_L);
-		    }
+            }
         }
-	}
-	else if (const auto mouse_event = event->AsMouseMoveEvent()) {
-        constexpr auto key = SkyPromptAPI::kMouseMove;
-		for (const auto prompt_keys = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] : prompt_keys) {
-			if (prompt_key != 0 && prompt_key == key) {
-				if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
-			        block = true;
-                }
-				if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
-                    submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove, {static_cast<float>(mouse_event->mouseInputX),static_cast<float>(mouse_event->mouseInputY)});
-					submanager->UpdateProgressCircle(mouse_event->mouseInputX != 0 || mouse_event->mouseInputY != 0);
-				}
-			}
-		}
-	}
-	else if (const auto thumbstick_event = event->AsThumbstickEvent()) {
-		const auto key = thumbstick_event->IsLeft() ? SkyPromptAPI::kThumbstickMoveL : SkyPromptAPI::kThumbstickMoveR;
-		for (const auto prompt_keys = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] : prompt_keys) {
-			if (prompt_key != 0 && prompt_key == key) {
-				if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
-			        block = true;
-                }
-				if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
-					submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove, { thumbstick_event->xValue,thumbstick_event->yValue });
-					submanager->UpdateProgressCircle(thumbstick_event->xValue != 0.f || thumbstick_event->yValue != 0.f);
-				}
-			}
-		}
-	}
 
-	return block;
+        if (!block && button_event->IsDown()) {
+            const auto device = input_manager->GetInputDevice();
+            const bool is_L = key == MCP::Settings::cycle_L[device];
+            const bool is_R = key == MCP::Settings::cycle_R[device];
+            if (is_L || is_R) {
+                block = Manager::GetSingleton()->CycleClient(is_L);
+            }
+        }
+    } else if (const auto mouse_event = event->AsMouseMoveEvent()) {
+        constexpr auto key = SkyPromptAPI::kMouseMove;
+        for (const auto prompt_keys = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] :
+             prompt_keys) {
+            if (prompt_key != 0 && prompt_key == key) {
+                if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
+                    block = true;
+                }
+                if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
+                    submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove,
+                                          {static_cast<float>(mouse_event->mouseInputX),
+                                           static_cast<float>(mouse_event->mouseInputY)});
+                    submanager->UpdateProgressCircle(mouse_event->mouseInputX != 0 || mouse_event->mouseInputY != 0);
+                }
+            }
+        }
+    } else if (const auto thumbstick_event = event->AsThumbstickEvent()) {
+        const auto key = thumbstick_event->IsLeft() ? SkyPromptAPI::kThumbstickMoveL : SkyPromptAPI::kThumbstickMoveR;
+        for (const auto prompt_keys = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] :
+             prompt_keys) {
+            if (prompt_key != 0 && prompt_key == key) {
+                if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
+                    block = true;
+                }
+                if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
+                    submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove,
+                                          {thumbstick_event->xValue, thumbstick_event->yValue});
+                    submanager->
+                        UpdateProgressCircle(thumbstick_event->xValue != 0.f || thumbstick_event->yValue != 0.f);
+                }
+            }
+        }
+    }
+
+    return block;
 }
 
 void ImGui::Renderer::InstallInputHook() {
@@ -241,14 +243,13 @@ void ImGui::Renderer::InstallInputHook() {
 
 template <typename MenuType>
 RE::UI_MESSAGE_RESULTS MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMessage& a_message) {
-    if (const std::string_view menuname = MenuType::MENU_NAME; a_message.menu==menuname) {
+    if (const std::string_view menuname = MenuType::MENU_NAME; a_message.menu == menuname) {
         if (const auto msg_type = static_cast<int>(a_message.type.get()); msg_type == 1) {
             if (menuname == RE::LoadingMenu::MENU_NAME) {
                 MCP::Settings::initialized.store(false);
                 MANAGER(ImGui::Renderer)->Stop();
             }
-        }
-        else if (msg_type == 3) {
+        } else if (msg_type == 3) {
             MCP::Settings::initialized.store(true);
         }
     }

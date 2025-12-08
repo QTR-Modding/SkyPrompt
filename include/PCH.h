@@ -44,15 +44,13 @@ using ComPtr = Microsoft::WRL::ComPtr<T>;
 template <class K, class D>
 using Map = ankerl::unordered_dense::map<K, D>;
 
-struct string_hash
-{
-	using is_transparent = void;  // enable heterogeneous overloads
-	using is_avalanching = void;  // mark class as high quality avalanching hash
+struct string_hash {
+    using is_transparent = void; // enable heterogeneous overloads
+    using is_avalanching = void; // mark class as high quality avalanching hash
 
-	[[nodiscard]] std::uint64_t operator()(const std::string_view str) const noexcept
-	{
-		return ankerl::unordered_dense::hash<std::string_view>{}(str);
-	}
+    [[nodiscard]] std::uint64_t operator()(const std::string_view str) const noexcept {
+        return ankerl::unordered_dense::hash<std::string_view>{}(str);
+    }
 };
 
 template <class D>
