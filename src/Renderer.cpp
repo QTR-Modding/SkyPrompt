@@ -5,7 +5,9 @@
 #include "Styles.h"
 #include "Utils.h"
 #include "Geometry.h"
+#include "Service.h"
 #include "Tutorial.h"
+
 
 using namespace ImGui::Renderer;
 
@@ -65,9 +67,7 @@ namespace {
 
 float InteractionButton::GetProgressOverride(const bool increment) const {
 
-	const bool has_progress = type == SkyPromptAPI::kHold || type == SkyPromptAPI::kHoldAndKeep;
-
-	if (has_progress) {
+	if (PromptTypeFlags::GetHasProgress(type)) {
 		return 0.f;
 	}
 	if (!increment) {
@@ -143,13 +143,11 @@ void ButtonQueue::Show(float progress, const InteractionButton* button2show, con
     }
 
     const auto button_type = current_button->type;
-	const bool has_progress = button_type == SkyPromptAPI::kHold || button_type == SkyPromptAPI::kHoldAndKeep;
+    const bool has_progress = PromptTypeFlags::GetHasProgress(button_type);
     if (const auto progress_override = current_button->GetProgressOverride(true); progress_override>EPSILON) {
 	    progress = has_progress ? progress_override : -progress_override;
 		WakeUp();
     }
-
-	//
 
 	auto button_state = has_progress ? ButtonStateToFloat(a_button_state) : -1.f;
 
@@ -168,6 +166,7 @@ void ButtonQueue::Show(float progress, const InteractionButton* button2show, con
     if (!buttonIcon) {
         logger::error("Button icon not found for key {}", buttonKey);
 		icon_manager->unavailable_keys.insert(buttonKey);
+        return;
     }
 
     if (buttonIcon->srView.Get()) {
@@ -545,9 +544,7 @@ void ImGui::Renderer::SubManager::ButtonStateActions()
 		}
 	}
 
-	const bool has_progress = a_type == SkyPromptAPI::kHold || a_type == SkyPromptAPI::kHoldAndKeep;
-
-	if (has_progress) {
+	if (PromptTypeFlags::GetHasProgress(a_type)) {
 	    if (const auto now = std::chrono::steady_clock::now(); !buttonState.isPressing) {
 		    if (now - buttonState.lastPressTime > maxIntervalBetweenPresses) {
 				if (buttonState.pressCount == 2) {
@@ -981,10 +978,11 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 		}
 	}
 
-	const bool has_progress = a_type == SkyPromptAPI::kHold || a_type == SkyPromptAPI::kHoldAndKeep;
+	const bool has_progress = PromptTypeFlags::GetHasProgress(a_type);
+    const bool is_holdandkeeptype = PromptTypeFlags::GetIsHoldAndKeepType(a_type);
 
     if (std::shared_lock lock(progress_mutex_); progress_circle > (has_progress ? progress_circle_max : 0.f)) {
-        progress_circle = a_type == SkyPromptAPI::kHoldAndKeep ? progress_circle_max : 0.0f;
+        progress_circle = is_holdandkeeptype ? progress_circle_max : 0.0f;
 		lock.unlock();
 
         if (buttonState.pressCount == 3 && has_progress) {
@@ -999,7 +997,7 @@ bool ImGui::Renderer::SubManager::UpdateProgressCircle(const bool isPressing)
 			const auto curr_button = GetCurrentButton();
 			SendEvent(interaction, SkyPromptAPI::PromptEventType::kAccepted, {0.f,0.f}, curr_button ? curr_button->GetProgressOverride(false) : 0.f);
 	        Start();
-			if (a_type != SkyPromptAPI::kHoldAndKeep) {
+            if (!is_holdandkeeptype) {
 	            blockProgress.store(true);
 			}
 		}

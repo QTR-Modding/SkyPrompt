@@ -49,7 +49,7 @@ struct string_hash
 	using is_transparent = void;  // enable heterogeneous overloads
 	using is_avalanching = void;  // mark class as high quality avalanching hash
 
-	[[nodiscard]] std::uint64_t operator()(std::string_view str) const noexcept
+	[[nodiscard]] std::uint64_t operator()(const std::string_view str) const noexcept
 	{
 		return ankerl::unordered_dense::hash<std::string_view>{}(str);
 	}

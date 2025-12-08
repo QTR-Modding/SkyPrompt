@@ -2,6 +2,7 @@
 #include "IconsFonts.h"
 #include "Input.h"
 #include "Renderer.h"
+#include "Service.h"
 #include "Tutorial.h"
 #include "Styles.h"
 #include "imgui_impl_dx11.h"
@@ -170,7 +171,7 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 		const auto key = input_manager->Convert(button_event->GetIDCode(),button_event->GetDevice());
         for (const auto prompt_buttons = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] : prompt_buttons) {
             if (prompt_key!=0 && prompt_key == key) {
-                if (prompt_type != SkyPromptAPI::kHint) {
+                if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
 			        block = true;
                 }
 			    const auto now = std::chrono::steady_clock::now();
@@ -204,7 +205,7 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
         constexpr auto key = SkyPromptAPI::kMouseMove;
 		for (const auto prompt_keys = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] : prompt_keys) {
 			if (prompt_key != 0 && prompt_key == key) {
-				if (prompt_type != SkyPromptAPI::kHint) {
+				if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
 			        block = true;
                 }
 				if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
@@ -218,7 +219,7 @@ bool ImGui::Renderer::InputHook::ProcessInput(RE::InputEvent* event)
 		const auto key = thumbstick_event->IsLeft() ? SkyPromptAPI::kThumbstickMoveL : SkyPromptAPI::kThumbstickMoveR;
 		for (const auto prompt_keys = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] : prompt_keys) {
 			if (prompt_key != 0 && prompt_key == key) {
-				if (prompt_type != SkyPromptAPI::kHint) {
+				if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
 			        block = true;
                 }
 				if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
