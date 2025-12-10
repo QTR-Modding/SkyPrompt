@@ -757,13 +757,12 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
     for (const auto prompts = a_prompt_sink->GetPrompts();
          const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color, progress] : prompts) {
         auto a_txt = std::string(text);
-        if (a_txt.starts_with('$')) {
-            SKSE::Translation::Translate(a_txt, a_txt);
-        }
         if (a_txt.empty()) {
             logger::warn("Empty prompt text");
             return false;
         }
+
+        TranslateEmbedded(a_txt);
 
         std::map<Input::DEVICE, uint32_t> temp_button_keys;
         for (const auto& [a_device, key] : button_key) {
