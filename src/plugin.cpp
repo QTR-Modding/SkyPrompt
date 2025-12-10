@@ -30,7 +30,6 @@ namespace {
             }
         }
     }
-    
 }
 
 SKSEPluginLoad(const SKSE::LoadInterface *skse) {
