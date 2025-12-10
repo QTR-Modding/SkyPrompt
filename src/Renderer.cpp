@@ -756,7 +756,12 @@ bool Manager::CycleClient(const bool a_left) {
 bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID) {
     for (const auto prompts = a_prompt_sink->GetPrompts();
          const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color, progress] : prompts) {
-        if (text.empty()) {
+
+        auto a_txt = std::string(text);
+        if (text.starts_with('$')) {
+            SKSE::Translation::Translate(a_txt, a_txt);
+        }
+        if (a_txt.empty()) {
             logger::warn("Empty prompt text");
             return false;
         }
@@ -772,7 +777,6 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
             }
         }
         const auto interaction = MakeInteraction(a_clientID, a_event, a_action);
-        const auto a_txt = std::string(text);
         if (const auto submanager = Add2Q(a_clientID, interaction, {a_txt, text_color, progress}, a_type, a_refid,
                                           temp_button_keys, true)) {
             if (!GetManagerList(a_clientID)) {
