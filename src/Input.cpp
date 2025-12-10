@@ -383,6 +383,7 @@ namespace Input {
     }
 
     uint32_t Manager::Convert(const uint32_t button_key, const RE::INPUT_DEVICE a_device) {
+        using namespace SKSE::InputMap;
         if (button_key == SkyPromptAPI::kMouseMove ||
             button_key == SkyPromptAPI::kThumbstickMoveL ||
             button_key == SkyPromptAPI::kThumbstickMoveR ||
@@ -394,10 +395,16 @@ namespace Input {
             return button_key;
         }
         if (a_device == RE::INPUT_DEVICE::kMouse) {
-            return button_key + SKSE::InputMap::kMacro_MouseButtonOffset;
+            if (kMacro_MouseButtonOffset <= button_key && button_key < kMacro_GamepadOffset) {
+                return button_key;
+            }
+            return button_key + kMacro_MouseButtonOffset;
         }
         if (a_device == RE::INPUT_DEVICE::kGamepad) {
-            return SKSE::InputMap::GamepadMaskToKeycode(button_key);
+            if (kMacro_GamepadOffset <= button_key && button_key < kMaxMacros) {
+                return button_key;
+            }
+            return GamepadMaskToKeycode(button_key);
         }
         return 0;
     }

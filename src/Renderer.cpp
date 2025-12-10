@@ -756,7 +756,6 @@ bool Manager::CycleClient(const bool a_left) {
 bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID) {
     for (const auto prompts = a_prompt_sink->GetPrompts();
          const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color, progress] : prompts) {
-
         auto a_txt = std::string(text);
         if (a_txt.starts_with('$')) {
             SKSE::Translation::Translate(a_txt, a_txt);
@@ -1090,7 +1089,8 @@ bool SubManager::IsInQueue(const Interaction& a_interaction) const {
 uint32_t InteractionButton::GetKey() const {
     const auto manager = MANAGER(Input)->GetSingleton();
     const auto a_device = manager->GetInputDevice();
-    return keys.contains(a_device) ? keys.at(a_device) : MCP::Settings::prompt_keys.at(a_device).at(default_key_index);
+    const auto it = keys.find(a_device);
+    return it != keys.end() ? it->second : MCP::Settings::prompt_keys.at(a_device).at(default_key_index);
 }
 
 InteractionButton::InteractionButton(const Interaction& a_interaction, const Mutables& a_mutables,
