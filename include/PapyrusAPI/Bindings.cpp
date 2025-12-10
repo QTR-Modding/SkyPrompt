@@ -30,9 +30,9 @@ namespace {
     }
 
     bool SendPromptForControl(RE::StaticFunctionTag*, SkyPromptAPI::ClientID clientID, std::string text,
-                               SkyPromptAPI::EventID eventID, SkyPromptAPI::ActionID actionID,
-                               SkyPromptAPI::PromptType type, RE::TESForm* refForm,
-                               std::string a_controlName, int a_contextID, float progress) {
+                              SkyPromptAPI::EventID eventID, SkyPromptAPI::ActionID actionID,
+                              SkyPromptAPI::PromptType type, RE::TESForm* refForm,
+                              std::string a_controlName, int a_contextID, float progress) {
         constexpr std::array devices = {RE::INPUT_DEVICE::kKeyboard, RE::INPUT_DEVICE::kMouse,
                                         RE::INPUT_DEVICE::kGamepad};
 
@@ -42,6 +42,9 @@ namespace {
             auto a_key = RE::ControlMap::GetSingleton()->GetMappedKey(a_controlName, a_device,
                                                                       static_cast<RE::ControlMap::InputContextID>(
                                                                           a_contextID));
+            if (a_key == RE::ControlMap::kInvalid) {
+                continue;
+            }
             bindings.emplace_back(a_device, a_key);
         }
 
