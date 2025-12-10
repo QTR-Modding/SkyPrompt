@@ -758,7 +758,7 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
          const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color, progress] : prompts) {
 
         auto a_txt = std::string(text);
-        if (text.starts_with('$')) {
+        if (a_txt.starts_with('$')) {
             SKSE::Translation::Translate(a_txt, a_txt);
         }
         if (a_txt.empty()) {
