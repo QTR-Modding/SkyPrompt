@@ -3,7 +3,6 @@
 #include "ClibUtil/editorID.hpp"
 
 namespace {
-    std::shared_mutex mutex_;
     std::unordered_map<RE::FormID, std::pair<SkyPromptAPI::ClientID, bool>> registeredClients;
 
     bool SendPrompt(RE::StaticFunctionTag*, SkyPromptAPI::ClientID clientID, std::string text,
@@ -51,7 +50,7 @@ namespace {
         }
 
         if (a_major != SkyPromptAPI::MAJOR) {
-            logger::error("API version mismatch. SkyPromot: {}.{}, Papyrus Quest {}: {}.{}",
+            logger::error("API version mismatch. SkyPrompt: {}.{}, Papyrus Quest {}: {}.{}",
                           SkyPromptAPI::MAJOR, SkyPromptAPI::MINOR, clib_util::editorID::get_editorID(a_form), a_major,
                           a_minor);
             return 0;
