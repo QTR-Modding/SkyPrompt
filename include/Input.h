@@ -1,4 +1,5 @@
 #pragma once
+#include "REX/REX/Singleton.h"
 
 namespace Input {
     enum DEVICE {
@@ -14,7 +15,7 @@ namespace Input {
     DEVICE from_RE_device(RE::INPUT_DEVICE a_device);
 
     class Manager final :
-        public clib_util::singleton::ISingleton<Manager> {
+        public REX::Singleton<Manager> {
     public:
         [[nodiscard]] DEVICE GetInputDevice() const;
         void UpdateInputDevice(RE::InputEvent* event);

@@ -1,7 +1,6 @@
 #pragma once
 #include "RE/Skyrim.h"
 #include "SKSE/SKSE.h"
-#include <spdlog/sinks/basic_file_sink.h>
 
 namespace logger = SKSE::log;
 using namespace std::literals;
@@ -24,9 +23,6 @@ constexpr float EPSILON = 1e-10f;
 #include <DirectXTex.h>
 
 #include <ankerl/unordered_dense.h>
-
-#include <ClibUtil/simpleINI.hpp>
-#include <ClibUtil/singleton.hpp>
 
 using EventResult = RE::BSEventNotifyControl;
 

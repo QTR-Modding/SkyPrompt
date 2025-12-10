@@ -1,8 +1,10 @@
 #pragma once
+#include <REX/REX/Singleton.h>
 #include "CLibUtilsQTR/PresetSettings.hpp"
+#include "ClibUtil/simpleINI.hpp"
 
 
-class Settings : public clib_util::singleton::ISingleton<Settings> {
+class Settings : public REX::Singleton<Settings> {
 public:
     void LoadSettings() const;
 

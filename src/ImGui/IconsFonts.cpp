@@ -4,7 +4,6 @@
 #include "imgui_internal.h"
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
-#include <numbers>
 #include "MCP.h"
 #include "SkyPrompt/AddOns.hpp"
 
