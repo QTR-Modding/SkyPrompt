@@ -3,7 +3,6 @@
 #include "ClibUtil/editorID.hpp"
 
 namespace {
-    std::shared_mutex mutex_;
     std::unordered_map<RE::FormID, std::pair<SkyPromptAPI::ClientID, bool>> registeredClients;
 
     bool SendPrompt(RE::StaticFunctionTag*, SkyPromptAPI::ClientID clientID, std::string text,
@@ -15,6 +14,37 @@ namespace {
         for (RE::BSTArray<uint32_t>::size_type i = 0; i < devices.size(); ++i) {
             auto a_device = static_cast<RE::INPUT_DEVICE>(devices[i]);
             auto a_key = keys[i];
+            bindings.emplace_back(a_device, a_key);
+        }
+
+        if (PapyrusAPI::AddPrompt(clientID, text, eventID, actionID, type, refForm, bindings, progress)) {
+            std::shared_lock lock(PapyrusAPI::mutex_);
+            if (const auto it = PapyrusAPI::papyrusSinks.find(clientID); it != PapyrusAPI::papyrusSinks.end()) {
+                auto& sinks = it->second;
+                if (const auto a_sink = sinks.find({eventID, actionID}); a_sink != sinks.end()) {
+                    return SkyPromptAPI::SendPrompt(a_sink->second.get(), clientID);
+                }
+            }
+        }
+        return false;
+    }
+
+    bool SendPromptForControl(RE::StaticFunctionTag*, SkyPromptAPI::ClientID clientID, std::string text,
+                              SkyPromptAPI::EventID eventID, SkyPromptAPI::ActionID actionID,
+                              SkyPromptAPI::PromptType type, RE::TESForm* refForm,
+                              std::string a_controlName, int a_contextID, float progress) {
+        constexpr std::array devices = {RE::INPUT_DEVICE::kKeyboard, RE::INPUT_DEVICE::kMouse,
+                                        RE::INPUT_DEVICE::kGamepad};
+
+        std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>> bindings;
+        for (size_t i = 0; i < devices.size(); ++i) {
+            auto a_device = devices[i];
+            auto a_key = RE::ControlMap::GetSingleton()->GetMappedKey(a_controlName, a_device,
+                                                                      static_cast<RE::ControlMap::InputContextID>(
+                                                                          a_contextID));
+            if (a_key == RE::ControlMap::kInvalid) {
+                continue;
+            }
             bindings.emplace_back(a_device, a_key);
         }
 
@@ -51,7 +81,7 @@ namespace {
         }
 
         if (a_major != SkyPromptAPI::MAJOR) {
-            logger::error("API version mismatch. SkyPromot: {}.{}, Papyrus Quest {}: {}.{}",
+            logger::error("API version mismatch. SkyPrompt: {}.{}, Papyrus Quest {}: {}.{}",
                           SkyPromptAPI::MAJOR, SkyPromptAPI::MINOR, clib_util::editorID::get_editorID(a_form), a_major,
                           a_minor);
             return 0;
@@ -115,6 +145,7 @@ bool PapyrusAPI::Register(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("RegisterForSkyPromptEvent", "SkyPrompt", RegisterForSkyPromptEvent);
     vm->RegisterFunction("UnregisterFromSkyPromptEvent", "SkyPrompt", UnregisterFromSkyPromptEvent);
     vm->RegisterFunction("SendPrompt", "SkyPrompt", SendPrompt);
+    vm->RegisterFunction("SendPromptForControl", "SkyPrompt", SendPromptForControl);
     vm->RegisterFunction("RemovePrompt", "SkyPrompt", RemovePrompt);
     vm->RegisterFunction("RequestTheme", "SkyPrompt", RequestTheme);
 

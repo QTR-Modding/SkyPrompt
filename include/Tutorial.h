@@ -22,7 +22,7 @@ namespace Tutorial {
         const SkyPromptAPI::Prompt prompt1(str1, 0, 0, SkyPromptAPI::PromptType::kSinglePress);
         const SkyPromptAPI::Prompt prompt4(quit_me, 1, 0, SkyPromptAPI::PromptType::kSinglePress);
 
-        class Sink final : public SkyPromptAPI::PromptSink, public clib_util::singleton::ISingleton<Sink> {
+        class Sink final : public SkyPromptAPI::PromptSink, public REX::Singleton<Sink> {
             mutable std::array<SkyPromptAPI::Prompt, 2> m_prompts = {prompt1, prompt4};
             float mult = 8.f;
 
@@ -40,7 +40,7 @@ namespace Tutorial {
         const SkyPromptAPI::Prompt prompt1(str1, 0, 0, SkyPromptAPI::PromptType::kSinglePress);
         const SkyPromptAPI::Prompt prompt4(quit_me, 1, 0, SkyPromptAPI::PromptType::kSinglePress);
 
-        class Sink final : public SkyPromptAPI::PromptSink, public clib_util::singleton::ISingleton<Sink> {
+        class Sink final : public SkyPromptAPI::PromptSink, public REX::Singleton<Sink> {
             std::array<SkyPromptAPI::Prompt, 2> m_prompts = {prompt1, prompt4};
 
         public:
@@ -63,7 +63,7 @@ namespace Tutorial {
 
         inline std::set<SkyPromptAPI::ActionID> to_be_deleted;
 
-        class Sink final : public SkyPromptAPI::PromptSink, public clib_util::singleton::ISingleton<Sink> {
+        class Sink final : public SkyPromptAPI::PromptSink, public REX::Singleton<Sink> {
             std::array<const SkyPromptAPI::Prompt, 3> m_prompts = {prompt1, prompt2, prompt4};
 
         public:
@@ -84,7 +84,7 @@ namespace Tutorial {
 
         inline std::set<SkyPromptAPI::ActionID> to_be_deleted;
 
-        class Sink final : public SkyPromptAPI::PromptSink, public clib_util::singleton::ISingleton<Sink> {
+        class Sink final : public SkyPromptAPI::PromptSink, public REX::Singleton<Sink> {
             std::array<const SkyPromptAPI::Prompt, 3> m_prompts = {prompt1, prompt2, prompt4};
 
         public:
@@ -106,7 +106,7 @@ namespace Tutorial {
 
         inline std::set<SkyPromptAPI::ActionID> to_be_deleted;
 
-        class Sink final : public SkyPromptAPI::PromptSink, public clib_util::singleton::ISingleton<Sink> {
+        class Sink final : public SkyPromptAPI::PromptSink, public REX::Singleton<Sink> {
             std::array<const SkyPromptAPI::Prompt, 3> m_prompts = {prompt1, prompt2, prompt4};
 
         public:
@@ -127,7 +127,7 @@ namespace Tutorial {
 
         inline std::set<SkyPromptAPI::ActionID> to_be_deleted;
 
-        class Sink final : public SkyPromptAPI::PromptSink, public clib_util::singleton::ISingleton<Sink> {
+        class Sink final : public SkyPromptAPI::PromptSink, public REX::Singleton<Sink> {
             std::array<const SkyPromptAPI::Prompt, 3> m_prompts = {prompt1, prompt2, prompt4};
 
         public:
@@ -136,7 +136,7 @@ namespace Tutorial {
         };
     }
 
-    class Manager : public clib_util::singleton::ISingleton<Manager> {
+    class Manager : public REX::Singleton<Manager> {
     public:
         static void Callback(const unsigned int a_int) {
             if (!a_int) {

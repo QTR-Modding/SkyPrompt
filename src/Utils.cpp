@@ -1,8 +1,14 @@
 #include "Utils.h"
-
 #include "IconsFonts.h"
 #include "Renderer.h"
 #include "imgui.h"
+
+namespace {
+    bool IsTokenChar(const char a_char) {
+        const auto byte = static_cast<unsigned char>(a_char);
+        return std::isalnum(byte) || a_char == '_' || a_char == ':' || a_char == '.' || a_char == '-';
+    }
+}
 
 std::filesystem::path GetLogPath() {
     const auto logsFolder = SKSE::log::log_directory();
@@ -61,6 +67,65 @@ void BeginImGuiWindow(const char* window_name) {
 void EndImGuiWindow() {
     ImGui::End();
     ImGui::PopStyleVar(2);
+}
+
+void TranslateEmbedded(std::string& a_text) {
+    if (a_text.starts_with('$')) {
+        std::string full = a_text;
+        if (SKSE::Translation::Translate(full, full)) {
+            a_text = std::move(full);
+        }
+    }
+
+    std::size_t searchPos = 0;
+    while ((searchPos = a_text.find('$', searchPos)) != std::string::npos) {
+        const auto tokenStart = searchPos;
+        auto tokenEnd = tokenStart + 1;
+
+        if (tokenEnd >= a_text.size()) {
+            break;
+        }
+
+        while (tokenEnd < a_text.size() && IsTokenChar(a_text[tokenEnd])) {
+            ++tokenEnd;
+        }
+
+        while (tokenEnd < a_text.size() && a_text[tokenEnd] == '{') {
+            int braceLevel = 0;
+            size_t bracePos = tokenEnd;
+            for (; bracePos < a_text.size(); ++bracePos) {
+                if (a_text[bracePos] == '{') {
+                    ++braceLevel;
+                } else if (a_text[bracePos] == '}') {
+                    --braceLevel;
+                    if (braceLevel == 0) {
+                        ++bracePos;
+                        break;
+                    }
+                }
+            }
+
+            if (braceLevel != 0) {
+                break;
+            }
+
+            tokenEnd = bracePos;
+        }
+
+        if (tokenEnd == tokenStart + 1) {
+            searchPos = tokenEnd;
+            continue;
+        }
+
+        std::string token = a_text.substr(tokenStart, tokenEnd - tokenStart);
+        std::string replacement = token;
+        if (SKSE::Translation::Translate(token, replacement)) {
+            a_text.replace(tokenStart, tokenEnd - tokenStart, replacement);
+            searchPos = tokenStart + replacement.size();
+        } else {
+            searchPos = tokenEnd;
+        }
+    }
 }
 
 void SkyrimMessageBox::Show(const std::string& bodyText, const std::vector<std::string>& buttonTextValues,

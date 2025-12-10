@@ -2,7 +2,6 @@
 #include "SkyPrompt/API.hpp"
 #include "Graphics.h"
 #include <unordered_set>
-
 #include "Interaction.h"
 #include "MCP.h"
 
@@ -20,7 +19,7 @@ namespace IconFont {
         ImVec2 imageSize{};
     };
 
-    class Manager final : public clib_util::singleton::ISingleton<Manager> {
+    class Manager final : public REX::Singleton<Manager> {
     public:
         struct GamepadIcon {
             IconTexture xbox;

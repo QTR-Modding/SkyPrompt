@@ -756,10 +756,13 @@ bool Manager::CycleClient(const bool a_left) {
 bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID) {
     for (const auto prompts = a_prompt_sink->GetPrompts();
          const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color, progress] : prompts) {
-        if (text.empty()) {
+        auto a_txt = std::string(text);
+        if (a_txt.empty()) {
             logger::warn("Empty prompt text");
             return false;
         }
+
+        TranslateEmbedded(a_txt);
 
         std::map<Input::DEVICE, uint32_t> temp_button_keys;
         for (const auto& [a_device, key] : button_key) {
@@ -772,7 +775,6 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
             }
         }
         const auto interaction = MakeInteraction(a_clientID, a_event, a_action);
-        const auto a_txt = std::string(text);
         if (const auto submanager = Add2Q(a_clientID, interaction, {a_txt, text_color, progress}, a_type, a_refid,
                                           temp_button_keys, true)) {
             if (!GetManagerList(a_clientID)) {
@@ -1086,7 +1088,8 @@ bool SubManager::IsInQueue(const Interaction& a_interaction) const {
 uint32_t InteractionButton::GetKey() const {
     const auto manager = MANAGER(Input)->GetSingleton();
     const auto a_device = manager->GetInputDevice();
-    return keys.contains(a_device) ? keys.at(a_device) : MCP::Settings::prompt_keys.at(a_device).at(default_key_index);
+    const auto it = keys.find(a_device);
+    return it != keys.end() ? it->second : MCP::Settings::prompt_keys.at(a_device).at(default_key_index);
 }
 
 InteractionButton::InteractionButton(const Interaction& a_interaction, const Mutables& a_mutables,

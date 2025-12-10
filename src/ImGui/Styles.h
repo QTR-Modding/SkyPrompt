@@ -1,8 +1,9 @@
 #pragma once
+#include <REX/REX/Singleton.h>
 #include "imgui.h"
 
 namespace ImGui {
-    class Styles : public clib_util::singleton::ISingleton<Styles> {
+    class Styles : public REX::Singleton<Styles> {
     public:
         void OnStyleRefresh() const;
         void RefreshStyle();

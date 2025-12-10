@@ -1,3 +1,6 @@
+#pragma once
+#include <spdlog/sinks/basic_file_sink.h>
+
 static void SetupLog() {
     auto logsFolder = SKSE::log::log_directory();
     if (!logsFolder) SKSE::stl::report_and_fail("SKSE log_directory not provided, logs disabled.");

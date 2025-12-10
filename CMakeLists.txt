@@ -16,7 +16,7 @@ cmake_minimum_required(VERSION 3.21)
 # Set your project name. This will be the name of your SKSE .dll file.
 set(AUTHOR_NAME "Quantumyilmaz")
 set(PRODUCT_NAME "SkyPrompt")
-project(${PRODUCT_NAME} VERSION 2.3.5.0 LANGUAGES CXX)
+project(${PRODUCT_NAME} VERSION 2.3.8.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
@@ -111,6 +111,27 @@ target_include_directories(
 	${ctpl_SOURCE_DIR}
 )
 
+if (MSVC)
+  # Good default
+  target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+
+  # If you really want MSVC to warn on truly unused (internal-linkage) functions (C4505),
+  # enable /Wall. It is very noisy, so consider disabling a few chatty warnings.
+  #target_compile_options(${PROJECT_NAME} PRIVATE /Wall /wd4514 /wd4710 /wd4711 /wd4820 /wd5045)
+
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  target_compile_options(${PROJECT_NAME} PRIVATE
+    -Wall -Wextra -Wpedantic
+    -Wunused-function
+    -Wunused-member-function) # catches unused class methods (Clang)
+
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(${PROJECT_NAME} PRIVATE
+    -Wall -Wextra -Wpedantic
+    -Wunused-function) # GCC does not warn on unused member funcs
+endif()
+
+
 target_link_libraries(
 	${PROJECT_NAME}
 	PRIVATE
@@ -125,6 +146,6 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE IS_HOST_PLUGIN)
 set(wildlander_output false)
 set(steam_owrt_output false)
 set(steam_mods_output true)
-set(lorerim_mods_output true)
+set(lorerim_mods_output false)
 set(lorerim3_mods_output true)
 automaticGameFolderOutput(wildlander_output, steam_owrt_output, steam_mods_output lorerim_mods_output lorerim3_mods_output)

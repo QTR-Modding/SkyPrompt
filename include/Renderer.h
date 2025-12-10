@@ -5,6 +5,7 @@
 #include "Interaction.h"
 #include "MCP.h"
 #include "Theme.h"
+#include "ClibUtil/simpleINI.hpp"
 
 
 namespace ImGui::Renderer {
@@ -148,7 +149,7 @@ namespace ImGui::Renderer {
         void Update(SkyPromptAPI::ClientID a_client_id, const SkyPromptAPI::PromptSink* a_prompt_sink) const;
     };
 
-    class Manager : public clib_util::singleton::ISingleton<Manager> {
+    class Manager : public REX::Singleton<Manager> {
         void ReArrange();
         bool IsInQueue(const Interaction& a_interaction) const;
 

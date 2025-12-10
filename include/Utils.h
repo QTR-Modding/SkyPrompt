@@ -27,6 +27,8 @@ public:
 void BeginImGuiWindow(const char* window_name);
 void EndImGuiWindow();
 
+void TranslateEmbedded(std::string& a_text);
+
 namespace WorldObjects {
     inline RE::bhkRigidBody* GetRigidBody(const RE::TESObjectREFR* refr) {
         const auto object3D = refr->Get3D();
