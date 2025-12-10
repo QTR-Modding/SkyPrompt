@@ -9,25 +9,28 @@
 #include "PapyrusAPI/Bindings.h"
 #include "Tutorial.h"
 
-void OnMessage(SKSE::MessagingInterface::Message* message) {
-    if (message->type == SKSE::MessagingInterface::kDataLoaded) {
-        SpeedProfiler profiler("Plugin load (Part 2)");
+namespace {
+    void OnMessage(SKSE::MessagingInterface::Message* message) {
+        if (message->type == SKSE::MessagingInterface::kDataLoaded) {
+            SpeedProfiler profiler("Plugin load (Part 2)");
 
-        ImGui::Renderer::InstallInputHook();
+            ImGui::Renderer::InstallInputHook();
 
-        MCP::Register();
-        if (!SKSE::GetPapyrusInterface()->Register(PapyrusAPI::Register)) {
-            logger::error("Failed to register Papyrus API");
+            MCP::Register();
+            if (!SKSE::GetPapyrusInterface()->Register(PapyrusAPI::Register)) {
+                logger::error("Failed to register Papyrus API");
+            }
+            if (OtherSettings::first_install) {
+                Tutorial::Manager::Start();
+            }
         }
-        if (OtherSettings::first_install) {
-            Tutorial::Manager::Start();
+        if (message->type == SKSE::MessagingInterface::kInputLoaded) {
+            if (MCP::Settings::prompt_keys.empty()) {
+                MCP::Settings::LoadDefaultPromptKeys();
+            }
         }
     }
-    if (message->type == SKSE::MessagingInterface::kInputLoaded) {
-        if (MCP::Settings::prompt_keys.empty()) {
-            MCP::Settings::LoadDefaultPromptKeys();
-        }
-    }
+    
 }
 
 SKSEPluginLoad(const SKSE::LoadInterface *skse) {
