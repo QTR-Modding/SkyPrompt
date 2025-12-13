@@ -16,7 +16,7 @@ cmake_minimum_required(VERSION 3.21)
 # Set your project name. This will be the name of your SKSE .dll file.
 set(AUTHOR_NAME "Quantumyilmaz")
 set(PRODUCT_NAME "SkyPrompt")
-project(${PRODUCT_NAME} VERSION 2.3.8.1 LANGUAGES CXX)
+project(${PRODUCT_NAME} VERSION 2.3.9.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
@@ -38,7 +38,6 @@ add_custom_command(
 
 # Add a custom target to ensure the resource file is generated
 add_custom_target(Resource ALL DEPENDS ${RESOURCE_OUTPUT})
-include(FetchContent)
 
 
 set(ENABLE_SKYRIM_SE ON CACHE BOOL " " FORCE)

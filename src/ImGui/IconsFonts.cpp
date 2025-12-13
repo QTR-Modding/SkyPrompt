@@ -80,6 +80,20 @@ namespace IconFont {
         builder.AddChar(0xf183); // PERSON
         builder.AddChar(0xf042); // CONTRAST
         builder.AddChar(0xf03e); // IMAGE
+
+        builder.AddRanges(io.Fonts->GetGlyphRangesDefault());
+        builder.AddRanges(io.Fonts->GetGlyphRangesGreek());
+        builder.AddRanges(io.Fonts->GetGlyphRangesCyrillic());
+        builder.AddRanges(io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+        builder.AddRanges(io.Fonts->GetGlyphRangesThai());
+        builder.AddRanges(io.Fonts->GetGlyphRangesVietnamese());
+
+        if (MCP::Settings::extended_cjk) {
+            builder.AddRanges(io.Fonts->GetGlyphRangesJapanese());
+            builder.AddRanges(io.Fonts->GetGlyphRangesKorean());
+            builder.AddRanges(io.Fonts->GetGlyphRangesChineseFull());
+        }
+
         builder.BuildRanges(&ranges);
 
         const auto resolutionScale = ImGui::Renderer::GetResolutionScale();
