@@ -38,7 +38,6 @@ add_custom_command(
 
 # Add a custom target to ensure the resource file is generated
 add_custom_target(Resource ALL DEPENDS ${RESOURCE_OUTPUT})
-include(FetchContent)
 
 
 set(ENABLE_SKYRIM_SE ON CACHE BOOL " " FORCE)
