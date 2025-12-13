@@ -81,19 +81,17 @@ namespace IconFont {
         builder.AddChar(0xf042); // CONTRAST
         builder.AddChar(0xf03e); // IMAGE
 
-        const ImWchar* universalRanges[] = {
-            io.Fonts->GetGlyphRangesDefault(),
-            io.Fonts->GetGlyphRangesGreek(),
-            io.Fonts->GetGlyphRangesCyrillic(),
-            io.Fonts->GetGlyphRangesJapanese(),
-            io.Fonts->GetGlyphRangesKorean(),
-            io.Fonts->GetGlyphRangesChineseSimplifiedCommon(),
-            io.Fonts->GetGlyphRangesChineseFull(),
-            io.Fonts->GetGlyphRangesThai(),
-            io.Fonts->GetGlyphRangesVietnamese()
-        };
-        for (const auto* range : universalRanges) {
-            builder.AddRanges(range);
+        builder.AddRanges(io.Fonts->GetGlyphRangesDefault());
+        builder.AddRanges(io.Fonts->GetGlyphRangesGreek());
+        builder.AddRanges(io.Fonts->GetGlyphRangesCyrillic());
+        builder.AddRanges(io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+        builder.AddRanges(io.Fonts->GetGlyphRangesThai());
+        builder.AddRanges(io.Fonts->GetGlyphRangesVietnamese());
+
+        if (MCP::Settings::extended_cjk) {
+            builder.AddRanges(io.Fonts->GetGlyphRangesJapanese());
+            builder.AddRanges(io.Fonts->GetGlyphRangesKorean());
+            builder.AddRanges(io.Fonts->GetGlyphRangesChineseFull());
         }
 
         builder.BuildRanges(&ranges);
