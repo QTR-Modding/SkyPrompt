@@ -80,6 +80,22 @@ namespace IconFont {
         builder.AddChar(0xf183); // PERSON
         builder.AddChar(0xf042); // CONTRAST
         builder.AddChar(0xf03e); // IMAGE
+
+        const ImWchar* universalRanges[] = {
+            io.Fonts->GetGlyphRangesDefault(),
+            io.Fonts->GetGlyphRangesGreek(),
+            io.Fonts->GetGlyphRangesCyrillic(),
+            io.Fonts->GetGlyphRangesJapanese(),
+            io.Fonts->GetGlyphRangesKorean(),
+            io.Fonts->GetGlyphRangesChineseSimplifiedCommon(),
+            io.Fonts->GetGlyphRangesChineseFull(),
+            io.Fonts->GetGlyphRangesThai(),
+            io.Fonts->GetGlyphRangesVietnamese()
+        };
+        for (const auto* range : universalRanges) {
+            builder.AddRanges(range);
+        }
+
         builder.BuildRanges(&ranges);
 
         const auto resolutionScale = ImGui::Renderer::GetResolutionScale();
