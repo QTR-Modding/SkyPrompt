@@ -2,6 +2,9 @@
 #include "Input.h"
 #include "Renderer.h"
 #include "imgui_internal.h"
+#include <d3d11.h>
+#include <algorithm>
+#include <set>
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
 #include "MCP.h"
@@ -56,20 +59,21 @@ namespace IconFont {
 
     void Manager::ReloadFonts() {
         auto& io = ImGui::GetIO();
-        io.Fonts->Clear();
-
-        MCP::Settings::font_names.clear();
+        std::set<std::string> availableFonts{};
 
         for (const auto& entry : std::filesystem::directory_iterator(fontPath)) {
             if (entry.path().extension() == ".ttf") {
-                MCP::Settings::font_names.insert(entry.path().filename().replace_extension("").string());
+                availableFonts.insert(entry.path().filename().replace_extension("").string());
             }
         }
 
-        if (MCP::Settings::font_names.empty()) {
+        if (availableFonts.empty()) {
             logger::error("No fonts found in {}", fontPath);
             return;
         }
+
+        io.Fonts->Clear();
+        MCP::Settings::font_names = std::move(availableFonts);
 
         ImVector<ImWchar> ranges;
 
@@ -103,19 +107,57 @@ namespace IconFont {
             const auto& prompt_size = Theme::last_theme->prompt_size;
             a_fontsize = prompt_size * resolutionScale;
         }
-        //const auto a_iconsize = a_fontsize * 1.f;
         const auto a_largefontsize = a_fontsize * 1.2f;
-        //const auto a_largeiconsize = a_largefontsize * 1.f;
         const auto a_smallfontsize = a_fontsize * 0.65f;
 
-        io.FontDefault = LoadFontIconSet(a_fontsize, ranges);
-        largeFont = LoadFontIconSet(a_largefontsize, ranges);
-        smallFont = LoadFontIconSet(a_smallfontsize, ranges);
+        constexpr int kMaxAtlasDimension = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+        const int kDesiredAtlasWidth = std::min(4096, kMaxAtlasDimension / 2);
 
-        io.Fonts->Build();
+        auto tryBuildFonts = [&](float scale) -> bool {
+            io.Fonts->Clear();
+            // target a moderate atlas width so large fonts are packed horizontally while staying well under the DX limit
+            io.Fonts->TexDesiredWidth = kDesiredAtlasWidth;
+
+            io.FontDefault = LoadFontIconSet(a_fontsize * scale, ranges);
+            largeFont = LoadFontIconSet(a_largefontsize * scale, ranges);
+            smallFont = LoadFontIconSet(a_smallfontsize * scale, ranges);
+
+            if (!io.FontDefault || !largeFont || !smallFont) {
+                logger::error("Failed to load one or more fonts for scale {}", scale);
+                return false;
+            }
+
+            if (!io.Fonts->Build()) {
+                logger::error("Failed to rebuild ImGui font atlas at scale {}", scale);
+                return false;
+            }
+
+            const auto texWidth = io.Fonts->TexWidth;
+            const auto texHeight = io.Fonts->TexHeight;
+            if (texWidth > kMaxAtlasDimension || texHeight > kMaxAtlasDimension) {
+                logger::error("ImGui font atlas size {}x{} exceeds DirectX limit {} (scale {})", texWidth, texHeight, kMaxAtlasDimension, scale);
+                return false;
+            }
+
+            return true;
+        };
+
+        float scale = 1.0f;
+        bool built = tryBuildFonts(scale);
+        while (!built && scale > 0.3f) {
+            scale *= 0.8f;
+            built = tryBuildFonts(scale);
+        }
+
+        if (!built) {
+            logger::critical("Failed to build ImGui font atlas within DirectX texture limits");
+            return;
+        }
 
         ImGui_ImplDX11_InvalidateDeviceObjects();
-        ImGui_ImplDX11_CreateDeviceObjects();
+        if (!ImGui_ImplDX11_CreateDeviceObjects()) {
+            logger::error("Failed to recreate ImGui device objects after font reload");
+        }
     }
 
     ImFont* Manager::LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges) const {
