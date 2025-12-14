@@ -466,11 +466,10 @@ ImVec2 SubManager::GetAttachedObjectPos() const {
 
             const auto center = bounding_box.Center;
 
-            pos = RE::NiPoint3{center.x, center.y, center.z + bounding_box.Extents.z};
+            pos = RE::NiPoint3{center.x, center.y, center.z + bounding_box.Extents.z + 10.f};
             pos2d = WorldToScreenLoc(pos);
 
-            constexpr auto offset = 10.f;
-            pos2d += ImVec2{0.f, -(offset + Theme::last_theme->prompt_size + padding) * DisplayTweaks::resolutionScale};
+            pos2d += ImVec2{0.f, -(Theme::last_theme->prompt_size + padding) * DisplayTweaks::resolutionScale};
         }
 
         FastClampToScreen(pos2d);
