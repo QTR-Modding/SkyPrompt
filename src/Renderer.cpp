@@ -1,10 +1,10 @@
 ﻿#include "Renderer.h"
+#include "BoundingBox.hpp"
 #include "Hooks.h"
 #include "CLibUtilsQTR/Tasker.hpp"
 #include "IconsFonts.h"
 #include "Styles.h"
 #include "Utils.h"
-#include "Geometry.h"
 #include "Service.h"
 #include "Tutorial.h"
 
@@ -442,8 +442,8 @@ ImVec2 SubManager::GetAttachedObjectPos() const {
                 }
             }
         } else if (const auto a_head = [&]() -> RE::NiAVObject* {
-            if (auto actor = ref->As<RE::Actor>()) {
-                if (auto middle = actor->GetMiddleHighProcess()) {
+            if (const auto actor = ref->As<RE::Actor>()) {
+                if (const auto middle = actor->GetMiddleHighProcess()) {
                     return middle->headNode;
                 }
             }
@@ -460,13 +460,17 @@ ImVec2 SubManager::GetAttachedObjectPos() const {
             pos2d = WorldToScreenLoc(pos) + ImVec2{
                         (Theme::last_theme->prompt_size + padding) * DisplayTweaks::resolutionScale, 0};
         } else {
-            const auto geo = Geometry(ref);
+            DirectX::BoundingOrientedBox bounding_box;
+            BoundingBox::GetOBB(ref, bounding_box, true);
+            //BoundingBox::DrawOBB(bounding_box);
 
-            const auto bound = geo.GetBoundingBox(ref->GetAngle(), ref->GetScale());
-            const RE::NiPoint3 center = (bound.first + bound.second) / 2;
+            const auto center = bounding_box.Center;
 
-            pos = WorldObjects::GetPosition(ref) + RE::NiPoint3{center.x, center.y, bound.second.z + 16};
+            pos = RE::NiPoint3{center.x, center.y, center.z + bounding_box.Extents.z};
             pos2d = WorldToScreenLoc(pos);
+
+            constexpr auto offset = 10.f;
+            pos2d += ImVec2{0.f, -(offset + Theme::last_theme->prompt_size + padding) * DisplayTweaks::resolutionScale};
         }
 
         FastClampToScreen(pos2d);

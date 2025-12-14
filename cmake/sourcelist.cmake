@@ -9,7 +9,6 @@ set(sources ${sources}
  	src/Service.cpp
  	src/Interaction.cpp
  	src/Tutorial.cpp
- 	src/Geometry.cpp
  	src/Theme.cpp
 	src/ImGui/Graphics.cpp
     src/ImGui/Styles.cpp
