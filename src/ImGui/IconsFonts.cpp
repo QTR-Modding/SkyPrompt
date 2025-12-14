@@ -6,7 +6,7 @@
 
 namespace {
     ImFont* LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges,
-                                   const std::string& a_fontPath) {
+                            const std::string& a_fontPath) {
         const auto& io = ImGui::GetIO();
 
         const auto& font_name = Theme::last_theme->font_name;
@@ -121,13 +121,14 @@ namespace IconFont {
         const auto a_largefontsize = a_fontsize * 1.2f;
         const auto a_smallfontsize = a_fontsize * 0.65f;
 
-        constexpr int kMaxAtlasDimension = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;  // 16384
+        constexpr int kMaxAtlasDimension = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION; // 16384
 
         auto largeFontPtr = &largeFont;
         auto smallFontPtr = &smallFont;
         auto a_fontPath = fontPath;
 
-        auto tryBuildFonts = [&io, &ranges, a_fontsize, a_largefontsize, a_smallfontsize, largeFontPtr, smallFontPtr, a_fontPath](float scale) -> bool {
+        auto tryBuildFonts = [&io, &ranges, a_fontsize, a_largefontsize, a_smallfontsize, largeFontPtr, smallFontPtr,
+                a_fontPath](float scale) -> bool {
             io.Fonts->Clear();
             io.Fonts->TexDesiredWidth = 4096;
 
@@ -148,7 +149,8 @@ namespace IconFont {
             const auto texWidth = io.Fonts->TexWidth;
             const auto texHeight = io.Fonts->TexHeight;
             if (texWidth > kMaxAtlasDimension || texHeight > kMaxAtlasDimension) {
-                logger::error("ImGui font atlas size {}x{} exceeds DirectX limit {} (scale {})", texWidth, texHeight, kMaxAtlasDimension, scale);
+                logger::error("ImGui font atlas size {}x{} exceeds DirectX limit {} (scale {})", texWidth, texHeight,
+                              kMaxAtlasDimension, scale);
                 return false;
             }
 
@@ -172,8 +174,8 @@ namespace IconFont {
         if (!ImGui_ImplDX11_CreateDeviceObjects()) {
             logger::error("Failed to recreate ImGui device objects after font reload");
             io.Fonts->Clear();
-           largeFont = nullptr;
-           smallFont = nullptr;
+            largeFont = nullptr;
+            smallFont = nullptr;
             return false;
         }
         return true;
