@@ -51,7 +51,9 @@ namespace ImGui {
         style.ScaleAllSizes(Renderer::GetResolutionScale());
         GetStyle() = style;
 
-        MANAGER(IconFont)->ReloadFonts();
+        if (!MANAGER(IconFont)->ReloadFonts()) {
+            Theme::ReLoadDefaultTheme();
+        }
     }
 
     void Styles::RefreshStyle() {

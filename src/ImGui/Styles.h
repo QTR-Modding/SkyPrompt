@@ -6,7 +6,7 @@ namespace ImGui {
     class Styles : public REX::Singleton<Styles> {
     public:
         void OnStyleRefresh() const;
-        void RefreshStyle();
+        static void RefreshStyle();
 
     private:
         struct Style {

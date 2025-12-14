@@ -51,7 +51,7 @@ namespace IconFont {
         checkboxFilled.Load();
     }
 
-    void Manager::ReloadFonts() {
+    bool Manager::ReloadFonts() {
         auto& io = ImGui::GetIO();
         std::set<std::string> availableFonts{};
 
@@ -63,10 +63,9 @@ namespace IconFont {
 
         if (availableFonts.empty()) {
             logger::error("No fonts found in {}", fontPath);
-            return;
+            return false;
         }
 
-        io.Fonts->Clear();
         MCP::Settings::font_names = std::move(availableFonts);
 
         ImVector<ImWchar> ranges;
@@ -143,12 +142,13 @@ namespace IconFont {
 
         if (!built) {
             logger::critical("Failed to build ImGui font atlas within DirectX texture limits");
-            return;
+            return false;
         }
 
         ImGui_ImplDX11_InvalidateDeviceObjects();
         if (!ImGui_ImplDX11_CreateDeviceObjects()) {
             logger::error("Failed to recreate ImGui device objects after font reload");
+            return false;
         }
     }
 

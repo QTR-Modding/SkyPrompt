@@ -27,7 +27,7 @@ namespace IconFont {
         };
 
         void LoadIcons();
-        void ReloadFonts();
+        [[nodiscard]] bool ReloadFonts();
 
         [[nodiscard]] ImFont* GetLargeFont() const;
         [[nodiscard]] ImFont* GetSmallFont() const;
