@@ -172,6 +172,8 @@ namespace IconFont {
         if (!ImGui_ImplDX11_CreateDeviceObjects()) {
             logger::error("Failed to recreate ImGui device objects after font reload");
             io.Fonts->Clear();
+           largeFont = nullptr;
+           smallFont = nullptr;
             return false;
         }
         return true;
