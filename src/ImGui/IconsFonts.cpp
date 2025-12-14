@@ -1,12 +1,7 @@
 ﻿#include "IconsFonts.h"
-#include "Input.h"
 #include "Renderer.h"
 #include "imgui_internal.h"
-#include <d3d11.h>
-#include <set>
-#include <imgui.h>
 #include <imgui_impl_dx11.h>
-#include "MCP.h"
 #include "SkyPrompt/AddOns.hpp"
 
 
