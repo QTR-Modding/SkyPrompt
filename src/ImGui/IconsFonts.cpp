@@ -150,6 +150,7 @@ namespace IconFont {
             logger::error("Failed to recreate ImGui device objects after font reload");
             return false;
         }
+        return true;
     }
 
     ImFont* Manager::LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges) const {
