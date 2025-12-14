@@ -1,12 +1,27 @@
 ﻿#include "IconsFonts.h"
-#include "Input.h"
 #include "Renderer.h"
 #include "imgui_internal.h"
-#include <imgui.h>
 #include <imgui_impl_dx11.h>
-#include "MCP.h"
 #include "SkyPrompt/AddOns.hpp"
 
+namespace {
+    ImFont* LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges,
+                            const std::string& a_fontPath) {
+        const auto& io = ImGui::GetIO();
+
+        const auto& font_name = Theme::last_theme->font_name;
+        auto a_fontName =
+            a_fontPath +
+            (MCP::Settings::font_names.contains(font_name) ? font_name : *MCP::Settings::font_names.begin()) + ".ttf";
+        const auto a_font = io.Fonts->AddFontFromFileTTF(a_fontName.c_str(), a_fontSize, nullptr, a_ranges.Data);
+        if (!a_font) {
+            logger::error("Failed to load font: {}", a_fontName);
+            return nullptr;
+        }
+
+        return a_font;
+    }
+}
 
 namespace IconFont {
     IconTexture::IconTexture(const std::wstring_view a_iconName) :
@@ -54,22 +69,22 @@ namespace IconFont {
         checkboxFilled.Load();
     }
 
-    void Manager::ReloadFonts() {
+    bool Manager::ReloadFonts() {
         auto& io = ImGui::GetIO();
-        io.Fonts->Clear();
-
-        MCP::Settings::font_names.clear();
+        std::set<std::string> availableFonts{};
 
         for (const auto& entry : std::filesystem::directory_iterator(fontPath)) {
             if (entry.path().extension() == ".ttf") {
-                MCP::Settings::font_names.insert(entry.path().filename().replace_extension("").string());
+                availableFonts.insert(entry.path().filename().replace_extension("").string());
             }
         }
 
-        if (MCP::Settings::font_names.empty()) {
+        if (availableFonts.empty()) {
             logger::error("No fonts found in {}", fontPath);
-            return;
+            return false;
         }
+
+        MCP::Settings::font_names = std::move(availableFonts);
 
         ImVector<ImWchar> ranges;
 
@@ -103,35 +118,67 @@ namespace IconFont {
             const auto& prompt_size = Theme::last_theme->prompt_size;
             a_fontsize = prompt_size * resolutionScale;
         }
-        //const auto a_iconsize = a_fontsize * 1.f;
         const auto a_largefontsize = a_fontsize * 1.2f;
-        //const auto a_largeiconsize = a_largefontsize * 1.f;
         const auto a_smallfontsize = a_fontsize * 0.65f;
 
-        io.FontDefault = LoadFontIconSet(a_fontsize, ranges);
-        largeFont = LoadFontIconSet(a_largefontsize, ranges);
-        smallFont = LoadFontIconSet(a_smallfontsize, ranges);
+        constexpr int kMaxAtlasDimension = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION; // 16384
 
-        io.Fonts->Build();
+        auto largeFontPtr = &largeFont;
+        auto smallFontPtr = &smallFont;
+        auto a_fontPath = fontPath;
 
-        ImGui_ImplDX11_InvalidateDeviceObjects();
-        ImGui_ImplDX11_CreateDeviceObjects();
-    }
+        auto tryBuildFonts = [&io, &ranges, a_fontsize, a_largefontsize, a_smallfontsize, largeFontPtr, smallFontPtr,
+                a_fontPath](float scale) -> bool {
+            io.Fonts->Clear();
+            io.Fonts->TexDesiredWidth = 4096;
 
-    ImFont* Manager::LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges) const {
-        const auto& io = ImGui::GetIO();
+            io.FontDefault = LoadFontIconSet(a_fontsize * scale, ranges, a_fontPath);
+            *largeFontPtr = LoadFontIconSet(a_largefontsize * scale, ranges, a_fontPath);
+            *smallFontPtr = LoadFontIconSet(a_smallfontsize * scale, ranges, a_fontPath);
 
-        const auto& font_name = Theme::last_theme->font_name;
-        auto a_fontName = fontPath + (MCP::Settings::font_names.contains(font_name)
-                                          ? font_name
-                                          : *MCP::Settings::font_names.begin()) + ".ttf";
-        const auto a_font = io.Fonts->AddFontFromFileTTF(a_fontName.c_str(), a_fontSize, nullptr, a_ranges.Data);
-        if (!a_font) {
-            logger::error("Failed to load font: {}", a_fontName);
-            return nullptr;
+            if (!io.FontDefault || !*largeFontPtr || !*smallFontPtr) {
+                logger::error("Failed to load one or more fonts for scale {}", scale);
+                return false;
+            }
+
+            if (!io.Fonts->Build()) {
+                logger::error("Failed to rebuild ImGui font atlas at scale {}", scale);
+                return false;
+            }
+
+            const auto texWidth = io.Fonts->TexWidth;
+            const auto texHeight = io.Fonts->TexHeight;
+            if (texWidth > kMaxAtlasDimension || texHeight > kMaxAtlasDimension) {
+                logger::error("ImGui font atlas size {}x{} exceeds DirectX limit {} (scale {})", texWidth, texHeight,
+                              kMaxAtlasDimension, scale);
+                return false;
+            }
+
+            return true;
+        };
+
+        float scale = 1.0f;
+        bool built = tryBuildFonts(scale);
+        while (!built && scale > 0.3f) {
+            scale *= 0.8f;
+            logger::warn("Retrying font atlas build for font path {} at scale {}", a_fontPath, scale);
+            built = tryBuildFonts(scale);
         }
 
-        return a_font;
+        if (!built) {
+            logger::critical("Failed to build ImGui font atlas within DirectX texture limits");
+            return false;
+        }
+
+        ImGui_ImplDX11_InvalidateDeviceObjects();
+        if (!ImGui_ImplDX11_CreateDeviceObjects()) {
+            logger::error("Failed to recreate ImGui device objects after font reload");
+            io.Fonts->Clear();
+            largeFont = nullptr;
+            smallFont = nullptr;
+            return false;
+        }
+        return true;
     }
 
     ImFont* Manager::GetLargeFont() const {

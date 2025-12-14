@@ -27,7 +27,7 @@ namespace IconFont {
         };
 
         void LoadIcons();
-        void ReloadFonts();
+        [[nodiscard]] bool ReloadFonts();
 
         [[nodiscard]] ImFont* GetLargeFont() const;
         [[nodiscard]] ImFont* GetSmallFont() const;
@@ -51,8 +51,6 @@ namespace IconFont {
             kXbox,
             kPS4
         };
-
-        [[nodiscard]] ImFont* LoadFontIconSet(float a_fontSize, const ImVector<ImWchar>& a_ranges) const;
 
         // members
         bool loadedFonts{false};

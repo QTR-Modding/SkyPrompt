@@ -91,6 +91,7 @@ namespace Theme {
     inline auto default_theme = Theme();
 
     void LoadThemes();
+    void ReLoadDefaultTheme();
 
     inline std::unordered_map<std::string, Theme> themes_loaded;
 
