@@ -462,7 +462,6 @@ ImVec2 SubManager::GetAttachedObjectPos() const {
         } else {
             DirectX::BoundingOrientedBox bounding_box;
             BoundingBox::GetOBB(ref, bounding_box, true);
-            //BoundingBox::DrawOBB(bounding_box);
 
             const auto center = bounding_box.Center;
 
