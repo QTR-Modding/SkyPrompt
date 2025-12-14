@@ -51,8 +51,15 @@ namespace ImGui {
         style.ScaleAllSizes(Renderer::GetResolutionScale());
         GetStyle() = style;
 
+        static bool reloadAttempted = false;
         if (!MANAGER(IconFont)->ReloadFonts()) {
-            Theme::ReLoadDefaultTheme();
+            if (!reloadAttempted) {
+                reloadAttempted = true;
+                Theme::ReLoadDefaultTheme();
+            }
+            // else: already attempted reload, do not retry to avoid infinite loop
+        } else {
+            reloadAttempted = false; // reset on success
         }
     }
 
