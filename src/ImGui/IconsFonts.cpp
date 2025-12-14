@@ -2,6 +2,7 @@
 #include "Input.h"
 #include "Renderer.h"
 #include "imgui_internal.h"
+#include <set>
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
 #include "MCP.h"
@@ -56,20 +57,21 @@ namespace IconFont {
 
     void Manager::ReloadFonts() {
         auto& io = ImGui::GetIO();
-        io.Fonts->Clear();
-
-        MCP::Settings::font_names.clear();
+        std::set<std::string> availableFonts{};
 
         for (const auto& entry : std::filesystem::directory_iterator(fontPath)) {
             if (entry.path().extension() == ".ttf") {
-                MCP::Settings::font_names.insert(entry.path().filename().replace_extension("").string());
+                availableFonts.insert(entry.path().filename().replace_extension("").string());
             }
         }
 
-        if (MCP::Settings::font_names.empty()) {
+        if (availableFonts.empty()) {
             logger::error("No fonts found in {}", fontPath);
             return;
         }
+
+        io.Fonts->Clear();
+        MCP::Settings::font_names = std::move(availableFonts);
 
         ImVector<ImWchar> ranges;
 
@@ -112,10 +114,15 @@ namespace IconFont {
         largeFont = LoadFontIconSet(a_largefontsize, ranges);
         smallFont = LoadFontIconSet(a_smallfontsize, ranges);
 
-        io.Fonts->Build();
+        if (!io.Fonts->Build()) {
+            logger::error("Failed to rebuild ImGui font atlas");
+            return;
+        }
 
         ImGui_ImplDX11_InvalidateDeviceObjects();
-        ImGui_ImplDX11_CreateDeviceObjects();
+        if (!ImGui_ImplDX11_CreateDeviceObjects()) {
+            logger::error("Failed to recreate ImGui device objects after font reload");
+        }
     }
 
     ImFont* Manager::LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges) const {
