@@ -105,7 +105,7 @@ namespace IconFont {
 
         constexpr int kMaxAtlasDimension = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 
-        auto tryBuildFonts = [&](float scale) -> bool {
+        auto tryBuildFonts = [&io, &ranges, a_fontsize, a_largefontsize, a_smallfontsize, &largeFont, &smallFont](float scale) -> bool {
             io.Fonts->Clear();
             io.Fonts->TexDesiredWidth = 4096;
 
