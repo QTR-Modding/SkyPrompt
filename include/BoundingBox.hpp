@@ -5,7 +5,7 @@
 namespace BoundingBox {
     using RE::NiPoint3;
 
-    // You already have this:
+    
     inline RE::bhkRigidBody* GetRigidBody(const RE::TESObjectREFR* refr) {
         const auto object3D = refr->GetCurrent3D();
         if (!object3D) {
