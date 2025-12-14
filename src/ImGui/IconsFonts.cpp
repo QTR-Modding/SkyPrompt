@@ -2,6 +2,7 @@
 #include "Input.h"
 #include "Renderer.h"
 #include "imgui_internal.h"
+#include <d3d11.h>
 #include <set>
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
@@ -105,17 +106,48 @@ namespace IconFont {
             const auto& prompt_size = Theme::last_theme->prompt_size;
             a_fontsize = prompt_size * resolutionScale;
         }
-        //const auto a_iconsize = a_fontsize * 1.f;
         const auto a_largefontsize = a_fontsize * 1.2f;
-        //const auto a_largeiconsize = a_largefontsize * 1.f;
         const auto a_smallfontsize = a_fontsize * 0.65f;
 
-        io.FontDefault = LoadFontIconSet(a_fontsize, ranges);
-        largeFont = LoadFontIconSet(a_largefontsize, ranges);
-        smallFont = LoadFontIconSet(a_smallfontsize, ranges);
+        constexpr int kMaxAtlasDimension = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 
-        if (!io.Fonts->Build()) {
-            logger::error("Failed to rebuild ImGui font atlas");
+        auto tryBuildFonts = [&](float scale) -> bool {
+            io.Fonts->Clear();
+            io.Fonts->TexDesiredWidth = 4096;
+
+            io.FontDefault = LoadFontIconSet(a_fontsize * scale, ranges);
+            largeFont = LoadFontIconSet(a_largefontsize * scale, ranges);
+            smallFont = LoadFontIconSet(a_smallfontsize * scale, ranges);
+
+            if (!io.FontDefault || !largeFont || !smallFont) {
+                logger::error("Failed to load one or more fonts for scale {}", scale);
+                return false;
+            }
+
+            if (!io.Fonts->Build()) {
+                logger::error("Failed to rebuild ImGui font atlas at scale {}", scale);
+                return false;
+            }
+
+            const auto texWidth = io.Fonts->TexWidth;
+            const auto texHeight = io.Fonts->TexHeight;
+            if (texWidth > kMaxAtlasDimension || texHeight > kMaxAtlasDimension) {
+                logger::error("ImGui font atlas size {}x{} exceeds DirectX limit {} (scale {})", texWidth, texHeight, kMaxAtlasDimension, scale);
+                return false;
+            }
+
+            return true;
+        };
+
+        float scale = 1.0f;
+        bool built = tryBuildFonts(scale);
+        while (!built && scale > 0.3f) {
+            scale *= 0.8f;
+            built = tryBuildFonts(scale);
+        }
+
+        if (!built) {
+            logger::critical("Failed to build ImGui font atlas within DirectX texture limits");
             return;
         }
 
