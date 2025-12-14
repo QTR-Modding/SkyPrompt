@@ -4,6 +4,24 @@
 #include <imgui_impl_dx11.h>
 #include "SkyPrompt/AddOns.hpp"
 
+namespace {
+    ImFont* LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges,
+                                   const std::string& a_fontPath) {
+        const auto& io = ImGui::GetIO();
+
+        const auto& font_name = Theme::last_theme->font_name;
+        auto a_fontName =
+            a_fontPath +
+            (MCP::Settings::font_names.contains(font_name) ? font_name : *MCP::Settings::font_names.begin()) + ".ttf";
+        const auto a_font = io.Fonts->AddFontFromFileTTF(a_fontName.c_str(), a_fontSize, nullptr, a_ranges.Data);
+        if (!a_font) {
+            logger::error("Failed to load font: {}", a_fontName);
+            return nullptr;
+        }
+
+        return a_font;
+    }
+}
 
 namespace IconFont {
     IconTexture::IconTexture(const std::wstring_view a_iconName) :
@@ -103,17 +121,21 @@ namespace IconFont {
         const auto a_largefontsize = a_fontsize * 1.2f;
         const auto a_smallfontsize = a_fontsize * 0.65f;
 
-        constexpr int kMaxAtlasDimension = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+        constexpr int kMaxAtlasDimension = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;  // 16384
 
-        auto tryBuildFonts = [&io, &ranges, a_fontsize, a_largefontsize, a_smallfontsize, &largeFont, &smallFont](float scale) -> bool {
+        auto largeFontPtr = &largeFont;
+        auto smallFontPtr = &smallFont;
+        auto a_fontPath = fontPath;
+
+        auto tryBuildFonts = [&io, &ranges, a_fontsize, a_largefontsize, a_smallfontsize, largeFontPtr, smallFontPtr, a_fontPath](float scale) -> bool {
             io.Fonts->Clear();
             io.Fonts->TexDesiredWidth = 4096;
 
-            io.FontDefault = LoadFontIconSet(a_fontsize * scale, ranges);
-            largeFont = LoadFontIconSet(a_largefontsize * scale, ranges);
-            smallFont = LoadFontIconSet(a_smallfontsize * scale, ranges);
+            io.FontDefault = LoadFontIconSet(a_fontsize * scale, ranges, a_fontPath);
+            *largeFontPtr = LoadFontIconSet(a_largefontsize * scale, ranges, a_fontPath);
+            *smallFontPtr = LoadFontIconSet(a_smallfontsize * scale, ranges, a_fontPath);
 
-            if (!io.FontDefault || !largeFont || !smallFont) {
+            if (!io.FontDefault || !*largeFontPtr || !*smallFontPtr) {
                 logger::error("Failed to load one or more fonts for scale {}", scale);
                 return false;
             }
@@ -137,6 +159,7 @@ namespace IconFont {
         bool built = tryBuildFonts(scale);
         while (!built && scale > 0.3f) {
             scale *= 0.8f;
+            logger::warn("Retrying font atlas build for font path {} at scale {}", a_fontPath, scale);
             built = tryBuildFonts(scale);
         }
 
@@ -152,22 +175,6 @@ namespace IconFont {
             return false;
         }
         return true;
-    }
-
-    ImFont* Manager::LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges) const {
-        const auto& io = ImGui::GetIO();
-
-        const auto& font_name = Theme::last_theme->font_name;
-        auto a_fontName = fontPath + (MCP::Settings::font_names.contains(font_name)
-                                          ? font_name
-                                          : *MCP::Settings::font_names.begin()) + ".ttf";
-        const auto a_font = io.Fonts->AddFontFromFileTTF(a_fontName.c_str(), a_fontSize, nullptr, a_ranges.Data);
-        if (!a_font) {
-            logger::error("Failed to load font: {}", a_fontName);
-            return nullptr;
-        }
-
-        return a_font;
     }
 
     ImFont* Manager::GetLargeFont() const {

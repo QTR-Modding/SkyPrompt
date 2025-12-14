@@ -52,8 +52,6 @@ namespace IconFont {
             kPS4
         };
 
-        [[nodiscard]] ImFont* LoadFontIconSet(float a_fontSize, const ImVector<ImWchar>& a_ranges) const;
-
         // members
         bool loadedFonts{false};
 
