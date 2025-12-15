@@ -63,7 +63,6 @@ namespace IconFont {
 
         const std::string fontPath{R"(Data\Interface\ImGuiIcons\Fonts\)"};
 
-        ImFont* largeFont{nullptr};
         ImFont* smallFont{nullptr};
 
         IconTexture stepperLeft{L"StepperLeft"sv};

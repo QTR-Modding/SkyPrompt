@@ -105,25 +105,21 @@ namespace IconFont {
             const auto& prompt_size = Theme::last_theme->prompt_size;
             a_fontsize = prompt_size * resolutionScale;
         }
-        const auto a_largefontsize = a_fontsize * 1.2f;
         const auto a_smallfontsize = a_fontsize * 0.65f;
 
         constexpr int kMaxAtlasDimension = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION; // 16384
 
-        auto largeFontPtr = &largeFont;
         auto smallFontPtr = &smallFont;
         auto a_fontPath = fontPath;
 
-        auto tryBuildFonts = [&io, &ranges, a_fontsize, a_largefontsize, a_smallfontsize, largeFontPtr, smallFontPtr,
+        auto tryBuildFonts = [&io, &ranges, a_fontsize, a_smallfontsize, smallFontPtr,
                 a_fontPath](float scale) -> bool {
             io.Fonts->Clear();
-            io.Fonts->TexDesiredWidth = 4096;
 
             io.FontDefault = LoadFontIconSet(a_fontsize * scale, ranges, a_fontPath);
-            *largeFontPtr = LoadFontIconSet(a_largefontsize * scale, ranges, a_fontPath);
             *smallFontPtr = LoadFontIconSet(a_smallfontsize * scale, ranges, a_fontPath);
 
-            if (!io.FontDefault || !*largeFontPtr || !*smallFontPtr) {
+            if (!io.FontDefault || !*smallFontPtr) {
                 logger::error("Failed to load one or more fonts for scale {}", scale);
                 return false;
             }
@@ -161,15 +157,10 @@ namespace IconFont {
         if (!ImGui_ImplDX11_CreateDeviceObjects()) {
             logger::error("Failed to recreate ImGui device objects after font reload");
             io.Fonts->Clear();
-            largeFont = nullptr;
             smallFont = nullptr;
             return false;
         }
         return true;
-    }
-
-    ImFont* Manager::GetLargeFont() const {
-        return largeFont;
     }
 
     ImFont* Manager::GetSmallFont() const {
@@ -810,8 +801,7 @@ void ImGui::DrawCycleIndicators(SkyPromptAPI::ClientID curr_index, SkyPromptAPI:
 
     SameLine();
 
-    auto* smallFont = MANAGER(IconFont)->GetSmallFont();
-    if (smallFont) {
+    if (auto* smallFont = MANAGER(IconFont)->GetSmallFont()) {
         PushFont(smallFont);
         const std::string text = std::format("({}/{})", curr_index, queue_size);
         const ImVec2 textSize = CalcTextSize(text.c_str());
