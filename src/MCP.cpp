@@ -220,9 +220,6 @@ bool MCP::Settings::FontSettings() {
         }
     }
 
-    if (MCP_API::Checkbox("Extended CJK Glyph Ranges", &extended_cjk)) {
-        changed = true;
-    }
     MCP_API::SameLine();
     HelpMarker("Adds Japanese, Korean, and full Chinese glyph sets. Increases font atlas size and loading time.");
 
@@ -447,7 +444,6 @@ void MCP::Settings::to_json() {
     Value theme(kObjectType);
     theme.AddMember("font_name", Value(Theme::default_theme.font_name.c_str(), allocator).Move(), allocator);
     theme.AddMember("font_shadow", Theme::default_theme.font_shadow, allocator);
-    theme.AddMember("extended_cjk", extended_cjk, allocator);
     // theme:: file name for active icon, like font_name
     root.AddMember("Theme", theme, allocator);
 
@@ -614,7 +610,6 @@ void MCP::Settings::from_json() {
         const rapidjson::Value& theme = mcp["Theme"];
         if (theme.HasMember("font_name")) Theme::default_theme.font_name = theme["font_name"].GetString();
         if (theme.HasMember("font_shadow")) Theme::default_theme.font_shadow = theme["font_shadow"].GetFloat();
-        if (theme.HasMember("extended_cjk")) extended_cjk = theme["extended_cjk"].GetBool();
     }
 
     refreshStyle.store(true);

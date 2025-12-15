@@ -96,19 +96,6 @@ namespace IconFont {
         builder.AddChar(0xf042); // CONTRAST
         builder.AddChar(0xf03e); // IMAGE
 
-        builder.AddRanges(io.Fonts->GetGlyphRangesDefault());
-        builder.AddRanges(io.Fonts->GetGlyphRangesGreek());
-        builder.AddRanges(io.Fonts->GetGlyphRangesCyrillic());
-        builder.AddRanges(io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
-        builder.AddRanges(io.Fonts->GetGlyphRangesThai());
-        builder.AddRanges(io.Fonts->GetGlyphRangesVietnamese());
-
-        if (MCP::Settings::extended_cjk) {
-            builder.AddRanges(io.Fonts->GetGlyphRangesJapanese());
-            builder.AddRanges(io.Fonts->GetGlyphRangesKorean());
-            builder.AddRanges(io.Fonts->GetGlyphRangesChineseFull());
-        }
-
         builder.BuildRanges(&ranges);
 
         const auto resolutionScale = ImGui::Renderer::GetResolutionScale();
@@ -159,7 +146,7 @@ namespace IconFont {
 
         float scale = 1.0f;
         bool built = tryBuildFonts(scale);
-        while (!built && scale > 0.3f) {
+        while (!built && scale > 0.1f) {
             scale *= 0.8f;
             logger::warn("Retrying font atlas build for font path {} at scale {}", a_fontPath, scale);
             built = tryBuildFonts(scale);
