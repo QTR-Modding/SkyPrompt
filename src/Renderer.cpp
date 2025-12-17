@@ -490,12 +490,14 @@ void SubManager::Update(const SkyPromptAPI::ClientID a_client_id, const SkyPromp
     using Update = ButtonMutables;
     std::map<Interaction, Update> updates;
     for (const auto prompts = a_prompt_sink->GetPrompts(); const auto& prompt : prompts) {
-        if (prompt.text.empty()) {
+        auto a_text = std::string(prompt.text);
+        if (a_text.empty()) {
             logger::warn("Empty prompt text for interaction {}", prompt.eventID);
             continue;
         }
+        TranslateEmbedded(a_text);
         const auto a_interaction = Manager::MakeInteraction(a_client_id, prompt.eventID, prompt.actionID);
-        updates[a_interaction] = Update(std::string(prompt.text), prompt.text_color, prompt.progress);
+        updates[a_interaction] = Update(a_text, prompt.text_color, prompt.progress);
     }
     if (updates.empty()) {
         return;
