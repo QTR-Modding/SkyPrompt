@@ -10,9 +10,18 @@ namespace {
         const auto& io = ImGui::GetIO();
 
         const auto& font_name = Theme::last_theme->font_name;
-        auto a_fontName =
-            a_fontPath +
-            (MCP::Settings::font_names.contains(font_name) ? font_name : *MCP::Settings::font_names.begin()) + ".ttf";
+        const auto& selected_font = MCP::Settings::font_names.contains(font_name) 
+            ? font_name 
+            : *MCP::Settings::font_names.begin();
+
+        std::string extension = ".ttf";
+        if (auto it = MCP::Settings::font_extensions.find(selected_font); it != MCP::Settings::font_extensions.end()) {
+            extension = it->second;
+        } else if (!std::filesystem::exists(a_fontPath + selected_font + ".ttf")) {
+            extension = ".otf";
+        }
+        
+        auto a_fontName = a_fontPath + selected_font + extension;
         const auto a_font = io.Fonts->AddFontFromFileTTF(a_fontName.c_str(), a_fontSize, nullptr, a_ranges.Data);
         if (!a_font) {
             logger::error("Failed to load font: {}", a_fontName);
@@ -72,10 +81,16 @@ namespace IconFont {
     bool Manager::ReloadFonts() {
         auto& io = ImGui::GetIO();
         std::set<std::string> availableFonts{};
+        std::map<std::string, std::string> fontExtensions{};
 
         for (const auto& entry : std::filesystem::directory_iterator(fontPath)) {
-            if (entry.path().extension() == ".ttf") {
-                availableFonts.insert(entry.path().filename().replace_extension("").string());
+            const auto ext = entry.path().extension().string();
+            if (ext == ".ttf" || ext == ".otf") {
+                const auto baseName = entry.path().filename().replace_extension("").string();
+                availableFonts.insert(baseName);
+                if (ext == ".ttf" || !fontExtensions.contains(baseName)) {
+                    fontExtensions[baseName] = ext;
+                }
             }
         }
 
@@ -85,6 +100,7 @@ namespace IconFont {
         }
 
         MCP::Settings::font_names = std::move(availableFonts);
+        MCP::Settings::font_extensions = std::move(fontExtensions);
 
         ImVector<ImWchar> ranges;
 

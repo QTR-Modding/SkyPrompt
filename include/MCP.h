@@ -46,6 +46,7 @@ namespace MCP {
 
         // Settings::Theme
         inline std::set<std::string> font_names;
+        inline std::map<std::string, std::string> font_extensions;
 
         void OSPPresetBox();
         bool FontSettings();
