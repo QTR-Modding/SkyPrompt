@@ -17,7 +17,7 @@ namespace {
         std::string extension = ".ttf";
         if (auto it = MCP::Settings::font_extensions.find(selected_font); it != MCP::Settings::font_extensions.end()) {
             extension = it->second;
-        } else if (std::filesystem::exists(a_fontPath + selected_font + ".otf")) {
+        } else if (!std::filesystem::exists(a_fontPath + selected_font + ".ttf")) {
             extension = ".otf";
         }
         
@@ -88,7 +88,7 @@ namespace IconFont {
             if (ext == ".ttf" || ext == ".otf") {
                 const auto baseName = entry.path().filename().replace_extension("").string();
                 availableFonts.insert(baseName);
-                if (ext == ".otf" || !fontExtensions.contains(baseName)) {
+                if (ext == ".ttf" || !fontExtensions.contains(baseName)) {
                     fontExtensions[baseName] = ext;
                 }
             }
