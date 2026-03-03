@@ -4,18 +4,19 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "Hooks.h"
+#include "IconsFonts.h"
 #include "Settings.h"
 #include "Theme.h"
 #include "Tutorial.h"
 #include "SKSEMCP/SKSEMenuFramework.hpp"
 
 static void HelpMarker(const char* desc) {
-    MCP_API::TextDisabled("(?)");
-    if (MCP_API::BeginItemTooltip()) {
-        MCP_API::PushTextWrapPos(MCP_API::GetFontSize() * 35.0f);
-        MCP_API::TextUnformatted(desc);
-        MCP_API::PopTextWrapPos();
-        MCP_API::EndTooltip();
+    ImGuiMCP::TextDisabled("(?)");
+    if (ImGuiMCP::BeginItemTooltip()) {
+        ImGuiMCP::PushTextWrapPos(ImGuiMCP::GetFontSize() * 35.0f);
+        ImGuiMCP::TextUnformatted(desc);
+        ImGuiMCP::PopTextWrapPos();
+        ImGuiMCP::EndTooltip();
     }
 }
 
@@ -24,17 +25,17 @@ void __stdcall MCP::RenderSettings() {
 
     // Checkbox for enable/disable mod
     bool enabled = Settings::initialized.load();
-    if (MCP_API::Checkbox("Enable Mod", &enabled)) {
+    if (ImGuiMCP::Checkbox("Enable Mod", &enabled)) {
         Settings::initialized.store(enabled);
     }
-    MCP_API::SameLine();
-    if (MCP_API::Button("Start Tutorial")) {
+    ImGuiMCP::SameLine();
+    if (ImGuiMCP::Button("Start Tutorial")) {
         Tutorial::Manager::Start();
     }
     #ifndef NDEBUG
     // Checkbox for debug mode
-    MCP_API::SameLine();
-    MCP_API::Checkbox("Draw Debug", &Settings::draw_debug);
+    ImGuiMCP::SameLine();
+    ImGuiMCP::Checkbox("Draw Debug", &Settings::draw_debug);
     #endif
 
     const auto cache = Settings::current_OSP;
@@ -44,61 +45,61 @@ void __stdcall MCP::RenderSettings() {
     }
 
     // Slider for fade speed
-    if (!MCP_API::SliderFloat("Fade Speed", &Theme::default_theme.fadeSpeed, 0.01f, 0.1f)) {
-        if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (!ImGuiMCP::SliderFloat("Fade Speed", &Theme::default_theme.fadeSpeed, 0.01f, 0.1f)) {
+        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
 
     // Slider for X Percent
-    if (!MCP_API::SliderFloat("X Percent", &Theme::default_theme.xPercent, 0.0f, 1.0f)) {
-        if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (!ImGuiMCP::SliderFloat("X Percent", &Theme::default_theme.xPercent, 0.0f, 1.0f)) {
+        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
 
     // Slider for Y Percent
-    if (!MCP_API::SliderFloat("Y Percent", &Theme::default_theme.yPercent, 0.0f, 1.0f)) {
-        if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (!ImGuiMCP::SliderFloat("Y Percent", &Theme::default_theme.yPercent, 0.0f, 1.0f)) {
+        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
 
     // Slider for Margin X
-    if (!MCP_API::SliderFloat("Margin X", &Theme::default_theme.marginX, -1000.0f, 1000.0f)) {
-        if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (!ImGuiMCP::SliderFloat("Margin X", &Theme::default_theme.marginX, -1000.0f, 1000.0f)) {
+        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
 
     // Slider for Margin Y
-    if (!MCP_API::SliderFloat("Margin Y", &Theme::default_theme.marginY, -1000.0f, 1000.0f)) {
-        if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (!ImGuiMCP::SliderFloat("Margin Y", &Theme::default_theme.marginY, -1000.0f, 1000.0f)) {
+        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
 
     // Slider for Prompt Size
-    if (!MCP_API::SliderFloat("Prompt Size", &Theme::default_theme.prompt_size, 15.0f, 100.0f)) {
-        if (MCP_API::IsItemDeactivatedAfterEdit()) {
+    if (!ImGuiMCP::SliderFloat("Prompt Size", &Theme::default_theme.prompt_size, 15.0f, 100.0f)) {
+        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
             Settings::shouldReloadPromptSize.store(true);
             settingsChanged = true;
         }
     }
 
     // Slider for Icon2Font Ratio
-    if (!MCP_API::SliderFloat("Icon2Font Ratio", &Theme::default_theme.icon2font_ratio, 0.5f, 2.0f)) {
-        if (MCP_API::IsItemDeactivatedAfterEdit()) {
+    if (!ImGuiMCP::SliderFloat("Icon2Font Ratio", &Theme::default_theme.icon2font_ratio, 0.5f, 2.0f)) {
+        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
             Settings::shouldReloadPromptSize.store(true);
             settingsChanged = true;
         }
     }
 
     // Slider for Line Spacing
-    if (!MCP_API::SliderFloat("Line Spacing", &Theme::default_theme.linespacing, 0.0f, 1.0f)) {
-        if (MCP_API::IsItemDeactivatedAfterEdit()) {
+    if (!ImGuiMCP::SliderFloat("Line Spacing", &Theme::default_theme.linespacing, 0.0f, 1.0f)) {
+        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
             settingsChanged = true;
         }
     }
 
     // Slider for Progress Speed
-    if (!MCP_API::SliderFloat("Progress Speed", &Theme::default_theme.progress_speed, 0.0f, 1.0f)) {
-        if (MCP_API::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (!ImGuiMCP::SliderFloat("Progress Speed", &Theme::default_theme.progress_speed, 0.0f, 1.0f)) {
+        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
     }
 
     // Slider for Lifetime
-    if (!MCP_API::SliderFloat("Lifetime", &Settings::lifetime, 1.0f, 30.0f)) {
-        if (MCP_API::IsItemDeactivatedAfterEdit()) {
+    if (!ImGuiMCP::SliderFloat("Lifetime", &Settings::lifetime, 1.0f, 30.0f)) {
+        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
             Settings::shouldReloadLifetime.store(true);
             settingsChanged = true;
         }
@@ -111,17 +112,17 @@ void __stdcall MCP::RenderSettings() {
 
 void __stdcall MCP::RenderLog() {
     #ifndef NDEBUG
-    MCP_API::Checkbox("Trace", &LogSettings::log_trace);
+    ImGuiMCP::Checkbox("Trace", &LogSettings::log_trace);
     #endif
-    MCP_API::SameLine();
-    MCP_API::Checkbox("Info", &LogSettings::log_info);
-    MCP_API::SameLine();
-    MCP_API::Checkbox("Warning", &LogSettings::log_warning);
-    MCP_API::SameLine();
-    MCP_API::Checkbox("Error", &LogSettings::log_error);
+    ImGuiMCP::SameLine();
+    ImGuiMCP::Checkbox("Info", &LogSettings::log_info);
+    ImGuiMCP::SameLine();
+    ImGuiMCP::Checkbox("Warning", &LogSettings::log_warning);
+    ImGuiMCP::SameLine();
+    ImGuiMCP::Checkbox("Error", &LogSettings::log_error);
 
     // if "Generate Log" button is pressed, read the log file
-    if (MCP_API::Button("Generate Log")) logLines = ReadLogFile();
+    if (ImGuiMCP::Button("Generate Log")) logLines = ReadLogFile();
 
     // Display each line in a new ImGui::Text() element
     for (const auto& line : logLines) {
@@ -129,7 +130,7 @@ void __stdcall MCP::RenderLog() {
         if (!LogSettings::log_info && line.find("info") != std::string::npos) continue;
         if (!LogSettings::log_warning && line.find("warning") != std::string::npos) continue;
         if (!LogSettings::log_error && line.find("error") != std::string::npos) continue;
-        MCP_API::Text(line.c_str());
+        ImGuiMCP::Text(line.c_str());
     }
 }
 
@@ -172,13 +173,13 @@ bool MCP::Settings::IsEnabled(const Input::DEVICE a_device) {
 
 void MCP::Settings::OSPPresetBox() {
     // Dropdown for OSP Preset
-    MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.25f);
+    ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.25f);
     const auto current_preset_name = Presets::OSP::OSPPool.to_name(current_OSP);
-    if (MCP_API::BeginCombo("On-Screen Position", current_preset_name.data())) {
+    if (ImGuiMCP::BeginCombo("On-Screen Position", current_preset_name.data())) {
         for (const auto& all_preset_names = Presets::OSP::OSPnames;
              const auto& preset_name : all_preset_names) {
             const bool isSelected = current_preset_name == preset_name;
-            if (MCP_API::Selectable(preset_name.data(), isSelected)) {
+            if (ImGuiMCP::Selectable(preset_name.data(), isSelected)) {
                 if (!isSelected) {
                     current_OSP = std::distance(all_preset_names.begin(),
                                                 std::ranges::find(all_preset_names, preset_name));
@@ -189,38 +190,40 @@ void MCP::Settings::OSPPresetBox() {
                     Theme::default_theme.marginY = 0.f;
                 }
             }
-            if (isSelected) MCP_API::SetItemDefaultFocus();
+            if (isSelected) ImGuiMCP::SetItemDefaultFocus();
         }
-        MCP_API::EndCombo();
+        ImGuiMCP::EndCombo();
     }
 }
 
 bool MCP::Settings::FontSettings() {
     auto changed = false;
+    const auto* iconFontManager = MANAGER(IconFont);
+    const auto& fontInfos = iconFontManager->GetAvailableFonts();
 
-    MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.25f);
-    if (MCP_API::BeginCombo("Font", Theme::default_theme.font_name.c_str())) {
-        for (const auto& font : font_names) {
-            const bool isSelected = Theme::default_theme.font_name == font;
-            if (MCP_API::Selectable(font.c_str(), isSelected)) {
+    ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.25f);
+    if (ImGuiMCP::BeginCombo("Font", Theme::default_theme.font_name.c_str())) {
+        for (const auto& fontInfo : fontInfos) {
+            const bool isSelected = Theme::default_theme.font_name == fontInfo.nameWithoutExtension;
+            if (ImGuiMCP::Selectable(fontInfo.nameWithExtension.c_str(), isSelected)) {
                 if (!isSelected) {
-                    Theme::default_theme.font_name = font;
+                    Theme::default_theme.font_name = fontInfo.nameWithoutExtension;
                     changed = true;
                 }
             }
-            if (isSelected) MCP_API::SetItemDefaultFocus();
+            if (isSelected) ImGuiMCP::SetItemDefaultFocus();
         }
-        MCP_API::EndCombo();
+        ImGuiMCP::EndCombo();
     }
 
-    MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.25f);
-    if (!MCP_API::SliderFloat("Font Shadow", &Theme::default_theme.font_shadow, 0.f, 1.f)) {
-        if (MCP_API::IsItemDeactivatedAfterEdit()) {
+    ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.25f);
+    if (!ImGuiMCP::SliderFloat("Font Shadow", &Theme::default_theme.font_shadow, 0.f, 1.f)) {
+        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
             changed = true;
         }
     }
 
-    MCP_API::SameLine();
+    ImGuiMCP::SameLine();
     HelpMarker("Adds Japanese, Korean, and full Chinese glyph sets. Increases font atlas size and loading time.");
 
     if (changed) {
@@ -268,7 +271,7 @@ namespace {
         //dropdown with keys for selected device
         const auto device_str = std::string(device_to_string(selected_device));
         const auto converted_key = selected_key; // Input::Manager::Convert(selected_key, selected_device);
-        if (MCP_API::BeginCombo(label, SKSE::InputMap::GetKeyName(converted_key).c_str())) {
+        if (ImGuiMCP::BeginCombo(label, SKSE::InputMap::GetKeyName(converted_key).c_str())) {
             for (const auto& key_code : Input::Manager::GetKeys(selected_device)) {
                 const auto converted_keycode = key_code; // Input::Manager::Convert(key_code, selected_device);
                 const auto key_name = SKSE::InputMap::GetKeyName(converted_keycode);
@@ -276,14 +279,14 @@ namespace {
                     continue;
                 }
                 const bool isSelected = converted_key == converted_keycode;
-                if (MCP_API::Selectable((key_name + std::format("##{}", converted_key)).c_str(), isSelected)) {
+                if (ImGuiMCP::Selectable((key_name + std::format("##{}", converted_key)).c_str(), isSelected)) {
                     if (!isSelected) {
                         selected_key = key_code;
                     }
                 }
-                if (isSelected) MCP_API::SetItemDefaultFocus();
+                if (isSelected) ImGuiMCP::SetItemDefaultFocus();
             }
-            MCP_API::EndCombo();
+            ImGuiMCP::EndCombo();
         }
     }
 
@@ -299,32 +302,32 @@ namespace {
             MCP::current_device = it->first;
             ++index;
         }
-        if (MCP_API::BeginCombo(label, device_to_string(MCP::current_device).data())) {
+        if (ImGuiMCP::BeginCombo(label, device_to_string(MCP::current_device).data())) {
             for (const auto& device : MCP::Settings::prompt_keys | std::views::keys) {
                 if (!MCP::Settings::IsEnabled(device)) {
                     continue;
                 }
                 const bool isSelected = MCP::current_device == device;
-                if (MCP_API::Selectable(device_to_string(device).data(), isSelected)) {
+                if (ImGuiMCP::Selectable(device_to_string(device).data(), isSelected)) {
                     if (!isSelected) {
                         MCP::current_device = device;
                     }
                 }
-                if (isSelected) MCP_API::SetItemDefaultFocus();
+                if (isSelected) ImGuiMCP::SetItemDefaultFocus();
             }
-            MCP_API::EndCombo();
+            ImGuiMCP::EndCombo();
         }
     }
 
     void RenderControl(std::map<Input::DEVICE, uint32_t>& curr_controls, const char* label,
                        const char* help = nullptr) {
-        MCP_API::Text(label);
-        MCP_API::SameLine();
-        MCP_API::SetCursorPosX(200.f);
-        MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.30f);
+        ImGuiMCP::Text(label);
+        ImGuiMCP::SameLine();
+        ImGuiMCP::SetCursorPosX(200.f);
+        ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.30f);
         ControlBox(("##" + std::string(label)).c_str(), MCP::current_device, curr_controls.at(MCP::current_device));
         if (help) {
-            MCP_API::SameLine();
+            ImGuiMCP::SameLine();
             HelpMarker(help);
         }
     }
@@ -334,7 +337,7 @@ bool MCP::Settings::CycleControls() {
     bool settingsChanged = false;
 
     auto temp = cycle_controls.load();
-    if (MCP_API::Checkbox("Cycle Controls", &temp)) {
+    if (ImGuiMCP::Checkbox("Cycle Controls", &temp)) {
         cycle_controls.store(temp);
         settingsChanged = true;
     }
@@ -620,27 +623,27 @@ void __stdcall MCP::RenderControls() {
     bool settingsChanged = false;
     for (const auto& device : Settings::enabled_devices | std::views::keys) {
         const auto device_str = device_to_string(device);
-        if (MCP_API::Checkbox((device_str + "##enabled").c_str(), &Settings::enabled_devices.at(device))) {
+        if (ImGuiMCP::Checkbox((device_str + "##enabled").c_str(), &Settings::enabled_devices.at(device))) {
             settingsChanged = true;
         }
         if (device != Settings::enabled_devices.rbegin()->first) {
-            MCP_API::SameLine();
+            ImGuiMCP::SameLine();
         }
     }
 
     // need max number of buttons slider
-    if (!MCP_API::SliderInt("Max Buttons", &Theme::default_theme.n_max_buttons, 1, 4)) {
-        if (MCP_API::IsItemDeactivatedAfterEdit()) {
+    if (!ImGuiMCP::SliderInt("Max Buttons", &Theme::default_theme.n_max_buttons, 1, 4)) {
+        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
             settingsChanged = true;
         }
     }
 
     const auto prompt_keys_before = Settings::prompt_keys;
 
-    MCP_API::Text("Device Selection:");
-    MCP_API::SameLine();
-    MCP_API::SetCursorPosX(200.f);
-    MCP_API::SetNextItemWidth(MCP_API::GetWindowWidth() * 0.25f);
+    ImGuiMCP::Text("Device Selection:");
+    ImGuiMCP::SameLine();
+    ImGuiMCP::SetCursorPosX(200.f);
+    ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.25f);
     DeviceBox("##device_selection");
 
     if (current_device != Input::DEVICE::kUnknown) {
@@ -664,7 +667,7 @@ void __stdcall MCP::RenderControls() {
         Settings::to_json();
     }
 
-    MCP_API::Text("");
+    ImGuiMCP::Text("");
     Settings::SpecialCommands::Render();
 }
 
@@ -672,7 +675,7 @@ void __stdcall MCP::RenderTheme() {
     bool changed = false;
 
     if (Settings::FontSettings()) changed = true;
-    if (MCP_API::Button("Reload Themes")) {
+    if (ImGuiMCP::Button("Reload Themes")) {
         Settings::ReloadThemes();
         changed = true;
     }
@@ -689,23 +692,23 @@ void MCP::Settings::SpecialCommands::Render() {
     // triple press and hold: delete all prompts
     // explain what special commands are
 
-    MCP_API::Text("Special Commands");
-    MCP_API::SameLine();
+    ImGuiMCP::Text("Special Commands");
+    ImGuiMCP::SameLine();
     HelpMarker(
         "Double press: delete current prompt\nTriple press: cycle through prompts\nTriple press and hold: delete all prompts");
 
-    if (MCP_API::Checkbox("Visualize", &visualize)) {
+    if (ImGuiMCP::Checkbox("Visualize", &visualize)) {
         to_json();
     }
-    MCP_API::SameLine();
+    ImGuiMCP::SameLine();
     HelpMarker("Visualization of the special commands");
 
-    if (!MCP_API::SliderFloat("Responsiveness", &responsiveness, 0.0f, 1.0f)) {
-        if (MCP_API::IsItemDeactivatedAfterEdit()) {
+    if (!ImGuiMCP::SliderFloat("Responsiveness", &responsiveness, 0.0f, 1.0f)) {
+        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
             to_json();
             ImGui::Renderer::UpdateMaxIntervalBetweenPresses();
         }
     }
-    MCP_API::SameLine();
+    ImGuiMCP::SameLine();
     HelpMarker("Higher values gives you less time to press the next key in return for faster response");
 }
