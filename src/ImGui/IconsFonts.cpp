@@ -5,14 +5,28 @@
 #include "SkyPrompt/AddOns.hpp"
 
 namespace {
+    std::string ToLower(std::string a_value) {
+        std::ranges::transform(a_value, a_value.begin(), [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        });
+        return a_value;
+    }
+
     ImFont* LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges,
                             const std::string& a_fontPath) {
         const auto& io = ImGui::GetIO();
 
+        const auto iconManager = MANAGER(IconFont);
+        const auto& availableFonts = iconManager->GetAvailableFonts();
+        if (availableFonts.empty()) {
+            logger::error("No available fonts in {}", a_fontPath);
+            return nullptr;
+        }
+
         const auto& font_name = Theme::last_theme->font_name;
-        auto a_fontName =
-            a_fontPath +
-            (MCP::Settings::font_names.contains(font_name) ? font_name : *MCP::Settings::font_names.begin()) + ".ttf";
+        const auto selectedFontInfo = iconManager->GetFontInfoByName(font_name);
+        const auto& fontInfo = selectedFontInfo ? *selectedFontInfo : *availableFonts.begin();
+        const auto a_fontName = (std::filesystem::path(a_fontPath) / fontInfo.nameWithExtension).string();
         const auto a_font = io.Fonts->AddFontFromFileTTF(a_fontName.c_str(), a_fontSize, nullptr, a_ranges.Data);
         if (!a_font) {
             logger::error("Failed to load font: {}", a_fontName);
@@ -71,20 +85,25 @@ namespace IconFont {
 
     bool Manager::ReloadFonts() {
         auto& io = ImGui::GetIO();
-        std::set<std::string> availableFonts{};
+        std::set<FontInfo> discoveredFonts{};
 
         for (const auto& entry : std::filesystem::directory_iterator(fontPath)) {
-            if (entry.path().extension() == ".ttf") {
-                availableFonts.insert(entry.path().filename().replace_extension("").string());
+            const auto extension = ToLower(entry.path().extension().string());
+            if (extension == ".ttf" || extension == ".otf") {
+                discoveredFonts.insert({
+                    entry.path().filename().string(),
+                    extension,
+                    entry.path().filename().replace_extension("").string()
+                });
             }
         }
 
-        if (availableFonts.empty()) {
+        if (discoveredFonts.empty()) {
             logger::error("No fonts found in {}", fontPath);
             return false;
         }
 
-        MCP::Settings::font_names = std::move(availableFonts);
+        availableFonts = std::move(discoveredFonts);
 
         ImVector<ImWchar> ranges;
 
@@ -165,6 +184,17 @@ namespace IconFont {
 
     ImFont* Manager::GetSmallFont() const {
         return smallFont;
+    }
+
+    const std::set<Manager::FontInfo>& Manager::GetAvailableFonts() const {
+        return availableFonts;
+    }
+
+    const Manager::FontInfo* Manager::GetFontInfoByName(const std::string_view a_fontName) const {
+        const auto it = std::ranges::find_if(availableFonts, [a_fontName](const FontInfo& a_fontInfo) {
+            return a_fontInfo.nameWithoutExtension == a_fontName;
+        });
+        return it != availableFonts.end() ? std::addressof(*it) : nullptr;
     }
 
     const IconTexture* Manager::GetStepperLeft() const {

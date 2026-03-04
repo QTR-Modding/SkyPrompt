@@ -21,6 +21,22 @@ namespace IconFont {
 
     class Manager final : public REX::Singleton<Manager> {
     public:
+        struct FontInfo {
+            std::string nameWithExtension;
+            std::string extension;
+            std::string nameWithoutExtension;
+
+            bool operator<(const FontInfo& a_rhs) const {
+                if (nameWithoutExtension != a_rhs.nameWithoutExtension) {
+                    return nameWithoutExtension < a_rhs.nameWithoutExtension;
+                }
+                if (extension != a_rhs.extension) {
+                    return extension < a_rhs.extension;
+                }
+                return nameWithExtension < a_rhs.nameWithExtension;
+            }
+        };
+
         struct GamepadIcon {
             IconTexture xbox;
             IconTexture ps4;
@@ -31,6 +47,8 @@ namespace IconFont {
 
         [[nodiscard]] ImFont* GetLargeFont() const;
         [[nodiscard]] ImFont* GetSmallFont() const;
+        [[nodiscard]] const std::set<FontInfo>& GetAvailableFonts() const;
+        [[nodiscard]] const FontInfo* GetFontInfoByName(std::string_view a_fontName) const;
 
         [[nodiscard]] const IconTexture* GetStepperLeft() const;
         [[nodiscard]] const IconTexture* GetStepperRight() const;
@@ -62,6 +80,7 @@ namespace IconFont {
         float largeIconSize{0.f};
 
         const std::string fontPath{R"(Data\Interface\ImGuiIcons\Fonts\)"};
+        std::set<FontInfo> availableFonts;
 
         ImFont* smallFont{nullptr};
 
