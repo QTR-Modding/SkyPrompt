@@ -205,7 +205,8 @@ bool MCP::Settings::FontSettings() {
     if (ImGuiMCP::BeginCombo("Font", Theme::default_theme.font_name.c_str())) {
         for (const auto& fontInfo : fontInfos) {
             const bool isSelected = Theme::default_theme.font_name == fontInfo.nameWithoutExtension;
-            if (ImGuiMCP::Selectable(fontInfo.nameWithExtension.c_str(), isSelected)) {
+            const auto label = std::format("{}##{}", fontInfo.nameWithoutExtension, fontInfo.nameWithExtension);
+            if (ImGuiMCP::Selectable(label.c_str(), isSelected)) {
                 if (!isSelected) {
                     Theme::default_theme.font_name = fontInfo.nameWithoutExtension;
                     changed = true;
