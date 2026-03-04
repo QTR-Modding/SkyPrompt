@@ -20,8 +20,6 @@ constexpr float EPSILON = 1e-10f;
 
 #include <wrl/client.h>
 
-#include <DirectXTex.h>
-
 #include <ankerl/unordered_dense.h>
 
 using EventResult = RE::BSEventNotifyControl;

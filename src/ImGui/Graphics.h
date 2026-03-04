@@ -1,11 +1,12 @@
 #pragma once
+#include "DirectXTex.h"
 #include "imgui.h"
 
 namespace ImGui {
     struct Texture {
         Texture() = delete;
         Texture(std::wstring_view a_folder, std::wstring_view a_textureName);
-        Texture(std::wstring_view a_path);
+        explicit Texture(std::wstring_view a_path);
 
         virtual ~Texture();
 
