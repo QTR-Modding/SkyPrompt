@@ -57,6 +57,16 @@ namespace IconFont {
         return result;
     }
 
+    bool Manager::FontInfo::operator<(const FontInfo& a_rhs) const {
+        if (nameWithoutExtension != a_rhs.nameWithoutExtension) {
+            return nameWithoutExtension < a_rhs.nameWithoutExtension;
+        }
+        if (extension != a_rhs.extension) {
+            return extension < a_rhs.extension;
+        }
+        return nameWithExtension < a_rhs.nameWithExtension;
+    }
+
     void Manager::LoadIcons() {
         unknownKey.Load();
 
