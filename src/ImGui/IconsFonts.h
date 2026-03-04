@@ -45,7 +45,6 @@ namespace IconFont {
         void LoadIcons();
         [[nodiscard]] bool ReloadFonts();
 
-        [[nodiscard]] ImFont* GetLargeFont() const;
         [[nodiscard]] ImFont* GetSmallFont() const;
         [[nodiscard]] const std::set<FontInfo>& GetAvailableFonts() const;
         [[nodiscard]] const FontInfo* GetFontInfoByName(std::string_view a_fontName) const;
@@ -76,8 +75,6 @@ namespace IconFont {
         std::string fontName{R"(Data\Interface\ImGuiIcons\Fonts\Jost-Regular.ttf)"};
         float fontSize{0.f};
         float iconSize{0.f};
-        float largeFontSize{0.f};
-        float largeIconSize{0.f};
 
         const std::string fontPath{R"(Data\Interface\ImGuiIcons\Fonts\)"};
         std::set<FontInfo> availableFonts;
