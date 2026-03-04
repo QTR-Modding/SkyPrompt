@@ -3,16 +3,24 @@
 #include "imgui_internal.h"
 #include <imgui_impl_dx11.h>
 #include "SkyPrompt/AddOns.hpp"
+#include "ClibUtilsQTR/StringHelpers.hpp"
 
 namespace {
     ImFont* LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges,
                             const std::string& a_fontPath) {
         const auto& io = ImGui::GetIO();
 
+        const auto iconManager = MANAGER(IconFont);
+        const auto& availableFonts = iconManager->GetAvailableFonts();
+        if (availableFonts.empty()) {
+            logger::error("No available fonts in {}", a_fontPath);
+            return nullptr;
+        }
+
         const auto& font_name = Theme::last_theme->font_name;
-        auto a_fontName =
-            a_fontPath +
-            (MCP::Settings::font_names.contains(font_name) ? font_name : *MCP::Settings::font_names.begin()) + ".ttf";
+        const auto selectedFontInfo = iconManager->GetFontInfoByName(font_name);
+        const auto& fontInfo = selectedFontInfo ? *selectedFontInfo : *availableFonts.begin();
+        const auto a_fontName = (std::filesystem::path(a_fontPath) / fontInfo.GetName()).string();
         const auto a_font = io.Fonts->AddFontFromFileTTF(a_fontName.c_str(), a_fontSize, nullptr, a_ranges.Data);
         if (!a_font) {
             logger::error("Failed to load font: {}", a_fontName);
@@ -43,6 +51,44 @@ namespace IconFont {
         return result;
     }
 
+    Manager::FontInfo::FontInfo(const std::string& a_name_without_ext, const std::string& a_ext) {
+        nameWithoutExtension = a_name_without_ext;
+        extension = a_ext;
+        if (!extension.empty() && extension.front() != '.') {
+            extension.insert(extension.begin(), '.');
+        }
+        nameWithExtension = nameWithoutExtension + extension;
+    }
+
+    Manager::FontInfo::FontInfo(const std::string& a_name_with_ext) {
+        nameWithExtension = a_name_with_ext;
+        const auto last_dot_pos = a_name_with_ext.find_last_of('.');
+        if (last_dot_pos == std::string::npos || last_dot_pos == 0 || last_dot_pos == a_name_with_ext.size() - 1) {
+            nameWithoutExtension = a_name_with_ext;
+            extension.clear();
+            return;
+        }
+
+        nameWithoutExtension = a_name_with_ext.substr(0, last_dot_pos);
+        extension = a_name_with_ext.substr(last_dot_pos);
+    }
+
+    bool Manager::FontInfo::operator<(const FontInfo& a_rhs) const {
+        if (nameWithoutExtension != a_rhs.nameWithoutExtension) {
+            return nameWithoutExtension < a_rhs.nameWithoutExtension;
+        }
+        if (extension != a_rhs.extension) {
+            return extension < a_rhs.extension;
+        }
+        return nameWithExtension < a_rhs.nameWithExtension;
+    }
+
+    bool Manager::FontInfo::operator==(const FontInfo& a_rhs) const {
+        return nameWithExtension == a_rhs.nameWithExtension ||
+               nameWithoutExtension == a_rhs.nameWithoutExtension &&
+               extension == a_rhs.extension;
+    }
+
     void Manager::LoadIcons() {
         unknownKey.Load();
 
@@ -71,20 +117,21 @@ namespace IconFont {
 
     bool Manager::ReloadFonts() {
         auto& io = ImGui::GetIO();
-        std::set<std::string> availableFonts{};
+        std::set<FontInfo> discoveredFonts{};
 
         for (const auto& entry : std::filesystem::directory_iterator(fontPath)) {
-            if (entry.path().extension() == ".ttf") {
-                availableFonts.insert(entry.path().filename().replace_extension("").string());
+            const auto extension = StringHelpers::toLowercase(entry.path().extension().string());
+            if (extension == ".ttf" || extension == ".otf") {
+                discoveredFonts.emplace(entry.path().filename().replace_extension("").string(), extension);
             }
         }
 
-        if (availableFonts.empty()) {
+        if (discoveredFonts.empty()) {
             logger::error("No fonts found in {}", fontPath);
             return false;
         }
 
-        MCP::Settings::font_names = std::move(availableFonts);
+        availableFonts = std::move(discoveredFonts);
 
         ImVector<ImWchar> ranges;
 
@@ -167,6 +214,28 @@ namespace IconFont {
         return smallFont;
     }
 
+    const std::set<Manager::FontInfo>& Manager::GetAvailableFonts() const {
+        return availableFonts;
+    }
+
+    const Manager::FontInfo* Manager::GetFontInfoByName(const std::string_view a_fontName) const {
+        const std::string key{a_fontName};
+
+        const FontInfo exactKey{key};
+        auto it = availableFonts.lower_bound(exactKey);
+        if (it != availableFonts.end() && it->GetName() == key) {
+            return std::addressof(*it);
+        }
+
+        const FontInfo baseKey{key, {}};
+        it = availableFonts.lower_bound(baseKey);
+        if (it != availableFonts.end() && it->GetNameWithoutExtension() == key) {
+            return std::addressof(*it);
+        }
+
+        return nullptr;
+    }
+
     const IconTexture* Manager::GetStepperLeft() const {
         return &stepperLeft;
     }
@@ -236,7 +305,7 @@ namespace IconFont {
 
 namespace {
     // Utility: scale a packed ImU32 color's alpha by factor in [0,1]
-    ImU32 MulAlpha(ImU32 c, float a) {
+    ImU32 MulAlpha(const ImU32 c, float a) {
         a = ImClamp(a, 0.0f, 1.0f);
         const int A = (c >> IM_COL32_A_SHIFT) & 0xFF;
         const int newA = static_cast<int>(A * a + 0.5f);
@@ -647,7 +716,7 @@ namespace {
         dl->PopClipRect();
     }
 
-    void RenderPromptsHorizontalCentered(const std::vector<ImGui::RenderInfo>& batch, float lineSpacingPx) {
+    void RenderPromptsHorizontalCentered(const std::vector<ImGui::RenderInfo>& batch, const float lineSpacingPx) {
         if (batch.empty()) return;
 
         const float iconSz = GetIconSize();

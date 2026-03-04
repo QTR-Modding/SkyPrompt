@@ -21,6 +21,20 @@ namespace IconFont {
 
     class Manager final : public REX::Singleton<Manager> {
     public:
+        struct FontInfo {
+            [[nodiscard]] std::string_view GetName() const { return nameWithExtension; }
+            [[nodiscard]] std::string_view GetNameWithoutExtension() const { return nameWithoutExtension; }
+            explicit FontInfo(const std::string& a_name_without_ext, const std::string& a_ext);
+            explicit FontInfo(const std::string& a_name_with_ext);
+            bool operator<(const FontInfo& a_rhs) const;
+            bool operator==(const FontInfo& a_rhs) const;
+
+        private:
+            std::string extension;
+            std::string nameWithoutExtension;
+            std::string nameWithExtension;
+        };
+
         struct GamepadIcon {
             IconTexture xbox;
             IconTexture ps4;
@@ -29,8 +43,9 @@ namespace IconFont {
         void LoadIcons();
         [[nodiscard]] bool ReloadFonts();
 
-        [[nodiscard]] ImFont* GetLargeFont() const;
         [[nodiscard]] ImFont* GetSmallFont() const;
+        [[nodiscard]] const std::set<FontInfo>& GetAvailableFonts() const;
+        [[nodiscard]] const FontInfo* GetFontInfoByName(std::string_view a_fontName) const;
 
         [[nodiscard]] const IconTexture* GetStepperLeft() const;
         [[nodiscard]] const IconTexture* GetStepperRight() const;
@@ -58,10 +73,9 @@ namespace IconFont {
         std::string fontName{R"(Data\Interface\ImGuiIcons\Fonts\Jost-Regular.ttf)"};
         float fontSize{0.f};
         float iconSize{0.f};
-        float largeFontSize{0.f};
-        float largeIconSize{0.f};
 
         const std::string fontPath{R"(Data\Interface\ImGuiIcons\Fonts\)"};
+        std::set<FontInfo> availableFonts;
 
         ImFont* smallFont{nullptr};
 
