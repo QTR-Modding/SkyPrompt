@@ -25,7 +25,7 @@ namespace {
             }
         }
         if (message->type == SKSE::MessagingInterface::kInputLoaded) {
-            if (MCP::Settings::prompt_keys.empty()) {
+            if (MCP::Settings::default_keys.empty()) {
                 MCP::Settings::LoadDefaultPromptKeys();
             }
         }
