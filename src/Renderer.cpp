@@ -1092,8 +1092,25 @@ bool SubManager::IsInQueue(const Interaction& a_interaction) const {
 uint32_t InteractionButton::GetKey() const {
     const auto manager = MANAGER(Input)->GetSingleton();
     const auto a_device = manager->GetInputDevice();
-    const auto it = keys.find(a_device);
-    return it != keys.end() ? it->second : MCP::Settings::prompt_keys.at(a_device).at(default_key_index);
+    if (const auto it = keys.find(a_device); it != keys.end()) {
+        return it->second; // client-provided key for this device
+    }
+
+    // fallback to default key for this device
+    const auto& default_keys = MCP::Settings::default_keys;
+    const auto defaultsIt = default_keys.find(a_device);
+    if (defaultsIt == default_keys.end() || defaultsIt->second.empty()) {
+        logger::error("No fallback keys for device {}", static_cast<int>(a_device));
+        return 0;
+    }
+
+    const auto& defaults = defaultsIt->second;
+    const size_t safeIndex = std::min(
+        static_cast<size_t>(std::max(default_key_index, 0)),
+        defaults.size() - 1
+        );
+
+    return defaults[safeIndex];
 }
 
 InteractionButton::InteractionButton(const Interaction& a_interaction, const Mutables& a_mutables,

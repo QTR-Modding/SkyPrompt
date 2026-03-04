@@ -241,7 +241,7 @@ bool MCP::Settings::FontSettings() {
 }
 
 void MCP::Settings::LoadDefaultPromptKeys() {
-    prompt_keys = {
+    default_keys = {
         {Input::DEVICE::kKeyboardMouse, {
              Input::Manager::Convert(KEY::kNum1, RE::INPUT_DEVICE::kKeyboard),
              Input::Manager::Convert(KEY::kNum2, RE::INPUT_DEVICE::kKeyboard),
@@ -300,9 +300,9 @@ namespace {
     void DeviceBox(const char* label) {
         size_t index = 0;
         while (!MCP::Settings::IsEnabled(MCP::current_device)) {
-            auto it = MCP::Settings::prompt_keys.begin();
+            auto it = MCP::Settings::default_keys.begin();
             std::advance(it, index);
-            if (it == MCP::Settings::prompt_keys.end()) {
+            if (it == MCP::Settings::default_keys.end()) {
                 MCP::current_device = Input::DEVICE::kUnknown;
                 break;
             }
@@ -310,7 +310,7 @@ namespace {
             ++index;
         }
         if (ImGuiMCP::BeginCombo(label, device_to_string(MCP::current_device).data())) {
-            for (const auto& device : MCP::Settings::prompt_keys | std::views::keys) {
+            for (const auto& device : MCP::Settings::default_keys | std::views::keys) {
                 if (!MCP::Settings::IsEnabled(device)) {
                     continue;
                 }
@@ -417,7 +417,7 @@ void MCP::Settings::to_json() {
 
     // keys
     Value prompt_keys_json(kObjectType);
-    for (const auto& [device, keys] : prompt_keys) {
+    for (const auto& [device, keys] : default_keys) {
         const auto device_str = device_to_string(device);
         // need array of keys for each device
         Value device_keys(kArrayType);
@@ -567,10 +567,10 @@ void MCP::Settings::from_json() {
                 for (auto& key : it->value.GetArray()) {
                     keys.push_back(key.GetUint());
                 }
-                if (prompt_keys.contains(device)) {
-                    prompt_keys.at(device) = keys;
+                if (default_keys.contains(device)) {
+                    default_keys.at(device) = keys;
                 } else {
-                    prompt_keys[device] = keys;
+                    default_keys[device] = keys;
                 }
             }
         }
@@ -645,7 +645,7 @@ void __stdcall MCP::RenderControls() {
         }
     }
 
-    const auto prompt_keys_before = Settings::prompt_keys;
+    const auto prompt_keys_before = Settings::default_keys;
 
     ImGuiMCP::Text("Device Selection:");
     ImGuiMCP::SameLine();
@@ -656,11 +656,11 @@ void __stdcall MCP::RenderControls() {
     if (current_device != Input::DEVICE::kUnknown) {
         for (auto i = 0; i < Theme::default_theme.n_max_buttons; i++) {
             std::map<Input::DEVICE, uint32_t> curr_controls;
-            for (const auto& [device, key] : Settings::prompt_keys) {
+            for (const auto& [device, key] : Settings::default_keys) {
                 curr_controls[device] = key.at(i);
             }
             RenderControl(curr_controls, std::format("Button {}", i + 1).c_str());
-            for (auto& [device, key] : Settings::prompt_keys) {
+            for (auto& [device, key] : Settings::default_keys) {
                 key.at(i) = curr_controls[device];
             }
         }
@@ -670,7 +670,7 @@ void __stdcall MCP::RenderControls() {
         settingsChanged = true;
     }
 
-    if (settingsChanged || prompt_keys_before != Settings::prompt_keys) {
+    if (settingsChanged || prompt_keys_before != Settings::default_keys) {
         Settings::to_json();
     }
 
