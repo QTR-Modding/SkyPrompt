@@ -6,7 +6,6 @@
 #include "ClibUtilsQTR/StringHelpers.hpp"
 
 namespace {
-
     ImFont* LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges,
                             const std::string& a_fontPath) {
         const auto& io = ImGui::GetIO();
