@@ -22,11 +22,17 @@ namespace IconFont {
     class Manager final : public REX::Singleton<Manager> {
     public:
         struct FontInfo {
-            std::string nameWithExtension;
+            [[nodiscard]] std::string_view GetName() const { return nameWithExtension; }
+            [[nodiscard]] std::string_view GetNameWithoutExtension() const { return nameWithoutExtension; }
+            explicit FontInfo(const std::string& a_name_without_ext, const std::string& a_ext);
+            explicit FontInfo(const std::string& a_name_with_ext);
+            bool operator<(const FontInfo& a_rhs) const;
+            bool operator==(const FontInfo& a_rhs) const;
+
+        private:
             std::string extension;
             std::string nameWithoutExtension;
-
-            bool operator<(const FontInfo& a_rhs) const;
+            std::string nameWithExtension;
         };
 
         struct GamepadIcon {

@@ -25,7 +25,7 @@ namespace Theme {
         Field<float, rapidjson::Value> progress_speed = {"progress_speed", .552f};
         Field<float, rapidjson::Value> fadeSpeed = {"fadeSpeed", .02f};
 
-        Field<std::string, rapidjson::Value> font_name = {"font_name", "Jost-Regular"};
+        Field<std::string, rapidjson::Value> font_name = {"font_name", "Jost-Regular.ttf"};
         Field<float, rapidjson::Value> font_shadow = {"font_shadow", 0.2f};
         Field<std::string, rapidjson::Value> prompt_alignment = {"prompt_alignment", "vertical"}; // e.g. radial
 
@@ -69,7 +69,7 @@ namespace Theme {
         float progress_speed = .552f;
         float fadeSpeed = .02f;
 
-        std::string font_name = "Jost-Regular";
+        std::string font_name = "Jost-Regular.ttf";
         float font_shadow = 0.2f;
 
         PromptAlignment prompt_alignment = kVertical;

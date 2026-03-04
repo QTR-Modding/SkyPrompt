@@ -202,13 +202,19 @@ bool MCP::Settings::FontSettings() {
     const auto& fontInfos = iconFontManager->GetAvailableFonts();
 
     ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.25f);
-    if (ImGuiMCP::BeginCombo("Font", Theme::default_theme.font_name.c_str())) {
+    auto& default_theme_font_name = Theme::default_theme.font_name;
+    if (const auto selectedInfo = iconFontManager->GetFontInfoByName(default_theme_font_name);
+        selectedInfo && default_theme_font_name != selectedInfo->GetName()) {
+        default_theme_font_name = std::string(selectedInfo->GetName());
+        changed = true;
+    }
+
+    if (ImGuiMCP::BeginCombo("Font", default_theme_font_name.c_str())) {
         for (const auto& fontInfo : fontInfos) {
-            const bool isSelected = Theme::default_theme.font_name == fontInfo.nameWithoutExtension;
-            const auto label = std::format("{}##{}", fontInfo.nameWithoutExtension, fontInfo.nameWithExtension);
-            if (ImGuiMCP::Selectable(label.c_str(), isSelected)) {
+            const bool isSelected = default_theme_font_name == fontInfo.GetName();
+            if (ImGuiMCP::Selectable(fontInfo.GetName().data(), isSelected)) {
                 if (!isSelected) {
-                    Theme::default_theme.font_name = fontInfo.nameWithoutExtension;
+                    Theme::default_theme.font_name = std::string(fontInfo.GetName());
                     changed = true;
                 }
             }
