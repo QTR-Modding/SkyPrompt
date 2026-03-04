@@ -3,14 +3,9 @@
 #include "imgui_internal.h"
 #include <imgui_impl_dx11.h>
 #include "SkyPrompt/AddOns.hpp"
+#include "ClibUtilsQTR/StringHelpers.hpp"
 
 namespace {
-    std::string ToLower(std::string a_value) {
-        std::ranges::transform(a_value, a_value.begin(), [](unsigned char c) {
-            return static_cast<char>(std::tolower(c));
-        });
-        return a_value;
-    }
 
     ImFont* LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges,
                             const std::string& a_fontPath) {
@@ -98,7 +93,7 @@ namespace IconFont {
         std::set<FontInfo> discoveredFonts{};
 
         for (const auto& entry : std::filesystem::directory_iterator(fontPath)) {
-            const auto extension = ToLower(entry.path().extension().string());
+            const auto extension = StringHelpers::toLowercase(entry.path().extension().string());
             if (extension == ".ttf" || extension == ".otf") {
                 discoveredFonts.insert({
                     entry.path().filename().string(),
