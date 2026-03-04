@@ -26,15 +26,7 @@ namespace IconFont {
             std::string extension;
             std::string nameWithoutExtension;
 
-            bool operator<(const FontInfo& a_rhs) const {
-                if (nameWithoutExtension != a_rhs.nameWithoutExtension) {
-                    return nameWithoutExtension < a_rhs.nameWithoutExtension;
-                }
-                if (extension != a_rhs.extension) {
-                    return extension < a_rhs.extension;
-                }
-                return nameWithExtension < a_rhs.nameWithExtension;
-            }
+            bool operator<(const FontInfo& a_rhs) const;
         };
 
         struct GamepadIcon {
