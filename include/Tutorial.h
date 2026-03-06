@@ -98,7 +98,6 @@ namespace Tutorial {
 
         constexpr std::string_view str1 = "Delete Me: Double Press the Button!";
         constexpr std::string_view str2 = "Delete Me: Double Press the Button! ";
-        constexpr std::string_view quit_me = "Quit Tutorial";
 
         const SkyPromptAPI::Prompt prompt1(str1, 0, 0, SkyPromptAPI::PromptType::kHold);
         const SkyPromptAPI::Prompt prompt2(str2, 0, 1, SkyPromptAPI::PromptType::kHold);
