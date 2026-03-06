@@ -414,6 +414,41 @@ namespace {
                    std::max(start_angle, 0.f));
     }
 
+    template <class DrawHoldMarkFn>
+    void DrawPromptStateOverlay(ImDrawList* dl, const ImGui::RenderInfo& ri, const ImVec2 iconCenter,
+                                const float outerR, const float thickness,
+                                const DrawHoldMarkFn& drawHoldMark,
+                                const float angleOffsetRad = 0.0f) {
+        if (MCP::Settings::SpecialCommands::visualize) {
+            if (ri.button_state < 3.f) {
+                if (ri.button_state > 2.f) DrawCross2(dl, iconCenter, outerR * 0.6f, thickness);
+                if (ri.button_state > 1.f) DrawCross1(dl, iconCenter, outerR * 0.6f, thickness);
+            } else if (ri.progress > 0.f) {
+                DrawDeleteAll(dl, iconCenter, outerR, thickness, ri.progress);
+            } else {
+                DrawSkipPrompt(dl, iconCenter, outerR, thickness);
+            }
+        }
+
+        const bool singlePress = (ri.progress < 0.f);
+        if (singlePress || ri.button_state > 0.f) {
+            DrawProgressMark(dl, iconCenter, outerR, thickness);
+            if (!singlePress) {
+                drawHoldMark();
+            }
+            if (ri.button_state < 3.f) {
+                const float startDeg = singlePress
+                                           ? 360.f * (1.f + ri.progress)
+                                           : ImGui::Renderer::progress_circle_offset_deg;
+                const float prog = singlePress
+                                       ? -ri.progress
+                                       : ri.progress - ImGui::Renderer::progress_circle_offset;
+                DrawProgressCircle(dl, iconCenter, outerR, thickness, std::max(prog, 0.f),
+                                   RE::deg_to_rad(startDeg) + angleOffsetRad);
+            }
+        }
+    }
+
 
     float GetIconSize() {
         const auto a_fontsize = ImGui::GetIO().FontDefault->FontSize;
@@ -559,14 +594,14 @@ namespace {
         };
 
         // Quad corners before rotation (relative to center)
-        const ImVec2 p0 = rot(ImVec2(-h.x, -h.y));
-        const ImVec2 p1 = rot(ImVec2(+h.x, -h.y));
-        const ImVec2 p2 = rot(ImVec2(+h.x, +h.y));
-        const ImVec2 p3 = rot(ImVec2(-h.x, +h.y));
+        const ImVec2 p1 = rot(ImVec2(-h.x, -h.y));
+        const ImVec2 p2 = rot(ImVec2(+h.x, -h.y));
+        const ImVec2 p3 = rot(ImVec2(+h.x, +h.y));
+        const ImVec2 p4 = rot(ImVec2(-h.x, +h.y));
 
         // Standard UVs
-        constexpr ImVec2 uv0(0, 0), uv1(1, 0), uv2(1, 1), uv3(0, 1);
-        dl->AddImageQuad(tex, p0, p1, p2, p3, uv0, uv1, uv2, uv3, col);
+        constexpr ImVec2 uv1(0, 0), uv2(1, 0), uv3(1, 1), uv4(0, 1);
+        dl->AddImageQuad(tex, p1, p2, p3, p4, uv1, uv2, uv3, uv4, col);
     }
 
     // helper: do NOT push/pop clip; caller controls clip once per frame
@@ -690,37 +725,12 @@ namespace {
 
             {
                 const float thick = outerR / 6.f;
-
-                if (MCP::Settings::SpecialCommands::visualize) {
-                    if (ri.button_state < 3.f) {
-                        if (ri.button_state > 2.f) DrawCross2(dl, iconCenter, outerR * 0.6f, thick);
-                        if (ri.button_state > 1.f) DrawCross1(dl, iconCenter, outerR * 0.6f, thick);
-                    } else if (ri.progress > 0.f) {
-                        DrawDeleteAll(dl, iconCenter, outerR, thick, ri.progress);
-                    } else {
-                        DrawSkipPrompt(dl, iconCenter, outerR, thick);
-                    }
-                }
-
-                const bool singlePress = (ri.progress < 0.f);
-                if (singlePress || ri.button_state > 0.f) {
-                    DrawProgressMark(dl, iconCenter, outerR, thick);
-                    if (!singlePress) {
-                        const float tri_angle = a;
-                        constexpr ImU32 tri_col = IM_COL32(255, 255, 255, 180);
-                        DrawTriangleRotated(dl, iconCenter, outerR, iconSz * 0.5f, tri_angle, tri_col);
-                    }
-                    if (ri.button_state < 3.f) {
-                        const float startDeg = singlePress
-                                                   ? 360.f * (1.f + ri.progress)
-                                                   : ImGui::Renderer::progress_circle_offset_deg;
-                        const float prog = singlePress
-                                               ? -ri.progress
-                                               : ri.progress - ImGui::Renderer::progress_circle_offset;
-                        DrawProgressCircle(dl, iconCenter, outerR, thick, std::max(prog, 0.f),
-                                           RE::deg_to_rad(startDeg) + orient);
-                    }
-                }
+                DrawPromptStateOverlay(dl, ri, iconCenter, outerR, thick,
+                                       [&]() {
+                                           constexpr ImU32 tri_col = IM_COL32(255, 255, 255, 180);
+                                           DrawTriangleRotated(dl, iconCenter, outerR, iconSz * 0.5f, a, tri_col);
+                                       },
+                                       orient);
             }
 
             const ImVec2 textSize = ImGui::CalcTextSize(ri.text.c_str());
@@ -833,35 +843,10 @@ namespace {
             {
                 const float outerR = circleDia * 0.5f;
                 const float thick = outerR / 6.f;
-
-                if (MCP::Settings::SpecialCommands::visualize) {
-                    if (ri.button_state < 3.f) {
-                        if (ri.button_state > 2.f) DrawCross2(dl, iconCenter, outerR * 0.6f, thick);
-                        if (ri.button_state > 1.f) DrawCross1(dl, iconCenter, outerR * 0.6f, thick);
-                    } else if (ri.progress > 0.f) {
-                        DrawDeleteAll(dl, iconCenter, outerR, thick, ri.progress);
-                    } else {
-                        DrawSkipPrompt(dl, iconCenter, outerR, thick);
-                    }
-                }
-
-                const bool singlePress = (ri.progress < 0.f);
-                if (singlePress || ri.button_state > 0.f) {
-                    DrawProgressMark(dl, iconCenter, outerR, thick);
-                    if (!singlePress) {
-                        DrawHoldMark(dl, iconCenter, outerR, iconSz * 0.5f);
-                    }
-                    if (ri.button_state < 3.f) {
-                        const float startDeg = singlePress
-                                                   ? 360.f * (1.f + ri.progress)
-                                                   : ImGui::Renderer::progress_circle_offset_deg;
-                        const float prog = singlePress
-                                               ? -ri.progress
-                                               : ri.progress - ImGui::Renderer::progress_circle_offset;
-                        DrawProgressCircle(dl, iconCenter, outerR, thick, std::max(prog, 0.f),
-                                           RE::deg_to_rad(startDeg));
-                    }
-                }
+                DrawPromptStateOverlay(dl, ri, iconCenter, outerR, thick,
+                                       [&]() {
+                                           DrawHoldMark(dl, iconCenter, outerR, iconSz * 0.5f);
+                                       });
             }
 
             const ImVec2 textPos{
