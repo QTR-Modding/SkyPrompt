@@ -56,7 +56,7 @@ namespace IconFont {
 
         [[nodiscard]] const IconTexture* GetGamePadIcon(const GamepadIcon& a_icons) const;
 
-        [[nodiscard]] bool IsImGuiIconsInstalled() const;
+        [[nodiscard]] static bool IsImGuiIconsInstalled();
 
         std::unordered_set<uint32_t> unavailable_keys;
 
@@ -68,13 +68,7 @@ namespace IconFont {
         };
 
         // members
-        bool loadedFonts{false};
 
-        std::string fontName{R"(Data\Interface\ImGuiIcons\Fonts\Jost-Regular.ttf)"};
-        float fontSize{0.f};
-        float iconSize{0.f};
-
-        const std::string fontPath{R"(Data\Interface\ImGuiIcons\Fonts\)"};
         std::set<FontInfo> availableFonts;
 
         ImFont* smallFont{nullptr};

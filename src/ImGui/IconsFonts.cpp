@@ -119,6 +119,8 @@ namespace IconFont {
         auto& io = ImGui::GetIO();
         std::set<FontInfo> discoveredFonts{};
 
+        constexpr auto fontPath = R"(Data\Interface\ImGuiIcons\Fonts\)";
+
         for (const auto& entry : std::filesystem::directory_iterator(fontPath)) {
             const auto extension = StringHelpers::toLowercase(entry.path().extension().string());
             if (extension == ".ttf" || extension == ".otf") {
@@ -298,8 +300,8 @@ namespace IconFont {
         }
     }
 
-    bool Manager::IsImGuiIconsInstalled() const {
-        return std::filesystem::exists(fontName);
+    bool Manager::IsImGuiIconsInstalled() {
+        return std::filesystem::exists(R"(Data\Interface\ImGuiIcons\Fonts\Jost-Regular.ttf)");
     }
 }
 
