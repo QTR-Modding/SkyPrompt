@@ -1,4 +1,4 @@
-﻿#include "IconsFonts.h"
+#include "IconsFonts.h"
 #include "Renderer.h"
 #include "imgui_internal.h"
 #include <imgui_impl_dx11.h>
@@ -434,6 +434,58 @@ namespace {
     }
 
 
+    ImVec2 DrawPromptIconWithCircularProgress(const IconFont::IconTexture* a_texture,
+                                              const float a_startY,
+                                              const float a_iconOffset,
+                                              ImDrawList* a_drawlist,
+                                              const float a_circle_radius,
+                                              const float a_progress,
+                                              const float a_button_state) {
+        ImGui::SetCursorPosY(a_startY + a_iconOffset);
+        const auto iconSize = ButtonIcon(a_texture);
+
+        const ImVec2 iconRenderPos = ImGui::GetItemRectMin();
+        const ImVec2 iconCenter{
+            iconRenderPos.x + (iconSize.x * 0.5f),
+            iconRenderPos.y + (iconSize.y * 0.5f)
+        };
+        const float iconRadius = iconSize.y * 0.5f;
+        const float thickness = iconRadius / 6.f;
+
+        if (MCP::Settings::SpecialCommands::visualize) {
+            if (a_button_state < 3.f) {
+                if (a_button_state > 2.f) {
+                    DrawCross2(a_drawlist, iconCenter, a_circle_radius * 0.6f, thickness);
+                }
+                if (a_button_state > 1.f) {
+                    DrawCross1(a_drawlist, iconCenter, a_circle_radius * 0.6f, thickness);
+                }
+            } else if (a_progress > 0.f) {
+                DrawDeleteAll(a_drawlist, iconCenter, a_circle_radius, thickness, a_progress);
+            } else {
+                DrawSkipPrompt(a_drawlist, iconCenter, a_circle_radius, thickness);
+            }
+        }
+
+        if (const bool singlePressProgress = a_progress < 0.f; singlePressProgress || a_button_state > 0.f) {
+            DrawProgressMark(a_drawlist, iconCenter, a_circle_radius, thickness);
+            if (!singlePressProgress) {
+                DrawHoldMark(a_drawlist, iconCenter, a_circle_radius, iconRadius);
+            }
+            if (a_button_state < 3.f) {
+                const auto start_deg = singlePressProgress
+                                           ? 360.f * (1 + a_progress)
+                                           : ImGui::Renderer::progress_circle_offset_deg;
+                const auto a_progress_value = singlePressProgress
+                                                  ? -a_progress
+                                                  : a_progress - ImGui::Renderer::progress_circle_offset;
+                DrawProgressCircle(a_drawlist, iconCenter, a_circle_radius, thickness, a_progress_value,
+                                   RE::deg_to_rad(start_deg));
+            }
+        }
+
+        return iconCenter;
+    }
     ImVec2 ButtonIconWithCircularProgress(const char* a_text, const uint32_t a_text_color,
                                           const IconFont::IconTexture* a_texture, const float progress,
                                           const float button_state) {
@@ -452,72 +504,40 @@ namespace {
         // Record the "start" cursor Y.
         const float startY = ImGui::GetCursorPosY();
 
-        // 1) Center the icon in this row
         const float iconOffset = (rowHeight - a_iconsize) * 0.5f;
-        ImGui::SetCursorPosY(startY + iconOffset);
-
-        // 2) Draw the icon (and get its final size)
-        const auto iconSize = ButtonIcon(a_texture); // This already calls ImGui::Image(...)
-
-        // 3) Draw the circle around the icon
-        // Figure out where the icon was drawn so we can compute the circle center
-        const ImVec2 iconRenderPos = ImGui::GetItemRectMin();
-        const ImVec2 iconCenter{
-            iconRenderPos.x + (iconSize.x * 0.5f),
-            iconRenderPos.y + (iconSize.y * 0.5f)
-        };
-        const float radius = iconSize.y * 0.5f;
-        const float thickness = radius / 6.f;
-        const float circle_radius = circleDiameter / 2.f;
-
-        const auto a_drawlist = ImGui::GetWindowDrawList();
-
-        if (MCP::Settings::SpecialCommands::visualize) {
-            if (button_state < 3.f) {
-                if (button_state > 2.f) {
-                    DrawCross2(a_drawlist, iconCenter, circle_radius * 0.6f, thickness);
-                }
-                if (button_state > 1.f) {
-                    DrawCross1(a_drawlist, iconCenter, circle_radius * 0.6f, thickness);
-                }
-            } else if (progress > 0.f) {
-                DrawDeleteAll(a_drawlist, iconCenter, circle_radius, thickness, progress);
-            } else {
-                DrawSkipPrompt(a_drawlist, iconCenter, circle_radius, thickness);
-            }
-        }
-
-        if (const bool SinglePress_progress = progress < 0.f; SinglePress_progress || button_state > 0.f) {
-            DrawProgressMark(a_drawlist, iconCenter, circle_radius, thickness);
-            if (!SinglePress_progress) {
-                DrawHoldMark(a_drawlist, iconCenter, circle_radius, radius);
-            }
-            if (button_state < 3.f) {
-                const auto start_deg = SinglePress_progress
-                                           ? 360.f * (1 + progress)
-                                           : ImGui::Renderer::progress_circle_offset_deg;
-                const auto a_progress = SinglePress_progress
-                                            ? -progress
-                                            : progress - ImGui::Renderer::progress_circle_offset;
-                DrawProgressCircle(a_drawlist, iconCenter, circle_radius, thickness, a_progress,
-                                   RE::deg_to_rad(start_deg));
-            }
-        }
-
-        // 4) Move horizontally for the text
-        ImGui::SameLine();
-
-        // 5) Center the text in this row
         const float textOffset = (rowHeight - textSize.y) * 0.5f;
-        ImGui::SetCursorPosY(startY + textOffset);
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + circle_radius - radius + (rowHeight - textSize.y) * 0.5f);
+        const float radius = a_iconsize * 0.5f;
+        const float circle_radius = circleDiameter * 0.5f;
+        const float textPad = circle_radius - radius + textOffset;
 
-        AddTextWithShadow(a_drawlist, ImGui::GetFont(), ImGui::GetFontSize(),
-                          ImGui::GetCursorScreenPos(), a_text_color ? a_text_color : IM_COL32(255, 255, 255, 255),
-                          a_text);
+        const auto textColor = a_text_color ? a_text_color : IM_COL32(255, 255, 255, 255);
+        const auto a_drawlist = ImGui::GetWindowDrawList();
+        ImVec2 iconCenter;
+        if (Theme::last_theme->prompt_order == Theme::kTextFirst) {
+            ImGui::SetCursorPosY(startY + textOffset);
+            AddTextWithShadow(a_drawlist, ImGui::GetFont(), ImGui::GetFontSize(),
+                              ImGui::GetCursorScreenPos(), textColor, a_text);
+            ImGui::Dummy(textSize);
 
-        // Move ImGui cursor manually to avoid overlap
-        ImGui::Dummy(textSize); // Moves cursor forward horizontally
+            ImGui::SameLine();
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + textPad);
+            iconCenter = DrawPromptIconWithCircularProgress(
+                a_texture, startY, iconOffset, a_drawlist, circle_radius, progress, button_state);
+
+            // Keep the same vertical advance baseline used by the icon-first path.
+            ImGui::SetCursorPosY(startY + textOffset + textSize.y);
+        } else {
+            iconCenter = DrawPromptIconWithCircularProgress(
+                a_texture, startY, iconOffset, a_drawlist, circle_radius, progress, button_state);
+
+            ImGui::SameLine();
+            ImGui::SetCursorPosY(startY + textOffset);
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + textPad);
+
+            AddTextWithShadow(a_drawlist, ImGui::GetFont(), ImGui::GetFontSize(),
+                              ImGui::GetCursorScreenPos(), textColor, a_text);
+            ImGui::Dummy(textSize); // Moves cursor forward horizontally
+        }
 
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset * Theme::last_theme->linespacing * 5);
 
@@ -769,9 +789,13 @@ namespace {
             const auto& ri = batch[i];
             const auto& dim = dims[i];
 
-            // Icon center position
+            // Icon center and text position can be swapped by theme.
+            const bool textFirst = Theme::last_theme->prompt_order == Theme::kTextFirst;
+            const float iconCenterX = textFirst
+                                          ? xCursor + dim.textWidth + dim.textPad + circleDia * 0.5f
+                                          : xCursor + circleDia * 0.5f;
             const ImVec2 iconCenter{
-                xCursor + circleDia * 0.5f,
+                iconCenterX,
                 yCenter
             };
 
@@ -816,7 +840,7 @@ namespace {
             }
 
             const ImVec2 textPos{
-                xCursor + circleDia + dim.textPad,
+                textFirst ? xCursor : xCursor + circleDia + dim.textPad,
                 yCenter - dim.textHeight * 0.5f
             };
 

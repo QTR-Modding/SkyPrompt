@@ -9,6 +9,26 @@ Theme::PromptAlignment Theme::toPromptAlignment(const std::string& alignment) {
     return kVertical; // default
 }
 
+Theme::PromptOrder Theme::toPromptOrder(const std::string& value) {
+    if (value == "text-first" || value == "text_first" || value == "textfirst") {
+        return kTextFirst;
+    }
+    if (value == "icon-first" || value == "icon_first" || value == "iconfirst") {
+        return kIconFirst;
+    }
+    return kIconFirst;
+}
+
+std::string_view Theme::toPromptOrderString(const PromptOrder theme) {
+    switch (theme) {
+        case kTextFirst:
+            return "text-first";
+        case kIconFirst:
+        default:
+            return "icon-first";
+    }
+}
+
 Theme::Theme::Theme(const ThemeBlock& block) {
     theme_name = block.theme_name.get();
     theme_description = block.theme_description.get();
@@ -31,6 +51,7 @@ Theme::Theme::Theme(const ThemeBlock& block) {
     fadeSpeed = block.fadeSpeed.get();
 
     prompt_alignment = toPromptAlignment(block.prompt_alignment.get());
+    prompt_order = toPromptOrder(block.prompt_order.get());
 
     special_effect = block.special_effect.get();
 

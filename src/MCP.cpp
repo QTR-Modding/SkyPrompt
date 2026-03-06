@@ -10,13 +10,25 @@
 #include "Tutorial.h"
 #include "SKSEMCP/SKSEMenuFramework.hpp"
 
-static void HelpMarker(const char* desc) {
-    ImGuiMCP::TextDisabled("(?)");
-    if (ImGuiMCP::BeginItemTooltip()) {
-        ImGuiMCP::PushTextWrapPos(ImGuiMCP::GetFontSize() * 35.0f);
-        ImGuiMCP::TextUnformatted(desc);
-        ImGuiMCP::PopTextWrapPos();
-        ImGuiMCP::EndTooltip();
+namespace {
+    void HelpMarker(const char* desc) {
+        ImGuiMCP::TextDisabled("(?)");
+        if (ImGuiMCP::BeginItemTooltip()) {
+            ImGuiMCP::PushTextWrapPos(ImGuiMCP::GetFontSize() * 35.0f);
+            ImGuiMCP::TextUnformatted(desc);
+            ImGuiMCP::PopTextWrapPos();
+            ImGuiMCP::EndTooltip();
+        }
+    }
+
+    const char* PromptOrderLabel(const Theme::PromptOrder a_theme) {
+        switch (a_theme) {
+            case Theme::kTextFirst:
+                return "Text First (text then icon)";
+            case Theme::kIconFirst:
+            default:
+                return "Icon First (icon then text)";
+        }
     }
 }
 
@@ -85,6 +97,22 @@ void __stdcall MCP::RenderSettings() {
         }
     }
 
+    const auto prompt_order_before = Theme::default_theme.prompt_order;
+    if (ImGuiMCP::BeginCombo("Prompt Order", PromptOrderLabel(Theme::default_theme.prompt_order))) {
+        for (const auto prompt_order : {Theme::kIconFirst, Theme::kTextFirst}) {
+            const bool selected = Theme::default_theme.prompt_order == prompt_order;
+            if (ImGuiMCP::Selectable(PromptOrderLabel(prompt_order), selected)) {
+                Theme::default_theme.prompt_order = prompt_order;
+            }
+            if (selected) {
+                ImGuiMCP::SetItemDefaultFocus();
+            }
+        }
+        ImGuiMCP::EndCombo();
+    }
+    if (prompt_order_before != Theme::default_theme.prompt_order) {
+        settingsChanged = true;
+    }
     // Slider for Line Spacing
     if (!ImGuiMCP::SliderFloat("Line Spacing", &Theme::default_theme.linespacing, 0.0f, 1.0f)) {
         if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
@@ -395,6 +423,9 @@ void MCP::Settings::to_json() {
     root.AddMember("icon2font_ratio", Theme::default_theme.icon2font_ratio, allocator);
     root.AddMember("linespacing", Theme::default_theme.linespacing, allocator);
     root.AddMember("progress_speed", Theme::default_theme.progress_speed, allocator);
+    root.AddMember("prompt_order",
+                   Value(Theme::toPromptOrderString(Theme::default_theme.prompt_order).data(), allocator),
+                   allocator);
     root.AddMember("lifetime", lifetime, allocator);
 
     // special commands
@@ -527,6 +558,9 @@ void MCP::Settings::from_json() {
     }
     if (mcp.HasMember("progress_speed")) {
         Theme::default_theme.progress_speed = mcp["progress_speed"].GetFloat();
+    }
+    if (mcp.HasMember("prompt_order") && mcp["prompt_order"].IsString()) {
+        Theme::default_theme.prompt_order = Theme::toPromptOrder(mcp["prompt_order"].GetString());
     }
     if (mcp.HasMember("lifetime")) {
         lifetime = mcp["lifetime"].GetFloat();
