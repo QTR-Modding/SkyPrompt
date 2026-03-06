@@ -1185,7 +1185,7 @@ void Manager::ShowQueue() {
 
     // Calculate position
     const auto resScale = GetResolutionScale();
-    const ImVec2 bottomRightPos(
+    const ImVec2 windowPos(
         width * Theme::last_theme->xPercent - Theme::last_theme->marginX * resScale,
         height * Theme::last_theme->yPercent - Theme::last_theme->marginY * resScale
         );
@@ -1206,7 +1206,7 @@ void Manager::ShowQueue() {
                 return ImVec2(1.0f, 1.0f);
         }
     }();
-    SetNextWindowPos(bottomRightPos, ImGuiCond_Always, windowPivot);
+    SetNextWindowPos(windowPos, ImGuiCond_Always, windowPivot);
     BeginImGuiWindow("SkyPrompt");
     std::map<RefID, std::vector<SubManager*>> object_managers;
     renderBatch.clear();

@@ -21,8 +21,8 @@ namespace {
         }
     }
 
-    const char* PromptOrderLabel(const Theme::PromptOrder a_theme) {
-        switch (a_theme) {
+    const char* PromptOrderLabel(const Theme::PromptOrder a_order) {
+        switch (a_order) {
             case Theme::kTextFirst:
                 return "Text First (text then icon)";
             case Theme::kIconFirst:
