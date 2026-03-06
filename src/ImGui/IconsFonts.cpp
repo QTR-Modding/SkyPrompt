@@ -641,9 +641,30 @@ namespace {
         const float arcSpacing = ImGui::GetStyle().ItemSpacing.x; // small extra gap (pixels)
         const float rowFootprint = circleDia;
 
+        const bool radialTextFirst = Theme::last_theme->prompt_order == Theme::kTextFirst;
+        const float baseSpacing = ImGui::GetStyle().ItemSpacing.x;
+        const float circleRadius = circleDia * 0.5f;
+
+        float maxCenterDist = 0.0f;
+        float maxTextWidth = 0.0f;
+        for (const auto& ri : batch) {
+            const float textWidth = ImGui::CalcTextSize(ri.text.c_str()).x;
+            const float centerDist = baseSpacing + circleRadius + textWidth * 0.5f;
+            maxCenterDist = std::max(maxCenterDist, centerDist);
+            maxTextWidth = std::max(maxTextWidth, textWidth);
+        }
+
         // Final angular step (radians per item)
-        const float r = std::max(baseRadius, iconSz * 1.6f);
-        const float step = std::max(0.001f, (rowFootprint + arcSpacing + lineSpacingPx) / r);
+        float r = std::max(baseRadius, iconSz * 1.6f);
+        if (radialTextFirst) {
+            // Keep full inward text extent away from the center so entries don't collapse.
+            const float minInnerRadius = std::max(baseRadius, rowFootprint * 1.5f);
+            const float maxInwardExtent = baseSpacing + circleRadius + maxTextWidth;
+            r = std::max(r, maxInwardExtent + minInnerRadius);
+        }
+
+        const float spacingRadius = radialTextFirst ? std::max(1.0f, r - maxCenterDist) : r;
+        const float step = std::max(0.001f, (rowFootprint + arcSpacing + lineSpacingPx) / spacingRadius);
 
         const int n = static_cast<int>(batch.size());
         const float firstA = startAngleRad - 0.5f * (n - 1) * step; // center on the ray
@@ -704,23 +725,24 @@ namespace {
 
             const float circle_radius = iconSz * 1.25f * 0.5f;
 
-            const float spacing = ImGui::GetStyle().ItemSpacing.x;
+            const float a_spacing = ImGui::GetStyle().ItemSpacing.x;
 
             // distance from icon center to the *inner edge* of text in the flat layout:
             //   iconCenter + radius (icon right edge)
             // + spacing (SameLine gap)
             // + (circle_radius - radius) (ring clearance)
             // simplifies to: spacing + circle_radius
-            const float near_edge_clearance = spacing + circle_radius;
+            const float near_edge_clearance = a_spacing + circle_radius;
 
             // place the *text center* so that its inner edge sits at that clearance
             const float center_dist = near_edge_clearance + textSize.x * 0.5f;
 
-            // move along the outward normal; keep zero offset along tangent
+            // move along the radial normal; inward for text-first, outward for icon-first
             const ImVec2 normal = {cosf(a), sinf(a)};
+            const float radialDirection = Theme::last_theme->prompt_order == Theme::kTextFirst ? -1.0f : 1.0f;
             const ImVec2 textCenter = {
-                iconCenter.x + normal.x * center_dist,
-                iconCenter.y + normal.y * center_dist
+                iconCenter.x + normal.x * center_dist * radialDirection,
+                iconCenter.y + normal.y * center_dist * radialDirection
             };
 
             // draw rotated text centered on this pivot
