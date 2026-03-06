@@ -1252,7 +1252,7 @@ void Manager::ShowQueue() {
         window_pos.x -= Theme::last_theme->marginX * resScale;
         window_pos.y -= Theme::last_theme->marginY * resScale;
         renderBatch.clear();
-        SetNextWindowPos(window_pos, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        SetNextWindowPos(window_pos, ImGuiCond_Always, windowPivot);
         BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str());
         for (const auto a_manager : managers_) {
             a_manager->ShowQueue();
