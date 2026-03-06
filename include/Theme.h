@@ -60,7 +60,7 @@ namespace Theme {
     };
 
     PromptOrder toPromptOrder(const std::string& value);
-    std::string_view toPromptOrderString(PromptOrder theme);
+    std::string_view toPromptOrderString(PromptOrder order);
 
     enum PromptPivot : uint8_t {
         kTopLeft,

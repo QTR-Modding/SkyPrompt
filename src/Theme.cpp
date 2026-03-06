@@ -19,8 +19,8 @@ Theme::PromptOrder Theme::toPromptOrder(const std::string& value) {
     return kIconFirst;
 }
 
-std::string_view Theme::toPromptOrderString(const PromptOrder theme) {
-    switch (theme) {
+std::string_view Theme::toPromptOrderString(const PromptOrder order) {
+    switch (order) {
         case kTextFirst:
             return "text-first";
         case kIconFirst:
