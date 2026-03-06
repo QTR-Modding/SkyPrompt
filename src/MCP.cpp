@@ -30,6 +30,11 @@ namespace {
                 return "Icon First (icon then text)";
         }
     }
+
+    bool SliderFloatCommitted(const char* label, float* value, const float min, const float max) {
+        ImGuiMCP::SliderFloat(label, value, min, max);
+        return ImGuiMCP::IsItemDeactivatedAfterEdit();
+    }
 }
 
 void __stdcall MCP::RenderSettings() {
@@ -57,44 +62,40 @@ void __stdcall MCP::RenderSettings() {
     }
 
     // Slider for fade speed
-    if (!ImGuiMCP::SliderFloat("Fade Speed", &Theme::default_theme.fadeSpeed, 0.01f, 0.1f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (SliderFloatCommitted("Fade Speed", &Theme::default_theme.fadeSpeed, 0.01f, 0.1f)) {
+        settingsChanged = true;
     }
 
     // Slider for X Percent
-    if (!ImGuiMCP::SliderFloat("X Percent", &Theme::default_theme.xPercent, 0.0f, 1.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (SliderFloatCommitted("X Percent", &Theme::default_theme.xPercent, 0.0f, 1.0f)) {
+        settingsChanged = true;
     }
 
     // Slider for Y Percent
-    if (!ImGuiMCP::SliderFloat("Y Percent", &Theme::default_theme.yPercent, 0.0f, 1.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (SliderFloatCommitted("Y Percent", &Theme::default_theme.yPercent, 0.0f, 1.0f)) {
+        settingsChanged = true;
     }
 
     // Slider for Margin X
-    if (!ImGuiMCP::SliderFloat("Margin X", &Theme::default_theme.marginX, -1000.0f, 1000.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (SliderFloatCommitted("Margin X", &Theme::default_theme.marginX, -1000.0f, 1000.0f)) {
+        settingsChanged = true;
     }
 
     // Slider for Margin Y
-    if (!ImGuiMCP::SliderFloat("Margin Y", &Theme::default_theme.marginY, -1000.0f, 1000.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (SliderFloatCommitted("Margin Y", &Theme::default_theme.marginY, -1000.0f, 1000.0f)) {
+        settingsChanged = true;
     }
 
     // Slider for Prompt Size
-    if (!ImGuiMCP::SliderFloat("Prompt Size", &Theme::default_theme.prompt_size, 15.0f, 100.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
-            Settings::shouldReloadPromptSize.store(true);
-            settingsChanged = true;
-        }
+    if (SliderFloatCommitted("Prompt Size", &Theme::default_theme.prompt_size, 15.0f, 100.0f)) {
+        Settings::shouldReloadPromptSize.store(true);
+        settingsChanged = true;
     }
 
     // Slider for Icon2Font Ratio
-    if (!ImGuiMCP::SliderFloat("Icon2Font Ratio", &Theme::default_theme.icon2font_ratio, 0.5f, 2.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
-            Settings::shouldReloadPromptSize.store(true);
-            settingsChanged = true;
-        }
+    if (SliderFloatCommitted("Icon2Font Ratio", &Theme::default_theme.icon2font_ratio, 0.5f, 2.0f)) {
+        Settings::shouldReloadPromptSize.store(true);
+        settingsChanged = true;
     }
 
     const auto prompt_order_before = Theme::default_theme.prompt_order;
@@ -114,23 +115,19 @@ void __stdcall MCP::RenderSettings() {
         settingsChanged = true;
     }
     // Slider for Line Spacing
-    if (!ImGuiMCP::SliderFloat("Line Spacing", &Theme::default_theme.linespacing, 0.0f, 1.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
-            settingsChanged = true;
-        }
+    if (SliderFloatCommitted("Line Spacing", &Theme::default_theme.linespacing, 0.0f, 1.0f)) {
+        settingsChanged = true;
     }
 
     // Slider for Progress Speed
-    if (!ImGuiMCP::SliderFloat("Progress Speed", &Theme::default_theme.progress_speed, 0.0f, 1.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (SliderFloatCommitted("Progress Speed", &Theme::default_theme.progress_speed, 0.0f, 1.0f)) {
+        settingsChanged = true;
     }
 
     // Slider for Lifetime
-    if (!ImGuiMCP::SliderFloat("Lifetime", &Settings::lifetime, 1.0f, 30.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
-            Settings::shouldReloadLifetime.store(true);
-            settingsChanged = true;
-        }
+    if (SliderFloatCommitted("Lifetime", &Settings::lifetime, 1.0f, 30.0f)) {
+        Settings::shouldReloadLifetime.store(true);
+        settingsChanged = true;
     }
 
     if (settingsChanged) {
