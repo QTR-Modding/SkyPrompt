@@ -29,6 +29,7 @@ namespace Theme {
         Field<float, rapidjson::Value> font_shadow = {"font_shadow", 0.2f};
         Field<std::string, rapidjson::Value> prompt_alignment = {"prompt_alignment", "vertical"}; // e.g. radial
         Field<std::string, rapidjson::Value> prompt_order = {"prompt_order", "icon-first"};
+        Field<std::string, rapidjson::Value> prompt_pivot = {"prompt_pivot", "bottom-right"};
 
         Field<uint32_t, rapidjson::Value> special_effect = {"special_effect", 0};
         Field<std::vector<uint32_t>, rapidjson::Value> special_integers = {"special_integers", {}};
@@ -61,6 +62,16 @@ namespace Theme {
     PromptOrder toPromptOrder(const std::string& value);
     std::string_view toPromptOrderString(PromptOrder theme);
 
+    enum PromptPivot : uint8_t {
+        kTopLeft,
+        kTopRight,
+        kBottomLeft,
+        kBottomRight,
+        kCenter
+    };
+
+    PromptPivot toPromptPivot(const std::string& value);
+
     struct Theme {
         std::string theme_name = "Default Theme";
         std::string theme_description = "Default theme for SkyPrompt";
@@ -83,6 +94,7 @@ namespace Theme {
 
         PromptAlignment prompt_alignment = kVertical;
         PromptOrder prompt_order = kIconFirst;
+        PromptPivot prompt_pivot = kBottomRight;
         uint32_t special_effect = 0;
 
         std::vector<uint32_t> special_integers;

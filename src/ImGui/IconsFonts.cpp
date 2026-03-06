@@ -486,6 +486,7 @@ namespace {
 
         return iconCenter;
     }
+
     ImVec2 ButtonIconWithCircularProgress(const char* a_text, const uint32_t a_text_color,
                                           const IconFont::IconTexture* a_texture, const float progress,
                                           const float button_state) {
@@ -551,8 +552,8 @@ namespace {
         const float c = cosf(angle), s = sinf(angle);
 
         auto rot = [&](const ImVec2 p) -> ImVec2 {
-            return ImVec2(center.x + (p.x * c - p.y * s),
-                          center.y + (p.x * s + p.y * c));
+            return {center.x + (p.x * c - p.y * s),
+                    center.y + (p.x * s + p.y * c)};
         };
 
         // Quad corners before rotation (relative to center)

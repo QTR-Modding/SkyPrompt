@@ -29,6 +29,25 @@ std::string_view Theme::toPromptOrderString(const PromptOrder theme) {
     }
 }
 
+Theme::PromptPivot Theme::toPromptPivot(const std::string& value) {
+    if (value == "top-left" || value == "top_left" || value == "topleft") {
+        return kTopLeft;
+    }
+    if (value == "top-right" || value == "top_right" || value == "topright") {
+        return kTopRight;
+    }
+    if (value == "bottom-left" || value == "bottom_left" || value == "bottomleft") {
+        return kBottomLeft;
+    }
+    if (value == "center") {
+        return kCenter;
+    }
+    if (value == "bottom-right" || value == "bottom_right" || value == "bottomright") {
+        return kBottomRight;
+    }
+    return kBottomRight;
+}
+
 Theme::Theme::Theme(const ThemeBlock& block) {
     theme_name = block.theme_name.get();
     theme_description = block.theme_description.get();
@@ -52,6 +71,7 @@ Theme::Theme::Theme(const ThemeBlock& block) {
 
     prompt_alignment = toPromptAlignment(block.prompt_alignment.get());
     prompt_order = toPromptOrder(block.prompt_order.get());
+    prompt_pivot = toPromptPivot(block.prompt_pivot.get());
 
     special_effect = block.special_effect.get();
 

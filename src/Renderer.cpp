@@ -1,4 +1,4 @@
-﻿#include "Renderer.h"
+#include "Renderer.h"
 #include "BoundingBox.hpp"
 #include "Hooks.h"
 #include "CLibUtilsQTR/Tasker.hpp"
@@ -1191,7 +1191,22 @@ void Manager::ShowQueue() {
         );
 
     // Set the window position
-    SetNextWindowPos(bottomRightPos, ImGuiCond_Always, ImVec2(1.0f, 1.0f)); // Pivot at the bottom-right
+    const ImVec2 windowPivot = [&]() {
+        switch (Theme::last_theme->prompt_pivot) {
+            case Theme::kTopLeft:
+                return ImVec2(0.0f, 0.0f);
+            case Theme::kTopRight:
+                return ImVec2(1.0f, 0.0f);
+            case Theme::kBottomLeft:
+                return ImVec2(0.0f, 1.0f);
+            case Theme::kCenter:
+                return ImVec2(0.5f, 0.5f);
+            case Theme::kBottomRight:
+            default:
+                return ImVec2(1.0f, 1.0f);
+        }
+    }();
+    SetNextWindowPos(bottomRightPos, ImGuiCond_Always, windowPivot);
     BeginImGuiWindow("SkyPrompt");
     std::map<RefID, std::vector<SubManager*>> object_managers;
     renderBatch.clear();
