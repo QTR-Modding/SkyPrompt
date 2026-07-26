@@ -772,6 +772,32 @@ namespace {
         dl->PopClipRect();
     }
 
+    void RenderPromptsVertical(const std::vector<ImGui::RenderInfo>& batch) {
+        float textFirstIconX = 0.0f;
+        if (Theme::last_theme->prompt_order == Theme::kTextFirst) {
+            const float iconSize = GetIconSize();
+            const float circleDiameter = iconSize * 1.25f;
+            const float circleRadius = circleDiameter * 0.5f;
+            const float iconRadius = iconSize * 0.5f;
+            float maxPrefixWidth = 0.0f;
+            for (const auto& renderInfo : batch) {
+                const ImVec2 textSize = ImGui::CalcTextSize(renderInfo.text.c_str());
+                const float rowHeight = std::max(circleDiameter, textSize.y);
+                const float textOffset = (rowHeight - textSize.y) * 0.5f;
+                const float textPad = circleRadius - iconRadius + textOffset;
+                maxPrefixWidth = std::max(maxPrefixWidth, textSize.x + textPad);
+            }
+            textFirstIconX = ImGui::GetCursorPosX() + ImGui::GetStyle().ItemSpacing.x + maxPrefixWidth;
+        }
+        for (const auto& renderInfo : batch) {
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, renderInfo.alpha);
+            ButtonIconWithCircularProgress(renderInfo.text.c_str(), renderInfo.text_color,
+                                           renderInfo.texture, renderInfo.progress,
+                                           renderInfo.button_state, textFirstIconX);
+            ImGui::PopStyleVar();
+        }
+    }
+
     void RenderPromptsHorizontalCentered(const std::vector<ImGui::RenderInfo>& batch, const float lineSpacingPx) {
         if (batch.empty()) return;
 
@@ -933,32 +959,9 @@ void ImGui::RenderSkyPrompt() {
                       });
 
     switch (prompt_alignment) {
-        case Theme::PromptAlignment::kVertical: {
-            float textFirstIconX = 0.0f;
-            if (curr_theme->prompt_order == Theme::kTextFirst) {
-                const float iconSize = GetIconSize();
-                const float circleDiameter = iconSize * 1.25f;
-                const float circleRadius = circleDiameter * 0.5f;
-                const float iconRadius = iconSize * 0.5f;
-                float maxPrefixWidth = 0.0f;
-                for (const auto& renderInfo : renderBatch) {
-                    const ImVec2 textSize = CalcTextSize(renderInfo.text.c_str());
-                    const float rowHeight = std::max(circleDiameter, textSize.y);
-                    const float textOffset = (rowHeight - textSize.y) * 0.5f;
-                    const float textPad = circleRadius - iconRadius + textOffset;
-                    maxPrefixWidth = std::max(maxPrefixWidth, textSize.x + textPad);
-                }
-                textFirstIconX = GetCursorPosX() + GetStyle().ItemSpacing.x + maxPrefixWidth;
-            }
-            for (const auto& a_renderInfo : renderBatch) {
-                PushStyleVar(ImGuiStyleVar_Alpha, a_renderInfo.alpha);
-                ButtonIconWithCircularProgress(a_renderInfo.text.c_str(), a_renderInfo.text_color,
-                                               a_renderInfo.texture, a_renderInfo.progress,
-                                               a_renderInfo.button_state, textFirstIconX);
-                PopStyleVar();
-            }
+        case Theme::PromptAlignment::kVertical:
+            RenderPromptsVertical(renderBatch);
             break;
-        }
         case Theme::PromptAlignment::kHorizontal:
             RenderPromptsHorizontalCentered(renderBatch, GetFontSize() * curr_theme->linespacing);
             break;
