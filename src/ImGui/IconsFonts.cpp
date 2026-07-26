@@ -526,7 +526,7 @@ namespace {
 
     ImVec2 ButtonIconWithCircularProgress(const char* a_text, const uint32_t a_text_color,
                                           const IconFont::IconTexture* a_texture, const float progress,
-                                          const float button_state) {
+                                          const float button_state, const float a_textFirstIconX) {
         if (!a_texture || !a_texture->srView.Get()) {
             logger::error("Button icon texture not loaded.");
             return {};
@@ -552,13 +552,14 @@ namespace {
         const auto a_drawlist = ImGui::GetWindowDrawList();
         ImVec2 iconCenter;
         if (Theme::last_theme->prompt_order == Theme::kTextFirst) {
+            ImGui::SetCursorPosX(a_textFirstIconX - ImGui::GetStyle().ItemSpacing.x - textPad - textSize.x);
             ImGui::SetCursorPosY(startY + textOffset);
             AddTextWithShadow(a_drawlist, ImGui::GetFont(), ImGui::GetFontSize(),
                               ImGui::GetCursorScreenPos(), textColor, a_text);
             ImGui::Dummy(textSize);
 
             ImGui::SameLine();
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + textPad);
+            ImGui::SetCursorPosX(a_textFirstIconX);
             iconCenter = DrawPromptIconWithCircularProgress(
                 a_texture, startY, iconOffset, a_drawlist, circle_radius, progress, button_state);
 
@@ -932,15 +933,32 @@ void ImGui::RenderSkyPrompt() {
                       });
 
     switch (prompt_alignment) {
-        case Theme::PromptAlignment::kVertical:
+        case Theme::PromptAlignment::kVertical: {
+            float textFirstIconX = 0.0f;
+            if (curr_theme->prompt_order == Theme::kTextFirst) {
+                const float iconSize = GetIconSize();
+                const float circleDiameter = iconSize * 1.25f;
+                const float circleRadius = circleDiameter * 0.5f;
+                const float iconRadius = iconSize * 0.5f;
+                float maxPrefixWidth = 0.0f;
+                for (const auto& renderInfo : renderBatch) {
+                    const ImVec2 textSize = CalcTextSize(renderInfo.text.c_str());
+                    const float rowHeight = std::max(circleDiameter, textSize.y);
+                    const float textOffset = (rowHeight - textSize.y) * 0.5f;
+                    const float textPad = circleRadius - iconRadius + textOffset;
+                    maxPrefixWidth = std::max(maxPrefixWidth, textSize.x + textPad);
+                }
+                textFirstIconX = GetCursorPosX() + GetStyle().ItemSpacing.x + maxPrefixWidth;
+            }
             for (const auto& a_renderInfo : renderBatch) {
                 PushStyleVar(ImGuiStyleVar_Alpha, a_renderInfo.alpha);
                 ButtonIconWithCircularProgress(a_renderInfo.text.c_str(), a_renderInfo.text_color,
                                                a_renderInfo.texture, a_renderInfo.progress,
-                                               a_renderInfo.button_state);
+                                               a_renderInfo.button_state, textFirstIconX);
                 PopStyleVar();
             }
             break;
+        }
         case Theme::PromptAlignment::kHorizontal:
             RenderPromptsHorizontalCentered(renderBatch, GetFontSize() * curr_theme->linespacing);
             break;
