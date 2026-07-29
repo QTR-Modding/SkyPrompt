@@ -749,7 +749,8 @@ namespace {
         const float centerlineX = layout.bounds.min.x + layout.bounds.size.x * 0.5f;
         const float midpointY = layout.bounds.min.y + layout.bounds.size.y * 0.5f;
         const ImVec2 midpointX = {cosf(midpointAngleRad), sinf(midpointAngleRad)};
-        const float iconCenterX = layout.iconX + iconSz * 0.5f;
+        const float extraArcSpacingPx =
+            lineSpacingPx - (textFirst ? 0.0f : ImGui::GetStyle().ItemSpacing.y);
 
         for (size_t i = 0; i < batch.size(); ++i) {
             const auto& ri = batch[i];
@@ -757,7 +758,7 @@ namespace {
             const float centeredIndex =
                 static_cast<float>(i) - static_cast<float>(batch.size() - 1) * 0.5f;
             const float theta =
-                (row.centerY - midpointY + centeredIndex * lineSpacingPx) / radius;
+                (row.centerY - midpointY + centeredIndex * extraArcSpacingPx) / radius;
             const float angle = midpointAngleRad + theta;
             const ImVec2 rowX = {cosf(angle), sinf(angle)};
             const ImVec2 rowY = {-rowX.y, rowX.x};
@@ -765,6 +766,15 @@ namespace {
                 anchor.x + radius * (rowX.x - midpointX.x),
                 anchor.y + radius * (rowX.y - midpointX.y)
             };
+            const float textPad = circleOverhang + row.textOffset;
+            const float rowLeftX = layout.bounds.min.x;
+            const float iconCenterX = textFirst
+                                          ? rowLeftX + row.textSize.x + baseSpacing +
+                                              textPad + iconSz * 0.5f
+                                          : layout.iconX + iconSz * 0.5f;
+            const float textCenterX = textFirst
+                                          ? rowLeftX + row.textSize.x * 0.5f
+                                          : iconSz + baseSpacing + textPad + row.textSize.x * 0.5f;
             const ImVec2 iconCenter{
                 arcPoint.x + (iconCenterX - centerlineX) * rowX.x,
                 arcPoint.y + (iconCenterX - centerlineX) * rowX.y
@@ -786,10 +796,6 @@ namespace {
                                        angle);
             }
 
-            const float textPad = circleOverhang + row.textOffset;
-            const float textCenterX = textFirst
-                                          ? layout.iconX - baseSpacing - textPad - row.textSize.x * 0.5f
-                                          : iconSz + baseSpacing + textPad + row.textSize.x * 0.5f;
             const ImVec2 textCenter = {
                 arcPoint.x + (textCenterX - centerlineX) * rowX.x,
                 arcPoint.y + (textCenterX - centerlineX) * rowX.y
@@ -1048,7 +1054,7 @@ void ImGui::RenderSkyPrompt(const ImVec2& anchor) {
         case Theme::PromptAlignment::kRadial: {
             const float lineSpacingPx = GetFontSize() * curr_theme->linespacing;
             const float iconSize = GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
-            const float bendRadius = iconSize * 3;
+            const float bendRadius = iconSize * 6;
 
             RenderPromptsRadialRotated(anchor,
                                        renderBatch,
