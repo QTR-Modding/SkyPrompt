@@ -31,6 +31,18 @@ namespace {
         }
     }
 
+    const char* PromptAlignmentLabel(const Theme::PromptAlignment a_alignment) {
+        switch (a_alignment) {
+            case Theme::kRadial:
+                return "Radial";
+            case Theme::kHorizontal:
+                return "Horizontal";
+            case Theme::kVertical:
+            default:
+                return "Vertical";
+        }
+    }
+
     bool SliderFloatCommitted(const char* label, float* value, const float min, const float max) {
         ImGuiMCP::SliderFloat(label, value, min, max);
         return ImGuiMCP::IsItemDeactivatedAfterEdit();
@@ -114,6 +126,24 @@ void __stdcall MCP::RenderSettings() {
     if (prompt_order_before != Theme::default_theme.prompt_order) {
         settingsChanged = true;
     }
+
+    const auto prompt_alignment_before = Theme::default_theme.prompt_alignment;
+    if (ImGuiMCP::BeginCombo("Prompt Alignment", PromptAlignmentLabel(Theme::default_theme.prompt_alignment))) {
+        for (const auto prompt_alignment : {Theme::kVertical, Theme::kHorizontal, Theme::kRadial}) {
+            const bool selected = Theme::default_theme.prompt_alignment == prompt_alignment;
+            if (ImGuiMCP::Selectable(PromptAlignmentLabel(prompt_alignment), selected)) {
+                Theme::default_theme.prompt_alignment = prompt_alignment;
+            }
+            if (selected) {
+                ImGuiMCP::SetItemDefaultFocus();
+            }
+        }
+        ImGuiMCP::EndCombo();
+    }
+    if (prompt_alignment_before != Theme::default_theme.prompt_alignment) {
+        settingsChanged = true;
+    }
+
     // Slider for Line Spacing
     if (SliderFloatCommitted("Line Spacing", &Theme::default_theme.linespacing, 0.0f, 1.0f)) {
         settingsChanged = true;
@@ -423,6 +453,9 @@ void MCP::Settings::to_json() {
     root.AddMember("prompt_order",
                    Value(Theme::toPromptOrderString(Theme::default_theme.prompt_order).data(), allocator),
                    allocator);
+    root.AddMember("prompt_alignment",
+                   Value(Theme::toPromptAlignmentString(Theme::default_theme.prompt_alignment).data(), allocator),
+                   allocator);
     root.AddMember("lifetime", lifetime, allocator);
 
     // special commands
@@ -558,6 +591,9 @@ void MCP::Settings::from_json() {
     }
     if (mcp.HasMember("prompt_order") && mcp["prompt_order"].IsString()) {
         Theme::default_theme.prompt_order = Theme::toPromptOrder(mcp["prompt_order"].GetString());
+    }
+    if (mcp.HasMember("prompt_alignment") && mcp["prompt_alignment"].IsString()) {
+        Theme::default_theme.prompt_alignment = Theme::toPromptAlignment(mcp["prompt_alignment"].GetString());
     }
     if (mcp.HasMember("lifetime")) {
         lifetime = mcp["lifetime"].GetFloat();

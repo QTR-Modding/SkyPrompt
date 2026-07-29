@@ -53,6 +53,7 @@ namespace Theme {
     };
 
     PromptAlignment toPromptAlignment(const std::string& alignment);
+    std::string_view toPromptAlignmentString(PromptAlignment alignment);
 
     enum PromptOrder : uint8_t {
         kIconFirst,

@@ -10,6 +10,18 @@ Theme::PromptAlignment Theme::toPromptAlignment(const std::string& alignment) {
     return kVertical; // default
 }
 
+std::string_view Theme::toPromptAlignmentString(const PromptAlignment alignment) {
+    switch (alignment) {
+        case kRadial:
+            return "radial";
+        case kHorizontal:
+            return "horizontal";
+        case kVertical:
+        default:
+            return "vertical";
+    }
+}
+
 Theme::PromptOrder Theme::toPromptOrder(const std::string& value) {
     if (value == "text-first" || value == "text_first" || value == "textfirst") {
         return kTextFirst;
