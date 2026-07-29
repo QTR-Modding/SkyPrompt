@@ -63,6 +63,28 @@ namespace {
         ImGuiMCP::SliderFloat(label, value, min, max);
         return ImGuiMCP::IsItemDeactivatedAfterEdit();
     }
+
+    void ResetSettingsPageToDefaults() {
+        const Theme::Theme defaults;
+        auto& settings = Theme::default_theme;
+
+        settings.fadeSpeed = defaults.fadeSpeed;
+        settings.xPercent = defaults.xPercent;
+        settings.yPercent = defaults.yPercent;
+        settings.marginX = defaults.marginX;
+        settings.marginY = defaults.marginY;
+        settings.prompt_size = defaults.prompt_size;
+        settings.icon2font_ratio = defaults.icon2font_ratio;
+        settings.prompt_order = defaults.prompt_order;
+        settings.prompt_alignment = defaults.prompt_alignment;
+        settings.prompt_pivot = defaults.prompt_pivot;
+        settings.linespacing = defaults.linespacing;
+        settings.progress_speed = defaults.progress_speed;
+
+        MCP::Settings::lifetime = 5.0f;
+        MCP::Settings::shouldReloadPromptSize.store(true);
+        MCP::Settings::shouldReloadLifetime.store(true);
+    }
 }
 
 void __stdcall MCP::RenderSettings() {
@@ -76,6 +98,11 @@ void __stdcall MCP::RenderSettings() {
     ImGuiMCP::SameLine();
     if (ImGuiMCP::Button("Start Tutorial")) {
         Tutorial::Manager::Start();
+    }
+    ImGuiMCP::SameLine();
+    if (ImGuiMCP::Button("Reset to Defaults")) {
+        ResetSettingsPageToDefaults();
+        settingsChanged = true;
     }
     #ifndef NDEBUG
     // Checkbox for debug mode
