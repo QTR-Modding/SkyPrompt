@@ -2,9 +2,10 @@
 #include "Utils.h"
 #include "SkyPrompt/API.hpp"
 #include "MCP.h"
+#include "Translations.h"
 
 namespace Tutorial {
-    constexpr std::string_view quit_me = "Quit Tutorial";
+    constexpr std::string_view quit_me = "$SkyPromptTutorialQuit";
     inline std::atomic_bool showing_tutorial = false;
     void ReadMenuFrameworkStrings();
     inline std::string MF_KB_key;
@@ -17,7 +18,7 @@ namespace Tutorial {
     inline SkyPromptAPI::ClientID client_id = 0;
 
     namespace Tutorial5 {
-        constexpr std::string_view str1 = "Quick! Mash Me!";
+        constexpr std::string_view str1 = "$SkyPromptTutorialMash";
 
         const SkyPromptAPI::Prompt prompt1(str1, 0, 0, SkyPromptAPI::PromptType::kSinglePress);
         const SkyPromptAPI::Prompt prompt4(quit_me, 1, 0, SkyPromptAPI::PromptType::kSinglePress);
@@ -35,7 +36,7 @@ namespace Tutorial {
     }
 
     namespace Tutorial4 {
-        constexpr std::string_view str1 = "Quick! Press Me!";
+        constexpr std::string_view str1 = "$SkyPromptTutorialPress";
 
         const SkyPromptAPI::Prompt prompt1(str1, 0, 0, SkyPromptAPI::PromptType::kSinglePress);
         const SkyPromptAPI::Prompt prompt4(quit_me, 1, 0, SkyPromptAPI::PromptType::kSinglePress);
@@ -54,8 +55,8 @@ namespace Tutorial {
     namespace Tutorial3 {
         inline std::chrono::steady_clock::time_point last_delete_t;
 
-        constexpr std::string_view str1 = "Delete All: Triple Press and Hold the Button!";
-        constexpr std::string_view str2 = "Delete All: Triple Press and Hold the Button! ";
+        constexpr std::string_view str1 = "$SkyPromptTutorialDeleteAll";
+        constexpr std::string_view str2 = "$SkyPromptTutorialDeleteAll ";
 
         const SkyPromptAPI::Prompt prompt1(str1, 0, 0, SkyPromptAPI::PromptType::kHold);
         const SkyPromptAPI::Prompt prompt2(str2, 0, 1, SkyPromptAPI::PromptType::kHold);
@@ -75,8 +76,8 @@ namespace Tutorial {
     namespace Tutorial2 {
         inline std::atomic_bool showing_tutorial = false;
 
-        constexpr std::string_view str1 = "Skip to Next: Triple Press the Button!";
-        constexpr std::string_view str2 = "Skip to Next: Triple Press the Button! ";
+        constexpr std::string_view str1 = "$SkyPromptTutorialSkipNext";
+        constexpr std::string_view str2 = "$SkyPromptTutorialSkipNext ";
 
         const SkyPromptAPI::Prompt prompt1(str1, 0, 0, SkyPromptAPI::PromptType::kHold);
         const SkyPromptAPI::Prompt prompt2(str2, 0, 1, SkyPromptAPI::PromptType::kHold);
@@ -96,8 +97,8 @@ namespace Tutorial {
     namespace Tutorial1 {
         inline std::chrono::steady_clock::time_point last_delete_t;
 
-        constexpr std::string_view str1 = "Delete Me: Double Press the Button!";
-        constexpr std::string_view str2 = "Delete Me: Double Press the Button! ";
+        constexpr std::string_view str1 = "$SkyPromptTutorialDelete";
+        constexpr std::string_view str2 = "$SkyPromptTutorialDelete ";
 
         const SkyPromptAPI::Prompt prompt1(str1, 0, 0, SkyPromptAPI::PromptType::kHold);
         const SkyPromptAPI::Prompt prompt2(str2, 0, 1, SkyPromptAPI::PromptType::kHold);
@@ -117,8 +118,8 @@ namespace Tutorial {
     namespace Tutorial0 {
         inline std::chrono::steady_clock::time_point last_delete_t;
 
-        constexpr std::string_view str1 = "Accept Prompt: Hold the Button!";
-        constexpr std::string_view str2 = "Accept Prompt: Hold the Button! ";
+        constexpr std::string_view str1 = "$SkyPromptTutorialAccept";
+        constexpr std::string_view str2 = "$SkyPromptTutorialAccept ";
 
         const SkyPromptAPI::Prompt prompt1(str1, 0, 0, SkyPromptAPI::PromptType::kHold);
         const SkyPromptAPI::Prompt prompt2(str2, 0, 1, SkyPromptAPI::PromptType::kHold);
@@ -155,38 +156,24 @@ namespace Tutorial {
                 }
             } else if (MCP::is_installed) {
                 ReadMenuFrameworkStrings();
-                std::string message = std::format(
-                    "SkyPrompt comes with an In-Game Menu for customization! \n"
-                    "To access the menu: \n"
-                    "Keyboard - {} ({}) \n"
-                    "Gamepad - {} ({}) \n",
-                    MF_KB_key, MF_KB_mode,
-                    MF_GP_key, MF_GP_mode
-                    );
-                SKSE::GetTaskInterface()->AddTask([message]() {
-                        ShowMessageBox(
-                            message,
-                            {"Ok"}, [](unsigned int) {
-                            });
-                    }
-                    );
+                const auto message = Translations::Format(
+                    "$SkyPromptTutorialMenuInfo", Translations::Get("$SkyPromptTutorialDeviceKeyboard"), MF_KB_key,
+                    Translations::MenuToggleMode(MF_KB_mode), Translations::Get("$SkyPromptTutorialDeviceGamepad"),
+                    MF_GP_key, Translations::MenuToggleMode(MF_GP_mode));
+                SKSE::GetTaskInterface()->AddTask(
+                    [message]() { ShowMessageBox(message, {"$SkyPromptButtonOK"}, [](unsigned int) {}); });
             }
         }
 
         static void Start() {
             showing_tutorial.store(false);
-            ShowMessageBox(
-                "Thank you for installing SkyPrompt! \n"
-                "I would like to show you a couple tips on how to handle the prompts!",
-                {"Sure!", "Pass..."}, Callback);
+            ShowMessageBox("$SkyPromptTutorialWelcome", {"$SkyPromptButtonSure", "$SkyPromptButtonPass"}, Callback);
         }
 
         static void End(const SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID) {
             RemovePrompt(a_sink, a_clientID);
             showing_tutorial.store(false);
-            ShowMessageBox(
-                "SkyPrompt Tutorial:",
-                {"Restart", "End"}, Callback);
+            ShowMessageBox("$SkyPromptTutorialTitle", {"$SkyPromptButtonRestart", "$SkyPromptButtonEnd"}, Callback);
         }
 
         static void ShowTutorial() {
