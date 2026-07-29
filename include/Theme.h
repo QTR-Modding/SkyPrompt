@@ -28,6 +28,8 @@ namespace Theme {
         Field<std::string, rapidjson::Value> font_name = {"font_name", "Jost-Regular.ttf"};
         Field<float, rapidjson::Value> font_shadow = {"font_shadow", 0.2f};
         Field<std::string, rapidjson::Value> prompt_alignment = {"prompt_alignment", "vertical"}; // e.g. radial
+        Field<std::string, rapidjson::Value> prompt_order = {"prompt_order", "icon-first"};
+        Field<std::string, rapidjson::Value> prompt_pivot = {"prompt_pivot", "bottom-right"};
 
         Field<uint32_t, rapidjson::Value> special_effect = {"special_effect", 0};
         Field<std::vector<uint32_t>, rapidjson::Value> special_integers = {"special_integers", {}};
@@ -51,6 +53,26 @@ namespace Theme {
     };
 
     PromptAlignment toPromptAlignment(const std::string& alignment);
+    std::string_view toPromptAlignmentString(PromptAlignment alignment);
+
+    enum PromptOrder : uint8_t {
+        kIconFirst,
+        kTextFirst
+    };
+
+    PromptOrder toPromptOrder(const std::string& value);
+    std::string_view toPromptOrderString(PromptOrder order);
+
+    enum PromptPivot : uint8_t {
+        kTopLeft,
+        kTopRight,
+        kBottomLeft,
+        kBottomRight,
+        kCenter
+    };
+
+    PromptPivot toPromptPivot(const std::string& value);
+    std::string_view toPromptPivotString(PromptPivot pivot);
 
     struct Theme {
         std::string theme_name = "Default Theme";
@@ -73,6 +95,8 @@ namespace Theme {
         float font_shadow = 0.2f;
 
         PromptAlignment prompt_alignment = kVertical;
+        PromptOrder prompt_order = kIconFirst;
+        PromptPivot prompt_pivot = kBottomRight;
         uint32_t special_effect = 0;
 
         std::vector<uint32_t> special_integers;

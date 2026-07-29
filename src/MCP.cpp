@@ -1,4 +1,5 @@
 #include "MCP.h"
+#include "SKSEMCP/SKSEMenuFramework.hpp"
 #include "Utils.h"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
@@ -8,15 +9,99 @@
 #include "Settings.h"
 #include "Theme.h"
 #include "Tutorial.h"
-#include "SKSEMCP/SKSEMenuFramework.hpp"
 
-static void HelpMarker(const char* desc) {
-    ImGuiMCP::TextDisabled("(?)");
-    if (ImGuiMCP::BeginItemTooltip()) {
-        ImGuiMCP::PushTextWrapPos(ImGuiMCP::GetFontSize() * 35.0f);
-        ImGuiMCP::TextUnformatted(desc);
-        ImGuiMCP::PopTextWrapPos();
-        ImGuiMCP::EndTooltip();
+namespace {
+    void HelpMarker(const char* desc) {
+        ImGuiMCP::TextDisabled("(?)");
+        if (ImGuiMCP::BeginItemTooltip()) {
+            ImGuiMCP::PushTextWrapPos(ImGuiMCP::GetFontSize() * 35.0f);
+            ImGuiMCP::TextUnformatted(desc);
+            ImGuiMCP::PopTextWrapPos();
+            ImGuiMCP::EndTooltip();
+        }
+    }
+
+    const char* PromptOrderLabel(const Theme::PromptOrder a_order) {
+        switch (a_order) {
+            case Theme::kTextFirst:
+                return "Text First (text then icon)";
+            case Theme::kIconFirst:
+            default:
+                return "Icon First (icon then text)";
+        }
+    }
+
+    const char* PromptAlignmentLabel(const Theme::PromptAlignment a_alignment) {
+        switch (a_alignment) {
+            case Theme::kRadial:
+                return "Radial";
+            case Theme::kHorizontal:
+                return "Horizontal";
+            case Theme::kVertical:
+            default:
+                return "Vertical";
+        }
+    }
+
+    const char* PromptPivotLabel(const Theme::PromptPivot a_pivot) {
+        switch (a_pivot) {
+            case Theme::kTopLeft:
+                return "Top Left";
+            case Theme::kTopRight:
+                return "Top Right";
+            case Theme::kBottomLeft:
+                return "Bottom Left";
+            case Theme::kCenter:
+                return "Center";
+            case Theme::kBottomRight:
+            default:
+                return "Bottom Right";
+        }
+    }
+
+    bool SliderFloatCommitted(const char* label, float* value, const float min, const float max) {
+        ImGuiMCP::SliderFloat(label, value, min, max);
+        return ImGuiMCP::IsItemDeactivatedAfterEdit();
+    }
+
+    void SyncOSPPresetSelection() {
+        constexpr float epsilon = 0.0001f;
+        const auto& settings = Theme::default_theme;
+
+        if (std::abs(settings.marginX) <= epsilon && std::abs(settings.marginY) <= epsilon) {
+            for (size_t i = 0; i < Presets::OSP::NOSPs; ++i) {
+                const auto [x, y] = Presets::OSP::presets.for_level(i);
+                if (std::abs(settings.xPercent - x) <= epsilon &&
+                    std::abs(settings.yPercent - y) <= epsilon) {
+                    MCP::Settings::current_OSP = i;
+                    return;
+                }
+            }
+        }
+
+        MCP::Settings::current_OSP = Presets::OSP::NOSPs;
+    }
+
+    void ResetSettingsPageToDefaults() {
+        const Theme::Theme defaults;
+        auto& settings = Theme::default_theme;
+
+        settings.fadeSpeed = defaults.fadeSpeed;
+        settings.xPercent = defaults.xPercent;
+        settings.yPercent = defaults.yPercent;
+        settings.marginX = defaults.marginX;
+        settings.marginY = defaults.marginY;
+        settings.prompt_size = defaults.prompt_size;
+        settings.icon2font_ratio = defaults.icon2font_ratio;
+        settings.prompt_order = defaults.prompt_order;
+        settings.prompt_alignment = defaults.prompt_alignment;
+        settings.prompt_pivot = defaults.prompt_pivot;
+        settings.linespacing = defaults.linespacing;
+        settings.progress_speed = defaults.progress_speed;
+
+        MCP::Settings::lifetime = 5.0f;
+        MCP::Settings::shouldReloadPromptSize.store(true);
+        MCP::Settings::shouldReloadLifetime.store(true);
     }
 }
 
@@ -32,77 +117,127 @@ void __stdcall MCP::RenderSettings() {
     if (ImGuiMCP::Button("Start Tutorial")) {
         Tutorial::Manager::Start();
     }
+    ImGuiMCP::SameLine();
+    if (ImGuiMCP::Button("Reset to Defaults")) {
+        ResetSettingsPageToDefaults();
+        settingsChanged = true;
+    }
     #ifndef NDEBUG
     // Checkbox for debug mode
     ImGuiMCP::SameLine();
     ImGuiMCP::Checkbox("Draw Debug", &Settings::draw_debug);
     #endif
 
-    const auto cache = Settings::current_OSP;
-    Settings::OSPPresetBox();
-    if (cache != Settings::current_OSP) {
+    SyncOSPPresetSelection();
+    if (Settings::OSPPresetBox()) {
         settingsChanged = true;
     }
 
     // Slider for fade speed
-    if (!ImGuiMCP::SliderFloat("Fade Speed", &Theme::default_theme.fadeSpeed, 0.01f, 0.1f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (SliderFloatCommitted("Fade Speed", &Theme::default_theme.fadeSpeed, 0.01f, 0.1f)) {
+        settingsChanged = true;
     }
 
     // Slider for X Percent
-    if (!ImGuiMCP::SliderFloat("X Percent", &Theme::default_theme.xPercent, 0.0f, 1.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (SliderFloatCommitted("X Percent", &Theme::default_theme.xPercent, 0.0f, 1.0f)) {
+        settingsChanged = true;
     }
 
     // Slider for Y Percent
-    if (!ImGuiMCP::SliderFloat("Y Percent", &Theme::default_theme.yPercent, 0.0f, 1.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (SliderFloatCommitted("Y Percent", &Theme::default_theme.yPercent, 0.0f, 1.0f)) {
+        settingsChanged = true;
     }
 
     // Slider for Margin X
-    if (!ImGuiMCP::SliderFloat("Margin X", &Theme::default_theme.marginX, -1000.0f, 1000.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (SliderFloatCommitted("Margin X", &Theme::default_theme.marginX, -1000.0f, 1000.0f)) {
+        settingsChanged = true;
     }
 
     // Slider for Margin Y
-    if (!ImGuiMCP::SliderFloat("Margin Y", &Theme::default_theme.marginY, -1000.0f, 1000.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (SliderFloatCommitted("Margin Y", &Theme::default_theme.marginY, -1000.0f, 1000.0f)) {
+        settingsChanged = true;
     }
 
     // Slider for Prompt Size
-    if (!ImGuiMCP::SliderFloat("Prompt Size", &Theme::default_theme.prompt_size, 15.0f, 100.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
-            Settings::shouldReloadPromptSize.store(true);
-            settingsChanged = true;
-        }
+    if (SliderFloatCommitted("Prompt Size", &Theme::default_theme.prompt_size, 15.0f, 100.0f)) {
+        Settings::shouldReloadPromptSize.store(true);
+        settingsChanged = true;
     }
 
     // Slider for Icon2Font Ratio
-    if (!ImGuiMCP::SliderFloat("Icon2Font Ratio", &Theme::default_theme.icon2font_ratio, 0.5f, 2.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
-            Settings::shouldReloadPromptSize.store(true);
-            settingsChanged = true;
+    if (SliderFloatCommitted("Icon2Font Ratio", &Theme::default_theme.icon2font_ratio, 0.5f, 2.0f)) {
+        Settings::shouldReloadPromptSize.store(true);
+        settingsChanged = true;
+    }
+
+    const auto prompt_order_before = Theme::default_theme.prompt_order;
+    if (ImGuiMCP::BeginCombo("Prompt Order", PromptOrderLabel(Theme::default_theme.prompt_order))) {
+        for (const auto prompt_order : {Theme::kIconFirst, Theme::kTextFirst}) {
+            const bool selected = Theme::default_theme.prompt_order == prompt_order;
+            if (ImGuiMCP::Selectable(PromptOrderLabel(prompt_order), selected)) {
+                Theme::default_theme.prompt_order = prompt_order;
+            }
+            if (selected) {
+                ImGuiMCP::SetItemDefaultFocus();
+            }
         }
+        ImGuiMCP::EndCombo();
+    }
+    if (prompt_order_before != Theme::default_theme.prompt_order) {
+        settingsChanged = true;
+    }
+
+    const auto prompt_alignment_before = Theme::default_theme.prompt_alignment;
+    if (ImGuiMCP::BeginCombo("Prompt Alignment", PromptAlignmentLabel(Theme::default_theme.prompt_alignment))) {
+        for (const auto prompt_alignment : {Theme::kVertical, Theme::kHorizontal, Theme::kRadial}) {
+            const bool selected = Theme::default_theme.prompt_alignment == prompt_alignment;
+            if (ImGuiMCP::Selectable(PromptAlignmentLabel(prompt_alignment), selected)) {
+                Theme::default_theme.prompt_alignment = prompt_alignment;
+            }
+            if (selected) {
+                ImGuiMCP::SetItemDefaultFocus();
+            }
+        }
+        ImGuiMCP::EndCombo();
+    }
+    if (prompt_alignment_before != Theme::default_theme.prompt_alignment) {
+        settingsChanged = true;
+    }
+
+    const auto prompt_pivot_before = Theme::default_theme.prompt_pivot;
+    if (ImGuiMCP::BeginCombo("Prompt Pivot", PromptPivotLabel(Theme::default_theme.prompt_pivot))) {
+        for (const auto prompt_pivot : {
+                 Theme::kTopLeft, Theme::kTopRight, Theme::kBottomLeft,
+                 Theme::kBottomRight, Theme::kCenter
+             }) {
+            const bool selected = Theme::default_theme.prompt_pivot == prompt_pivot;
+            if (ImGuiMCP::Selectable(PromptPivotLabel(prompt_pivot), selected)) {
+                Theme::default_theme.prompt_pivot = prompt_pivot;
+            }
+            if (selected) {
+                ImGuiMCP::SetItemDefaultFocus();
+            }
+        }
+        ImGuiMCP::EndCombo();
+    }
+    if (prompt_pivot_before != Theme::default_theme.prompt_pivot) {
+        settingsChanged = true;
     }
 
     // Slider for Line Spacing
-    if (!ImGuiMCP::SliderFloat("Line Spacing", &Theme::default_theme.linespacing, 0.0f, 1.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
-            settingsChanged = true;
-        }
+    if (SliderFloatCommitted("Line Spacing", &Theme::default_theme.linespacing, 0.0f, 1.0f)) {
+        settingsChanged = true;
     }
 
     // Slider for Progress Speed
-    if (!ImGuiMCP::SliderFloat("Progress Speed", &Theme::default_theme.progress_speed, 0.0f, 1.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) settingsChanged = true;
+    if (SliderFloatCommitted("Progress Speed", &Theme::default_theme.progress_speed, 0.0f, 1.0f)) {
+        settingsChanged = true;
     }
 
     // Slider for Lifetime
-    if (!ImGuiMCP::SliderFloat("Lifetime", &Settings::lifetime, 1.0f, 30.0f)) {
-        if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
-            Settings::shouldReloadLifetime.store(true);
-            settingsChanged = true;
-        }
+    if (SliderFloatCommitted("Lifetime", &Settings::lifetime, 1.0f, 30.0f)) {
+        Settings::shouldReloadLifetime.store(true);
+        settingsChanged = true;
     }
 
     if (settingsChanged) {
@@ -171,29 +306,33 @@ bool MCP::Settings::IsEnabled(const Input::DEVICE a_device) {
     return false;
 }
 
-void MCP::Settings::OSPPresetBox() {
+bool MCP::Settings::OSPPresetBox() {
+    bool changed = false;
+
     // Dropdown for OSP Preset
     ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.25f);
-    const auto current_preset_name = Presets::OSP::OSPPool.to_name(current_OSP);
+    const std::string_view current_preset_name =
+        current_OSP < Presets::OSP::NOSPs ? Presets::OSP::OSPPool.to_name(current_OSP) : "Custom";
     if (ImGuiMCP::BeginCombo("On-Screen Position", current_preset_name.data())) {
         for (const auto& all_preset_names = Presets::OSP::OSPnames;
              const auto& preset_name : all_preset_names) {
             const bool isSelected = current_preset_name == preset_name;
             if (ImGuiMCP::Selectable(preset_name.data(), isSelected)) {
-                if (!isSelected) {
-                    current_OSP = std::distance(all_preset_names.begin(),
-                                                std::ranges::find(all_preset_names, preset_name));
-                    const auto [fst, snd] = Presets::OSP::presets.for_level(current_OSP);
-                    Theme::default_theme.xPercent = fst;
-                    Theme::default_theme.yPercent = snd;
-                    Theme::default_theme.marginX = 0.f;
-                    Theme::default_theme.marginY = 0.f;
-                }
+                current_OSP = std::distance(all_preset_names.begin(),
+                                            std::ranges::find(all_preset_names, preset_name));
+                const auto [fst, snd] = Presets::OSP::presets.for_level(current_OSP);
+                Theme::default_theme.xPercent = fst;
+                Theme::default_theme.yPercent = snd;
+                Theme::default_theme.marginX = 0.f;
+                Theme::default_theme.marginY = 0.f;
+                changed = true;
             }
             if (isSelected) ImGuiMCP::SetItemDefaultFocus();
         }
         ImGuiMCP::EndCombo();
     }
+
+    return changed;
 }
 
 bool MCP::Settings::FontSettings() {
@@ -395,6 +534,15 @@ void MCP::Settings::to_json() {
     root.AddMember("icon2font_ratio", Theme::default_theme.icon2font_ratio, allocator);
     root.AddMember("linespacing", Theme::default_theme.linespacing, allocator);
     root.AddMember("progress_speed", Theme::default_theme.progress_speed, allocator);
+    root.AddMember("prompt_order",
+                   Value(Theme::toPromptOrderString(Theme::default_theme.prompt_order).data(), allocator),
+                   allocator);
+    root.AddMember("prompt_alignment",
+                   Value(Theme::toPromptAlignmentString(Theme::default_theme.prompt_alignment).data(), allocator),
+                   allocator);
+    root.AddMember("prompt_pivot",
+                   Value(Theme::toPromptPivotString(Theme::default_theme.prompt_pivot).data(), allocator),
+                   allocator);
     root.AddMember("lifetime", lifetime, allocator);
 
     // special commands
@@ -527,6 +675,15 @@ void MCP::Settings::from_json() {
     }
     if (mcp.HasMember("progress_speed")) {
         Theme::default_theme.progress_speed = mcp["progress_speed"].GetFloat();
+    }
+    if (mcp.HasMember("prompt_order") && mcp["prompt_order"].IsString()) {
+        Theme::default_theme.prompt_order = Theme::toPromptOrder(mcp["prompt_order"].GetString());
+    }
+    if (mcp.HasMember("prompt_alignment") && mcp["prompt_alignment"].IsString()) {
+        Theme::default_theme.prompt_alignment = Theme::toPromptAlignment(mcp["prompt_alignment"].GetString());
+    }
+    if (mcp.HasMember("prompt_pivot") && mcp["prompt_pivot"].IsString()) {
+        Theme::default_theme.prompt_pivot = Theme::toPromptPivot(mcp["prompt_pivot"].GetString());
     }
     if (mcp.HasMember("lifetime")) {
         lifetime = mcp["lifetime"].GetFloat();

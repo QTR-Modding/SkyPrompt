@@ -1,5 +1,6 @@
 #include "Theme.h"
 #include "MCP.h"
+#include <rapidjson/error/en.h>
 
 
 Theme::PromptAlignment Theme::toPromptAlignment(const std::string& alignment) {
@@ -7,6 +8,73 @@ Theme::PromptAlignment Theme::toPromptAlignment(const std::string& alignment) {
     if (alignment == "horizontal") return kHorizontal;
     if (alignment == "vertical") return kVertical;
     return kVertical; // default
+}
+
+std::string_view Theme::toPromptAlignmentString(const PromptAlignment alignment) {
+    switch (alignment) {
+        case kRadial:
+            return "radial";
+        case kHorizontal:
+            return "horizontal";
+        case kVertical:
+        default:
+            return "vertical";
+    }
+}
+
+Theme::PromptOrder Theme::toPromptOrder(const std::string& value) {
+    if (value == "text-first" || value == "text_first" || value == "textfirst") {
+        return kTextFirst;
+    }
+    if (value == "icon-first" || value == "icon_first" || value == "iconfirst") {
+        return kIconFirst;
+    }
+    return kIconFirst;
+}
+
+std::string_view Theme::toPromptOrderString(const PromptOrder order) {
+    switch (order) {
+        case kTextFirst:
+            return "text-first";
+        case kIconFirst:
+        default:
+            return "icon-first";
+    }
+}
+
+Theme::PromptPivot Theme::toPromptPivot(const std::string& value) {
+    if (value == "top-left" || value == "top_left" || value == "topleft") {
+        return kTopLeft;
+    }
+    if (value == "top-right" || value == "top_right" || value == "topright") {
+        return kTopRight;
+    }
+    if (value == "bottom-left" || value == "bottom_left" || value == "bottomleft") {
+        return kBottomLeft;
+    }
+    if (value == "center") {
+        return kCenter;
+    }
+    if (value == "bottom-right" || value == "bottom_right" || value == "bottomright") {
+        return kBottomRight;
+    }
+    return kBottomRight;
+}
+
+std::string_view Theme::toPromptPivotString(const PromptPivot pivot) {
+    switch (pivot) {
+        case kTopLeft:
+            return "top-left";
+        case kTopRight:
+            return "top-right";
+        case kBottomLeft:
+            return "bottom-left";
+        case kCenter:
+            return "center";
+        case kBottomRight:
+        default:
+            return "bottom-right";
+    }
 }
 
 Theme::Theme::Theme(const ThemeBlock& block) {
@@ -31,6 +99,8 @@ Theme::Theme::Theme(const ThemeBlock& block) {
     fadeSpeed = block.fadeSpeed.get();
 
     prompt_alignment = toPromptAlignment(block.prompt_alignment.get());
+    prompt_order = toPromptOrder(block.prompt_order.get());
+    prompt_pivot = toPromptPivot(block.prompt_pivot.get());
 
     special_effect = block.special_effect.get();
 
@@ -64,11 +134,12 @@ void Theme::Theme::ReLoad(std::string_view a_filename) {
             logger::error("Failed to open file: {}", file.path().string());
             return;
         }
-        std::string json_str((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+        std::string json_str((std::istreambuf_iterator(ifs)), std::istreambuf_iterator<char>());
         ifs.close();
         doc.Parse(json_str.c_str());
         if (doc.HasParseError()) {
-            logger::error("JSON Parse Error at offset {}: {}", doc.GetErrorOffset(), doc.GetParseError());
+            logger::error("JSON Parse Error at offset {}: {}", doc.GetErrorOffset(),
+                          rapidjson::GetParseError_En(doc.GetParseError()));
             return;
         }
         ThemeBlock data;
@@ -103,11 +174,11 @@ void Theme::LoadThemes() {
             logger::error("Failed to open file: {}", file.path().string());
             continue;
         }
-        std::string json_str((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+        std::string json_str((std::istreambuf_iterator(ifs)), std::istreambuf_iterator<char>());
         ifs.close();
         doc.Parse(json_str.c_str());
         if (doc.HasParseError()) {
-            logger::error("JSON Parse Error at offset {}: {}", doc.GetErrorOffset(), doc.GetParseError());
+            logger::error("JSON Parse Error at offset {}: {}", doc.GetErrorOffset(), rapidjson::GetParseError_En(doc.GetParseError()));
             continue;
         }
 

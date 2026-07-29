@@ -9,7 +9,6 @@ set(headers ${headers}
 	include/Logger.h
 	include/Service.h
     include/Interaction.h
-    include/BoundingBox.hpp
     include/Theme.h
 	src/ImGui/Graphics.h
     src/ImGui/Styles.h

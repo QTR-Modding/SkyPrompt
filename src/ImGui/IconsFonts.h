@@ -56,7 +56,7 @@ namespace IconFont {
 
         [[nodiscard]] const IconTexture* GetGamePadIcon(const GamepadIcon& a_icons) const;
 
-        [[nodiscard]] bool IsImGuiIconsInstalled() const;
+        [[nodiscard]] static bool IsImGuiIconsInstalled();
 
         std::unordered_set<uint32_t> unavailable_keys;
 
@@ -68,13 +68,7 @@ namespace IconFont {
         };
 
         // members
-        bool loadedFonts{false};
 
-        std::string fontName{R"(Data\Interface\ImGuiIcons\Fonts\Jost-Regular.ttf)"};
-        float fontSize{0.f};
-        float iconSize{0.f};
-
-        const std::string fontPath{R"(Data\Interface\ImGuiIcons\Fonts\)"};
         std::set<FontInfo> availableFonts;
 
         ImFont* smallFont{nullptr};
@@ -194,21 +188,21 @@ namespace IconFont {
         };
 
         Map<std::uint32_t, GamepadIcon> gamePad{
-            {SKSE::InputMap::kGamepadButtonOffset_START, {IconTexture(L"360_Start"sv), IconTexture(L"PS3_Start"sv)}},
-            {SKSE::InputMap::kGamepadButtonOffset_BACK, {IconTexture(L"360_Back"sv), IconTexture(L"PS3_Back"sv)}},
-            {SKSE::InputMap::kGamepadButtonOffset_LEFT_THUMB, {IconTexture(L"360_LS"sv), IconTexture(L"PS3_L3"sv)}},
-            {SKSE::InputMap::kGamepadButtonOffset_RIGHT_THUMB, {IconTexture(L"360_RS"sv), IconTexture(L"PS3_R3"sv)}},
-            {SKSE::InputMap::kGamepadButtonOffset_LEFT_SHOULDER, {IconTexture(L"360_LB"sv), IconTexture(L"PS3_LB"sv)}},
-            {SKSE::InputMap::kGamepadButtonOffset_RIGHT_SHOULDER, {IconTexture(L"360_RB"sv), IconTexture(L"PS3_RB"sv)}},
-            {SKSE::InputMap::kGamepadButtonOffset_A, {IconTexture(L"360_A"sv), IconTexture(L"PS3_A"sv)}},
-            {SKSE::InputMap::kGamepadButtonOffset_B, {IconTexture(L"360_B"sv), IconTexture(L"PS3_B"sv)}},
-            {SKSE::InputMap::kGamepadButtonOffset_X, {IconTexture(L"360_X"sv), IconTexture(L"PS3_X"sv)}},
-            {SKSE::InputMap::kGamepadButtonOffset_Y, {IconTexture(L"360_Y"sv), IconTexture(L"PS3_Y"sv)}},
-            {SKSE::InputMap::kGamepadButtonOffset_LT, {IconTexture(L"360_LT"sv), IconTexture(L"PS3_LT"sv)}},
-            {SKSE::InputMap::kGamepadButtonOffset_RT, {IconTexture(L"360_RT"sv), IconTexture(L"PS3_RT"sv)}},
-            {SkyPromptAPI::kThumbstickMoveL, {IconTexture(L"thumbstickl"sv), IconTexture(L"thumbstickl"sv)}},
-            {SkyPromptAPI::kThumbstickMoveR, {IconTexture(L"thumbstickr"sv), IconTexture(L"thumbstickr"sv)}},
-            {SkyPromptAPI::kSkyrim, {IconTexture(L"skyrim"sv), IconTexture(L"skyrim"sv)}},
+            {SKSE::InputMap::kGamepadButtonOffset_START, {.xbox = IconTexture(L"360_Start"sv), .ps4 = IconTexture(L"PS3_Start"sv)}},
+            {SKSE::InputMap::kGamepadButtonOffset_BACK, {.xbox = IconTexture(L"360_Back"sv), .ps4 = IconTexture(L"PS3_Back"sv)}},
+            {SKSE::InputMap::kGamepadButtonOffset_LEFT_THUMB, {.xbox = IconTexture(L"360_LS"sv), .ps4 = IconTexture(L"PS3_L3"sv)}},
+            {SKSE::InputMap::kGamepadButtonOffset_RIGHT_THUMB, {.xbox = IconTexture(L"360_RS"sv), .ps4 = IconTexture(L"PS3_R3"sv)}},
+            {SKSE::InputMap::kGamepadButtonOffset_LEFT_SHOULDER, {.xbox = IconTexture(L"360_LB"sv), .ps4 = IconTexture(L"PS3_LB"sv)}},
+            {SKSE::InputMap::kGamepadButtonOffset_RIGHT_SHOULDER, {.xbox = IconTexture(L"360_RB"sv), .ps4 = IconTexture(L"PS3_RB"sv)}},
+            {SKSE::InputMap::kGamepadButtonOffset_A, {.xbox = IconTexture(L"360_A"sv), .ps4 = IconTexture(L"PS3_A"sv)}},
+            {SKSE::InputMap::kGamepadButtonOffset_B, {.xbox = IconTexture(L"360_B"sv), .ps4 = IconTexture(L"PS3_B"sv)}},
+            {SKSE::InputMap::kGamepadButtonOffset_X, {.xbox = IconTexture(L"360_X"sv), .ps4 = IconTexture(L"PS3_X"sv)}},
+            {SKSE::InputMap::kGamepadButtonOffset_Y, {.xbox = IconTexture(L"360_Y"sv), .ps4 = IconTexture(L"PS3_Y"sv)}},
+            {SKSE::InputMap::kGamepadButtonOffset_LT, {.xbox = IconTexture(L"360_LT"sv), .ps4 = IconTexture(L"PS3_LT"sv)}},
+            {SKSE::InputMap::kGamepadButtonOffset_RT, {.xbox = IconTexture(L"360_RT"sv), .ps4 = IconTexture(L"PS3_RT"sv)}},
+            {SkyPromptAPI::kThumbstickMoveL, {.xbox = IconTexture(L"thumbstickl"sv), .ps4 = IconTexture(L"thumbstickl"sv)}},
+            {SkyPromptAPI::kThumbstickMoveR, {.xbox = IconTexture(L"thumbstickr"sv), .ps4 = IconTexture(L"thumbstickr"sv)}},
+            {SkyPromptAPI::kSkyrim, {.xbox = IconTexture(L"skyrim"sv), .ps4 = IconTexture(L"skyrim"sv)}},
         };
 
         Map<std::uint32_t, IconTexture> mouse{
@@ -247,5 +241,6 @@ namespace ImGui {
 
     inline std::vector<RenderInfo> renderBatch;
 
-    void RenderSkyPrompt();
+    ImVec2 GetSkyPromptContentOrigin(const ImVec2& anchor);
+    void RenderSkyPrompt(const ImVec2& anchor);
 }

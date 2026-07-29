@@ -1,5 +1,5 @@
-﻿#include "Renderer.h"
-#include "BoundingBox.hpp"
+#include "Renderer.h"
+#include "CLibUtilsQTR/BoundingBox.hpp"
 #include "Hooks.h"
 #include "CLibUtilsQTR/Tasker.hpp"
 #include "IconsFonts.h"
@@ -332,8 +332,8 @@ bool Manager::InitializeClient(const SkyPromptAPI::ClientID a_clientID) {
 
 bool Manager::IsGameFrozen() {
     if (const auto main = RE::Main::GetSingleton()) {
-        if (main->freezeTime) return true;
-        if (!main->gameActive) return true;
+        if (main->GetRuntimeData().freezeTime) return true;
+        if (!main->GetRuntimeData().gameActive) return true;
     } else return true;
     if (RE::UI::GetSingleton()->GameIsPaused()) return true;
     return false;
@@ -1185,14 +1185,11 @@ void Manager::ShowQueue() {
 
     // Calculate position
     const auto resScale = GetResolutionScale();
-    const ImVec2 bottomRightPos(
+    const ImVec2 windowPos(
         width * Theme::last_theme->xPercent - Theme::last_theme->marginX * resScale,
         height * Theme::last_theme->yPercent - Theme::last_theme->marginY * resScale
         );
 
-    // Set the window position
-    SetNextWindowPos(bottomRightPos, ImGuiCond_Always, ImVec2(1.0f, 1.0f)); // Pivot at the bottom-right
-    BeginImGuiWindow("SkyPrompt");
     std::map<RefID, std::vector<SubManager*>> object_managers;
     renderBatch.clear();
 
@@ -1205,7 +1202,8 @@ void Manager::ShowQueue() {
         a_manager->ShowQueue();
     }
 
-    RenderSkyPrompt();
+    BeginImGuiWindow("SkyPrompt", GetSkyPromptContentOrigin(windowPos));
+    RenderSkyPrompt(windowPos);
 
     if (MCP::Settings::cycle_controls.load()) {
         SkyPromptAPI::ClientID n_has_prompts = 0;
@@ -1237,12 +1235,12 @@ void Manager::ShowQueue() {
         window_pos.x -= Theme::last_theme->marginX * resScale;
         window_pos.y -= Theme::last_theme->marginY * resScale;
         renderBatch.clear();
-        SetNextWindowPos(window_pos, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str());
         for (const auto a_manager : managers_) {
             a_manager->ShowQueue();
         }
-        RenderSkyPrompt();
+        BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str(),
+                         GetSkyPromptContentOrigin(window_pos));
+        RenderSkyPrompt(window_pos);
         EndImGuiWindow();
     }
 }
