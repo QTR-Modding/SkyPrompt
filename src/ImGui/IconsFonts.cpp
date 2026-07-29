@@ -724,6 +724,7 @@ namespace {
 
     void RenderPromptsRadialRotated(const ImVec2 anchor,
                                     const std::vector<ImGui::RenderInfo>& batch,
+                                    const float lineSpacingPx,
                                     const float bendRadius,
                                     const float midpointAngleRad) {
         if (batch.empty()) return;
@@ -753,7 +754,10 @@ namespace {
         for (size_t i = 0; i < batch.size(); ++i) {
             const auto& ri = batch[i];
             const auto& row = layout.rows[i];
-            const float theta = (row.centerY - midpointY) / radius;
+            const float centeredIndex =
+                static_cast<float>(i) - static_cast<float>(batch.size() - 1) * 0.5f;
+            const float theta =
+                (row.centerY - midpointY + centeredIndex * lineSpacingPx) / radius;
             const float angle = midpointAngleRad + theta;
             const ImVec2 rowX = {cosf(angle), sinf(angle)};
             const ImVec2 rowY = {-rowX.y, rowX.x};
@@ -1042,12 +1046,13 @@ void ImGui::RenderSkyPrompt(const ImVec2& anchor) {
             RenderPromptsHorizontal(renderBatch, GetFontSize() * curr_theme->linespacing);
             break;
         case Theme::PromptAlignment::kRadial: {
+            const float lineSpacingPx = GetFontSize() * curr_theme->linespacing;
             const float iconSize = GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
             const float bendRadius = iconSize * 3;
 
             RenderPromptsRadialRotated(anchor,
                                        renderBatch,
-                                       bendRadius, 0.0f);
+                                       lineSpacingPx, bendRadius, 0.0f);
             break;
         }
     }
