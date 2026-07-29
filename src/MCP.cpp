@@ -64,6 +64,24 @@ namespace {
         return ImGuiMCP::IsItemDeactivatedAfterEdit();
     }
 
+    void SyncOSPPresetSelection() {
+        constexpr float epsilon = 0.0001f;
+        const auto& settings = Theme::default_theme;
+
+        if (std::abs(settings.marginX) <= epsilon && std::abs(settings.marginY) <= epsilon) {
+            for (size_t i = 0; i < Presets::OSP::NOSPs; ++i) {
+                const auto [x, y] = Presets::OSP::presets.for_level(i);
+                if (std::abs(settings.xPercent - x) <= epsilon &&
+                    std::abs(settings.yPercent - y) <= epsilon) {
+                    MCP::Settings::current_OSP = i;
+                    return;
+                }
+            }
+        }
+
+        MCP::Settings::current_OSP = Presets::OSP::NOSPs;
+    }
+
     void ResetSettingsPageToDefaults() {
         const Theme::Theme defaults;
         auto& settings = Theme::default_theme;
@@ -110,9 +128,8 @@ void __stdcall MCP::RenderSettings() {
     ImGuiMCP::Checkbox("Draw Debug", &Settings::draw_debug);
     #endif
 
-    const auto cache = Settings::current_OSP;
-    Settings::OSPPresetBox();
-    if (cache != Settings::current_OSP) {
+    SyncOSPPresetSelection();
+    if (Settings::OSPPresetBox()) {
         settingsChanged = true;
     }
 
@@ -289,29 +306,33 @@ bool MCP::Settings::IsEnabled(const Input::DEVICE a_device) {
     return false;
 }
 
-void MCP::Settings::OSPPresetBox() {
+bool MCP::Settings::OSPPresetBox() {
+    bool changed = false;
+
     // Dropdown for OSP Preset
     ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.25f);
-    const auto current_preset_name = Presets::OSP::OSPPool.to_name(current_OSP);
+    const std::string_view current_preset_name =
+        current_OSP < Presets::OSP::NOSPs ? Presets::OSP::OSPPool.to_name(current_OSP) : "Custom";
     if (ImGuiMCP::BeginCombo("On-Screen Position", current_preset_name.data())) {
         for (const auto& all_preset_names = Presets::OSP::OSPnames;
              const auto& preset_name : all_preset_names) {
             const bool isSelected = current_preset_name == preset_name;
             if (ImGuiMCP::Selectable(preset_name.data(), isSelected)) {
-                if (!isSelected) {
-                    current_OSP = std::distance(all_preset_names.begin(),
-                                                std::ranges::find(all_preset_names, preset_name));
-                    const auto [fst, snd] = Presets::OSP::presets.for_level(current_OSP);
-                    Theme::default_theme.xPercent = fst;
-                    Theme::default_theme.yPercent = snd;
-                    Theme::default_theme.marginX = 0.f;
-                    Theme::default_theme.marginY = 0.f;
-                }
+                current_OSP = std::distance(all_preset_names.begin(),
+                                            std::ranges::find(all_preset_names, preset_name));
+                const auto [fst, snd] = Presets::OSP::presets.for_level(current_OSP);
+                Theme::default_theme.xPercent = fst;
+                Theme::default_theme.yPercent = snd;
+                Theme::default_theme.marginX = 0.f;
+                Theme::default_theme.marginY = 0.f;
+                changed = true;
             }
             if (isSelected) ImGuiMCP::SetItemDefaultFocus();
         }
         ImGuiMCP::EndCombo();
     }
+
+    return changed;
 }
 
 bool MCP::Settings::FontSettings() {

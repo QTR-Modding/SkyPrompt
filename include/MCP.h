@@ -47,7 +47,7 @@ namespace MCP {
         // Settings::Theme
         inline std::set<std::string> font_names;
 
-        void OSPPresetBox();
+        bool OSPPresetBox();
         bool FontSettings();
         void LoadDefaultPromptKeys();
         bool CycleControls();
