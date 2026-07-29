@@ -43,6 +43,22 @@ namespace {
         }
     }
 
+    const char* PromptPivotLabel(const Theme::PromptPivot a_pivot) {
+        switch (a_pivot) {
+            case Theme::kTopLeft:
+                return "Top Left";
+            case Theme::kTopRight:
+                return "Top Right";
+            case Theme::kBottomLeft:
+                return "Bottom Left";
+            case Theme::kCenter:
+                return "Center";
+            case Theme::kBottomRight:
+            default:
+                return "Bottom Right";
+        }
+    }
+
     bool SliderFloatCommitted(const char* label, float* value, const float min, const float max) {
         ImGuiMCP::SliderFloat(label, value, min, max);
         return ImGuiMCP::IsItemDeactivatedAfterEdit();
@@ -141,6 +157,26 @@ void __stdcall MCP::RenderSettings() {
         ImGuiMCP::EndCombo();
     }
     if (prompt_alignment_before != Theme::default_theme.prompt_alignment) {
+        settingsChanged = true;
+    }
+
+    const auto prompt_pivot_before = Theme::default_theme.prompt_pivot;
+    if (ImGuiMCP::BeginCombo("Prompt Pivot", PromptPivotLabel(Theme::default_theme.prompt_pivot))) {
+        for (const auto prompt_pivot : {
+                 Theme::kTopLeft, Theme::kTopRight, Theme::kBottomLeft,
+                 Theme::kBottomRight, Theme::kCenter
+             }) {
+            const bool selected = Theme::default_theme.prompt_pivot == prompt_pivot;
+            if (ImGuiMCP::Selectable(PromptPivotLabel(prompt_pivot), selected)) {
+                Theme::default_theme.prompt_pivot = prompt_pivot;
+            }
+            if (selected) {
+                ImGuiMCP::SetItemDefaultFocus();
+            }
+        }
+        ImGuiMCP::EndCombo();
+    }
+    if (prompt_pivot_before != Theme::default_theme.prompt_pivot) {
         settingsChanged = true;
     }
 
@@ -456,6 +492,9 @@ void MCP::Settings::to_json() {
     root.AddMember("prompt_alignment",
                    Value(Theme::toPromptAlignmentString(Theme::default_theme.prompt_alignment).data(), allocator),
                    allocator);
+    root.AddMember("prompt_pivot",
+                   Value(Theme::toPromptPivotString(Theme::default_theme.prompt_pivot).data(), allocator),
+                   allocator);
     root.AddMember("lifetime", lifetime, allocator);
 
     // special commands
@@ -594,6 +633,9 @@ void MCP::Settings::from_json() {
     }
     if (mcp.HasMember("prompt_alignment") && mcp["prompt_alignment"].IsString()) {
         Theme::default_theme.prompt_alignment = Theme::toPromptAlignment(mcp["prompt_alignment"].GetString());
+    }
+    if (mcp.HasMember("prompt_pivot") && mcp["prompt_pivot"].IsString()) {
+        Theme::default_theme.prompt_pivot = Theme::toPromptPivot(mcp["prompt_pivot"].GetString());
     }
     if (mcp.HasMember("lifetime")) {
         lifetime = mcp["lifetime"].GetFloat();

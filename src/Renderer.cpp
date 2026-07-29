@@ -1190,24 +1190,6 @@ void Manager::ShowQueue() {
         height * Theme::last_theme->yPercent - Theme::last_theme->marginY * resScale
         );
 
-    // Set the window position
-    const ImVec2 windowPivot = [&]() {
-        switch (Theme::last_theme->prompt_pivot) {
-            case Theme::kTopLeft:
-                return ImVec2(0.0f, 0.0f);
-            case Theme::kTopRight:
-                return ImVec2(1.0f, 0.0f);
-            case Theme::kBottomLeft:
-                return ImVec2(0.0f, 1.0f);
-            case Theme::kCenter:
-                return ImVec2(0.5f, 0.5f);
-            case Theme::kBottomRight:
-            default:
-                return ImVec2(1.0f, 1.0f);
-        }
-    }();
-    SetNextWindowPos(windowPos, ImGuiCond_Always, windowPivot);
-    BeginImGuiWindow("SkyPrompt");
     std::map<RefID, std::vector<SubManager*>> object_managers;
     renderBatch.clear();
 
@@ -1220,7 +1202,8 @@ void Manager::ShowQueue() {
         a_manager->ShowQueue();
     }
 
-    RenderSkyPrompt();
+    BeginImGuiWindow("SkyPrompt", GetSkyPromptContentOrigin(windowPos));
+    RenderSkyPrompt(windowPos);
 
     if (MCP::Settings::cycle_controls.load()) {
         SkyPromptAPI::ClientID n_has_prompts = 0;
@@ -1252,12 +1235,12 @@ void Manager::ShowQueue() {
         window_pos.x -= Theme::last_theme->marginX * resScale;
         window_pos.y -= Theme::last_theme->marginY * resScale;
         renderBatch.clear();
-        SetNextWindowPos(window_pos, ImGuiCond_Always, windowPivot);
-        BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str());
         for (const auto a_manager : managers_) {
             a_manager->ShowQueue();
         }
-        RenderSkyPrompt();
+        BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str(),
+                         GetSkyPromptContentOrigin(window_pos));
+        RenderSkyPrompt(window_pos);
         EndImGuiWindow();
     }
 }

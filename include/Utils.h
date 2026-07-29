@@ -1,5 +1,7 @@
 #pragma once
 
+struct ImVec2;
+
 std::filesystem::path GetLogPath();
 std::vector<std::string> ReadLogFile();
 const auto mod_name = static_cast<std::string>(SKSE::PluginDeclaration::GetSingleton()->GetName());
@@ -24,7 +26,7 @@ public:
     }
 };
 
-void BeginImGuiWindow(const char* window_name);
+void BeginImGuiWindow(const char* window_name, const ImVec2& content_position);
 void EndImGuiWindow();
 
 void TranslateEmbedded(std::string& a_text);
