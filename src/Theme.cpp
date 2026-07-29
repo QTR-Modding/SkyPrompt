@@ -1,5 +1,6 @@
 #include "Theme.h"
 #include "MCP.h"
+#include <rapidjson/error/en.h>
 
 
 Theme::PromptAlignment Theme::toPromptAlignment(const std::string& alignment) {
@@ -105,11 +106,12 @@ void Theme::Theme::ReLoad(std::string_view a_filename) {
             logger::error("Failed to open file: {}", file.path().string());
             return;
         }
-        std::string json_str((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+        std::string json_str((std::istreambuf_iterator(ifs)), std::istreambuf_iterator<char>());
         ifs.close();
         doc.Parse(json_str.c_str());
         if (doc.HasParseError()) {
-            logger::error("JSON Parse Error at offset {}: {}", doc.GetErrorOffset(), doc.GetParseError());
+            logger::error("JSON Parse Error at offset {}: {}", doc.GetErrorOffset(),
+                          rapidjson::GetParseError_En(doc.GetParseError()));
             return;
         }
         ThemeBlock data;
@@ -144,11 +146,11 @@ void Theme::LoadThemes() {
             logger::error("Failed to open file: {}", file.path().string());
             continue;
         }
-        std::string json_str((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+        std::string json_str((std::istreambuf_iterator(ifs)), std::istreambuf_iterator<char>());
         ifs.close();
         doc.Parse(json_str.c_str());
         if (doc.HasParseError()) {
-            logger::error("JSON Parse Error at offset {}: {}", doc.GetErrorOffset(), doc.GetParseError());
+            logger::error("JSON Parse Error at offset {}: {}", doc.GetErrorOffset(), rapidjson::GetParseError_En(doc.GetParseError()));
             continue;
         }
 

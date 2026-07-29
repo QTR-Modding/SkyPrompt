@@ -332,8 +332,8 @@ bool Manager::InitializeClient(const SkyPromptAPI::ClientID a_clientID) {
 
 bool Manager::IsGameFrozen() {
     if (const auto main = RE::Main::GetSingleton()) {
-        if (main->freezeTime) return true;
-        if (!main->gameActive) return true;
+        if (main->GetRuntimeData().freezeTime) return true;
+        if (!main->GetRuntimeData().gameActive) return true;
     } else return true;
     if (RE::UI::GetSingleton()->GameIsPaused()) return true;
     return false;

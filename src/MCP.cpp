@@ -1,4 +1,5 @@
 #include "MCP.h"
+#include "SKSEMCP/SKSEMenuFramework.hpp"
 #include "Utils.h"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
@@ -8,7 +9,6 @@
 #include "Settings.h"
 #include "Theme.h"
 #include "Tutorial.h"
-#include "SKSEMCP/SKSEMenuFramework.hpp"
 
 namespace {
     void HelpMarker(const char* desc) {
