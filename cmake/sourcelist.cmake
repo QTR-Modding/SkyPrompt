@@ -8,6 +8,7 @@ set(sources ${sources}
  	src/Input.cpp
  	src/Renderer.cpp
  	src/Service.cpp
+	include/API/HandshakeRegistry.cpp
  	src/Interaction.cpp
  	src/Tutorial.cpp
  	src/Theme.cpp

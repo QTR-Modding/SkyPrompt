@@ -8,6 +8,17 @@ namespace SCENES {
     using Event = uint32_t;
 };
 
+namespace InteractionID {
+    constexpr uint32_t Pack(const uint16_t a_clientID, const uint16_t a_localID) {
+        return (static_cast<uint32_t>(a_clientID) << 16) | a_localID;
+    }
+
+    constexpr uint16_t Local(const uint32_t a_id) {
+        return static_cast<uint16_t>(a_id);
+    }
+
+    constexpr uint16_t Client(const uint32_t a_id) { return static_cast<uint16_t>(a_id >> 16); }
+}
 
 struct Interaction {
     ACTIONS::Action action = 0;

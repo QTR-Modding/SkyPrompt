@@ -1,6 +1,7 @@
 {
   "name": "skyprompt-api",
-  "version-string": "2.0.1",
+  "version-string": "2.0.3",
   "homepage": "https://github.com/QTR-Modding/SkyPromptAPI",
+  "license": "MIT",
   "dependencies": []
 }

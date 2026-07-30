@@ -174,6 +174,8 @@ namespace ImGui::Renderer {
         const std::vector<std::unique_ptr<SubManager>>* GetManagerList(SkyPromptAPI::ClientID a_clientID) const;
         std::vector<std::unique_ptr<SubManager>>* GetManagerList(SkyPromptAPI::ClientID a_clientID);
 
+        SkyPromptAPI::ClientID FindCompatibleClientID(SkyPromptAPI::ClientID a_clientID) const;
+
         void Clear(SkyPromptAPI::PromptEventType a_event_type);
 
     public:

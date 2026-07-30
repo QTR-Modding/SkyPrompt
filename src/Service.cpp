@@ -67,7 +67,12 @@ SkyPromptAPI::ClientID ProcessRequestClientID(int a_major, int a_minor) {
     return 0;
 }
 
-bool ProcessRequestTheme(SkyPromptAPI::ClientID a_clientID, std::string_view theme_name) {
+bool ProcessRequestHandshake(const Handshake::ClientID a_clientID, const Handshake::HandshakeKey a_key,
+                             const Handshake::HandshakeKey a_otherKey) {
+    return Handshake::compatibility.RequestHandshake(a_clientID, a_key, a_otherKey);
+}
+
+bool ProcessRequestTheme(SkyPromptAPI::ClientID a_clientID, const std::string_view theme_name) {
     if (a_clientID == 0) {
         logger::error("Invalid ClientID: {}", a_clientID);
         return false;
