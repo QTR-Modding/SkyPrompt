@@ -8,6 +8,7 @@ set(headers ${headers}
 	include/Renderer.h
 	include/Logger.h
 	include/Service.h
+	include/API/HandshakeRegistry.h
     include/Interaction.h
     include/Theme.h
 	src/ImGui/Graphics.h
