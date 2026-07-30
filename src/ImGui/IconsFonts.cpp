@@ -1,5 +1,6 @@
 #include "IconsFonts.h"
 #include "Renderer.h"
+#include "Translations.h"
 #include "imgui_internal.h"
 #include <imgui_impl_dx11.h>
 #include "SkyPrompt/AddOns.hpp"
@@ -139,6 +140,8 @@ namespace IconFont {
 
         ImFontGlyphRangesBuilder builder;
         builder.AddText(RE::BSScaleformManager::GetSingleton()->validNameChars.c_str());
+        const auto translated_glyphs = Translations::GlyphText();
+        builder.AddText(translated_glyphs.c_str());
         builder.AddChar(0xf030); // CAMERA
         builder.AddChar(0xf017); // CLOCK
         builder.AddChar(0xf183); // PERSON

@@ -1,6 +1,7 @@
 set(sources ${sources}
 	src/plugin.cpp
 	src/Utils.cpp
+	src/Translations.cpp
 	src/Settings.cpp
 	src/Hooks.cpp
 	src/MCP.cpp
