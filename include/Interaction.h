@@ -16,6 +16,8 @@ namespace InteractionID {
     constexpr uint16_t Local(const uint32_t a_id) {
         return static_cast<uint16_t>(a_id);
     }
+
+    constexpr uint16_t Client(const uint32_t a_id) { return static_cast<uint16_t>(a_id >> 16); }
 }
 
 struct Interaction {

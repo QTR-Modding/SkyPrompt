@@ -1,7 +1,7 @@
 #include "HandshakeRegistry.h"
 
 bool Handshake::Registry::RequestHandshake(const ClientID a_clientID, const HandshakeKey a_key,
-                                            const HandshakeKey a_otherKey) {
+                                           const HandshakeKey a_otherKey) {
     if (a_clientID == 0) {
         return false;
     }
@@ -19,8 +19,8 @@ bool Handshake::Registry::RequestHandshake(const ClientID a_clientID, const Hand
             continue;
         }
         if (std::ranges::any_of(other_requests, [&](const Request& a_otherRequest) {
-                return IsReciprocal(request, a_otherRequest);
-            })) {
+            return IsReciprocal(request, a_otherRequest);
+        })) {
             compatible_[a_clientID].insert(other_client_id);
             compatible_[other_client_id].insert(a_clientID);
         }

@@ -26,4 +26,6 @@ namespace Handshake {
         std::unordered_map<ClientID, std::vector<Request>> requests_;
         std::unordered_map<ClientID, std::unordered_set<ClientID>> compatible_;
     };
+
+    inline Registry compatibility;
 }

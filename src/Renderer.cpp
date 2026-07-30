@@ -7,6 +7,7 @@
 #include "Utils.h"
 #include "Service.h"
 #include "Tutorial.h"
+#include "API/HandshakeRegistry.h"
 
 
 using namespace ImGui::Renderer;
@@ -312,6 +313,31 @@ std::vector<std::unique_ptr<SubManager>>* Manager::GetManagerList(const SkyPromp
         return &client_managers.at(a_clientID);
     }
     return nullptr;
+}
+
+SkyPromptAPI::ClientID Manager::FindCompatibleClientID(const SkyPromptAPI::ClientID a_clientID) const {
+    const auto contains_client = [a_clientID](const auto& manager_list) {
+        return std::ranges::any_of(manager_list, [a_clientID](const auto& manager) {
+            return manager &&
+                   std::ranges::any_of(manager->GetInteractions(), [a_clientID](const Interaction& interaction) {
+                       return InteractionID::Client(interaction.event) == a_clientID;
+                   });
+        });
+    };
+
+    std::shared_lock lock(mutex_);
+
+    if (contains_client(managers)) {
+        return last_clientID;
+    }
+
+    for (const auto& [clientID, manager_list] : client_managers) {
+        if (contains_client(manager_list)) {
+            return clientID;
+        }
+    }
+
+    return 0;
 }
 
 bool Manager::InitializeClient(const SkyPromptAPI::ClientID a_clientID) {
@@ -757,6 +783,36 @@ bool Manager::CycleClient(const bool a_left) {
 }
 
 bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID) {
+    auto compatibleID = FindCompatibleClientID(a_clientID);
+
+    if (compatibleID == 0) {
+        compatibleID = a_clientID;
+
+        if (last_clientID != 0 && last_clientID != a_clientID) {
+            bool found_client = false;
+            bool all_compatible = true;
+
+            for (const auto& manager : managers) {
+                for (const auto& interaction : manager->GetInteractions()) {
+                    found_client = true;
+
+                    if (!Handshake::compatibility.AreCompatible(a_clientID, InteractionID::Client(interaction.event))) {
+                        all_compatible = false;
+                        break;
+                    }
+                }
+
+                if (!all_compatible) {
+                    break;
+                }
+            }
+
+            if (found_client && all_compatible) {
+                compatibleID = last_clientID;
+            }
+        }
+    }
+
     for (const auto prompts = a_prompt_sink->GetPrompts();
          const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color, progress] : prompts) {
         auto a_txt = std::string(text);
@@ -778,9 +834,11 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
             }
         }
         const auto interaction = MakeInteraction(a_clientID, a_event, a_action);
-        if (const auto submanager = Add2Q(a_clientID, interaction, {.text = a_txt, .text_color = text_color, .progress = progress}, a_type, a_refid,
-                                          temp_button_keys, true)) {
-            if (!GetManagerList(a_clientID)) {
+        if (const auto submanager =
+            Add2Q(compatibleID, interaction, {.text = a_txt, .text_color = text_color, .progress = progress},
+                  a_type, a_refid,
+                  temp_button_keys, true)) {
+            if (!GetManagerList(compatibleID)) {
                 logger::error("Failed to get manager list");
                 return false;
             }
@@ -791,7 +849,7 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
         }
     }
 
-    SwitchToClientManager(a_clientID);
+    SwitchToClientManager(compatibleID);
 
     return true;
 }
@@ -800,7 +858,12 @@ bool Manager::IsInQueue(const SkyPromptAPI::ClientID a_clientID, const SkyPrompt
                         const bool wake_up) {
     bool result = false;
 
-    const auto a_list = GetManagerList(a_clientID);
+    const auto compatibleID = FindCompatibleClientID(a_clientID);
+    if (compatibleID == 0) {
+        return false;
+    }
+
+    const auto a_list = GetManagerList(compatibleID);
 
     if (!a_list) {
         return false;
@@ -822,7 +885,12 @@ bool Manager::IsInQueue(const SkyPromptAPI::ClientID a_clientID, const SkyPrompt
 }
 
 void Manager::RemoveFromQ(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink) {
-    const auto manager_list = GetManagerList(a_clientID);
+    const auto compatibleID = FindCompatibleClientID(a_clientID);
+    if (compatibleID == 0) {
+        return;
+    }
+
+    const auto manager_list = GetManagerList(compatibleID);
 
     if (!manager_list) {
         return;
