@@ -1,5 +1,6 @@
 set(headers ${headers}
 	include/Utils.h
+	include/Translations.h
 	include/PCH.h
 	include/Settings.h
 	include/Hooks.h

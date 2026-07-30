@@ -1,5 +1,6 @@
 #include "IconsFonts.h"
 #include "Renderer.h"
+#include "Translations.h"
 #include "imgui_internal.h"
 #include <imgui_impl_dx11.h>
 #include "SkyPrompt/AddOns.hpp"
@@ -139,6 +140,8 @@ namespace IconFont {
 
         ImFontGlyphRangesBuilder builder;
         builder.AddText(RE::BSScaleformManager::GetSingleton()->validNameChars.c_str());
+        const auto translated_glyphs = Translations::GlyphText();
+        builder.AddText(translated_glyphs.c_str());
         builder.AddChar(0xf030); // CAMERA
         builder.AddChar(0xf017); // CLOCK
         builder.AddChar(0xf183); // PERSON
@@ -583,6 +586,73 @@ namespace {
         return iconCenter;
     }
 
+    struct PromptBounds {
+        ImVec2 min;
+        ImVec2 size;
+    };
+
+    struct VerticalPromptRow {
+        ImVec2 textSize;
+        float centerY;
+        float textOffset;
+    };
+
+    struct VerticalPromptLayout {
+        std::vector<VerticalPromptRow> rows;
+        PromptBounds bounds;
+        float iconX;
+    };
+
+    VerticalPromptLayout MeasureVerticalPrompts(const std::vector<ImGui::RenderInfo>& batch) {
+        VerticalPromptLayout layout{};
+        if (batch.empty()) {
+            return layout;
+        }
+
+        const float iconSize = GetIconSize();
+        const float circleDiameter = iconSize * 1.25f;
+        const float circleOverhang = (circleDiameter - iconSize) * 0.5f;
+        const float extraSpacing = Theme::last_theme->linespacing * 5.0f;
+        const bool textFirst = Theme::last_theme->prompt_order == Theme::kTextFirst;
+
+        layout.rows.reserve(batch.size());
+        float maxPrefixWidth = 0.0f;
+        float maxTextExtent = 0.0f;
+        float rowStart = 0.0f;
+        float maxBottom = 0.0f;
+        for (const auto& renderInfo : batch) {
+            const ImVec2 textSize = ImGui::CalcTextSize(renderInfo.text.c_str());
+            const float rowHeight = std::max(circleDiameter, textSize.y);
+            const float iconOffset = (rowHeight - iconSize) * 0.5f;
+            const float textOffset = (rowHeight - textSize.y) * 0.5f;
+            const float textPad = circleOverhang + textOffset;
+
+            layout.rows.push_back({
+                .textSize = textSize,
+                .centerY = rowStart + rowHeight * 0.5f,
+                .textOffset = textOffset
+            });
+            maxPrefixWidth = std::max(maxPrefixWidth, textSize.x + textPad);
+            maxTextExtent = std::max(maxTextExtent, textSize.x + textOffset);
+            maxBottom = std::max(maxBottom, rowStart + rowHeight);
+
+            if (textFirst) {
+                rowStart += textOffset + textSize.y + textOffset * extraSpacing;
+            } else {
+                rowStart += std::max(iconOffset + iconSize, textOffset + textSize.y) +
+                    ImGui::GetStyle().ItemSpacing.y +
+                    textOffset * extraSpacing;
+            }
+        }
+
+        layout.iconX = textFirst ? ImGui::GetStyle().ItemSpacing.x + maxPrefixWidth : 0.0f;
+        layout.bounds = {
+            .min = {textFirst ? 0.0f : -circleOverhang, 0.0f},
+            .size = {circleDiameter + ImGui::GetStyle().ItemSpacing.x + maxTextExtent, maxBottom}
+        };
+        return layout;
+    }
+
     void AddImageRotated(ImDrawList* dl, const ImTextureID tex,
                          const ImVec2 center, const ImVec2 size,
                          const float angle, const ImU32 col) {
@@ -655,11 +725,11 @@ namespace {
         dl->AddTriangleFilled(rot(p1), rot(p2), rot(p3), col);
     }
 
-    void RenderPromptsRadialRotated(const ImVec2 center,
+    void RenderPromptsRadialRotated(const ImVec2 anchor,
                                     const std::vector<ImGui::RenderInfo>& batch,
                                     const float lineSpacingPx,
-                                    const float baseRadius,
-                                    const float startAngleRad) {
+                                    const float bendRadius,
+                                    const float midpointAngleRad) {
         if (batch.empty()) return;
 
         ImDrawList* dl = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
@@ -673,54 +743,49 @@ namespace {
 
         const float circleDia = iconSz * 1.25f;
         const float outerR = circleDia * 0.5f;
-
-        // Tangential footprint should be the ring's outer diameter, not iconSz.
-        // Also mimic SameLine spacing a bit so neighboring rings don't kiss.
-        const float arcSpacing = ImGui::GetStyle().ItemSpacing.x; // small extra gap (pixels)
-        const float rowFootprint = circleDia;
-
-        const bool radialTextFirst = Theme::last_theme->prompt_order == Theme::kTextFirst;
         const float baseSpacing = ImGui::GetStyle().ItemSpacing.x;
-        const float circleRadius = circleDia * 0.5f;
+        const float circleOverhang = (circleDia - iconSz) * 0.5f;
+        const bool textFirst = Theme::last_theme->prompt_order == Theme::kTextFirst;
+        const auto layout = MeasureVerticalPrompts(batch);
 
-        float maxCenterDist = 0.0f;
-        float maxTextWidth = 0.0f;
-        for (const auto& ri : batch) {
-            const float textWidth = ImGui::CalcTextSize(ri.text.c_str()).x;
-            const float centerDist = baseSpacing + circleRadius + textWidth * 0.5f;
-            maxCenterDist = std::max(maxCenterDist, centerDist);
-            maxTextWidth = std::max(maxTextWidth, textWidth);
-        }
+        const float radius = std::max(bendRadius, 1.0f);
+        const float centerlineX = layout.bounds.min.x + layout.bounds.size.x * 0.5f;
+        const float midpointY = layout.bounds.min.y + layout.bounds.size.y * 0.5f;
+        const ImVec2 midpointX = {cosf(midpointAngleRad), sinf(midpointAngleRad)};
+        const float extraArcSpacingPx =
+            lineSpacingPx - (textFirst ? 0.0f : ImGui::GetStyle().ItemSpacing.y);
 
-        // Final angular step (radians per item)
-        float r = std::max(baseRadius, iconSz * 1.6f);
-        if (radialTextFirst) {
-            // Keep full inward text extent away from the center so entries don't collapse.
-            const float minInnerRadius = std::max(baseRadius, rowFootprint * 1.5f);
-            const float maxInwardExtent = baseSpacing + circleRadius + maxTextWidth;
-            r = std::max(r, maxInwardExtent + minInnerRadius);
-        }
-
-        const float spacingRadius = radialTextFirst ? std::max(1.0f, r - maxCenterDist) : r;
-        const float step = std::max(0.001f, (rowFootprint + arcSpacing + lineSpacingPx) / spacingRadius);
-
-        const int n = static_cast<int>(batch.size());
-        const float firstA = startAngleRad - 0.5f * (n - 1) * step; // center on the ray
-
-        for (int i = 0; i < n; ++i) {
+        for (size_t i = 0; i < batch.size(); ++i) {
             const auto& ri = batch[i];
-            const float a = firstA + i * step;
-
-            // position on ring
-            const ImVec2 iconCenter{center.x + r * cosf(a), center.y + r * sinf(a)};
-
-            // orient along the radius; flip on left hemisphere to keep text upright
-            float orient = a;
-            if (cosf(a) < 0.0f) orient += IM_PI;
+            const auto& row = layout.rows[i];
+            const float centeredIndex =
+                static_cast<float>(i) - static_cast<float>(batch.size() - 1) * 0.5f;
+            const float theta =
+                (row.centerY - midpointY + centeredIndex * extraArcSpacingPx) / radius;
+            const float angle = midpointAngleRad + theta;
+            const ImVec2 rowX = {cosf(angle), sinf(angle)};
+            const ImVec2 rowY = {-rowX.y, rowX.x};
+            const ImVec2 arcPoint = {
+                anchor.x + radius * (rowX.x - midpointX.x),
+                anchor.y + radius * (rowX.y - midpointX.y)
+            };
+            const float textPad = circleOverhang + row.textOffset;
+            const float rowLeftX = layout.bounds.min.x;
+            const float iconCenterX = textFirst
+                                          ? rowLeftX + row.textSize.x + baseSpacing +
+                                              textPad + iconSz * 0.5f
+                                          : layout.iconX + iconSz * 0.5f;
+            const float textCenterX = textFirst
+                                          ? rowLeftX + row.textSize.x * 0.5f
+                                          : iconSz + baseSpacing + textPad + row.textSize.x * 0.5f;
+            const ImVec2 iconCenter{
+                arcPoint.x + (iconCenterX - centerlineX) * rowX.x,
+                arcPoint.y + (iconCenterX - centerlineX) * rowX.y
+            };
 
             // --- icon ---
             if (ri.texture && ri.texture->srView.Get()) {
-                AddImageRotated(dl, (ImTextureID)ri.texture->srView.Get(), iconCenter, iconSzV, orient,
+                AddImageRotated(dl, (ImTextureID)ri.texture->srView.Get(), iconCenter, iconSzV, angle,
                                 IM_COL32(255, 255, 255, static_cast<int>(255 * ri.alpha)));
             }
 
@@ -729,65 +794,106 @@ namespace {
                 DrawPromptStateOverlay(dl, ri, iconCenter, outerR, thick,
                                        [&]() {
                                            constexpr ImU32 tri_col = IM_COL32(255, 255, 255, 180);
-                                           DrawTriangleRotated(dl, iconCenter, outerR, iconSz * 0.5f, a, tri_col);
+                                           DrawTriangleRotated(dl, iconCenter, outerR, iconSz * 0.5f, angle, tri_col);
                                        },
-                                       orient);
+                                       angle);
             }
 
-            const ImVec2 textSize = ImGui::CalcTextSize(ri.text.c_str());
-
-            const float circle_radius = iconSz * 1.25f * 0.5f;
-
-            const float a_spacing = ImGui::GetStyle().ItemSpacing.x;
-
-            // distance from icon center to the *inner edge* of text in the flat layout:
-            //   iconCenter + radius (icon right edge)
-            // + spacing (SameLine gap)
-            // + (circle_radius - radius) (ring clearance)
-            // simplifies to: spacing + circle_radius
-            const float near_edge_clearance = a_spacing + circle_radius;
-
-            // place the *text center* so that its inner edge sits at that clearance
-            const float center_dist = near_edge_clearance + textSize.x * 0.5f;
-
-            // move along the radial normal; inward for text-first, outward for icon-first
-            const ImVec2 normal = {cosf(a), sinf(a)};
-            const float radialDirection = Theme::last_theme->prompt_order == Theme::kTextFirst ? -1.0f : 1.0f;
             const ImVec2 textCenter = {
-                iconCenter.x + normal.x * center_dist * radialDirection,
-                iconCenter.y + normal.y * center_dist * radialDirection
+                arcPoint.x + (textCenterX - centerlineX) * rowX.x,
+                arcPoint.y + (textCenterX - centerlineX) * rowX.y
             };
 
             // draw rotated text centered on this pivot
             const ImU32 color = MulAlpha(ri.text_color ? ri.text_color : IM_COL32(255, 255, 255, 255), ri.alpha);
             const ImU32 shadow = MulAlpha(
                 IM_COL32(0, 0, 0, static_cast<int>(255 * Theme::last_theme->font_shadow)), ri.alpha);
+            const ImVec2 shadowOffset{
+                2.5f * (rowX.x + rowY.x),
+                2.5f * (rowX.y + rowY.y)
+            };
 
-            AddTextRotated(dl, font, fs, {textCenter.x + 2.5f, textCenter.y + 2.5f},
-                           shadow, ri.text.c_str(), nullptr, orient, true);
+            AddTextRotated(dl, font, fs, textCenter + shadowOffset,
+                           shadow, ri.text.c_str(), nullptr, angle, true);
             AddTextRotated(dl, font, fs, textCenter,
-                           color, ri.text.c_str(), nullptr, orient, true);
+                           color, ri.text.c_str(), nullptr, angle, true);
         }
 
         dl->PopClipRect();
     }
 
+    struct PromptItemDimensions {
+        float width;
+        [[maybe_unused]] float height;
+        float textWidth;
+        float textHeight;
+        float textPad;
+    };
+
+    struct HorizontalPromptLayout {
+        std::vector<PromptItemDimensions> items;
+        ImVec2 size;
+    };
+
+    HorizontalPromptLayout MeasureHorizontalPrompts(const std::vector<ImGui::RenderInfo>& batch,
+                                                    const float lineSpacingPx) {
+        HorizontalPromptLayout layout;
+        layout.items.reserve(batch.size());
+
+        const float iconSize = GetIconSize();
+        const float circleDiameter = iconSize * 1.25f;
+        for (const auto& renderInfo : batch) {
+            const ImVec2 textSize = ImGui::CalcTextSize(renderInfo.text.c_str());
+            const float rowHeight = std::max(circleDiameter, textSize.y);
+            const float textPad =
+                (circleDiameter - iconSize) * 0.5f + (rowHeight - textSize.y) * 0.5f;
+
+            layout.items.push_back({
+                .width = circleDiameter + textPad + textSize.x,
+                .height = rowHeight,
+                .textWidth = textSize.x,
+                .textHeight = textSize.y,
+                .textPad = textPad
+            });
+            layout.size.x += layout.items.back().width;
+            layout.size.y = std::max(layout.size.y, rowHeight);
+        }
+
+        if (layout.items.size() > 1) {
+            layout.size.x += lineSpacingPx * static_cast<float>(layout.items.size() - 1);
+        }
+        return layout;
+    }
+
+    ImVec2 GetPromptPivotFactor(const Theme::PromptPivot pivot) {
+        switch (pivot) {
+            case Theme::kTopLeft:
+                return {0.0f, 0.0f};
+            case Theme::kTopRight:
+                return {1.0f, 0.0f};
+            case Theme::kBottomLeft:
+                return {0.0f, 1.0f};
+            case Theme::kCenter:
+                return {0.5f, 0.5f};
+            case Theme::kBottomRight:
+            default:
+                return {1.0f, 1.0f};
+        }
+    }
+
+    ImVec2 GetContentOrigin(const ImVec2& anchor, const PromptBounds& bounds) {
+        const auto pivot = GetPromptPivotFactor(Theme::last_theme->prompt_pivot);
+        return {
+            anchor.x - bounds.size.x * pivot.x - bounds.min.x,
+            anchor.y - bounds.size.y * pivot.y - bounds.min.y
+        };
+    }
+
     void RenderPromptsVertical(const std::vector<ImGui::RenderInfo>& batch) {
         float textFirstIconX = 0.0f;
         if (Theme::last_theme->prompt_order == Theme::kTextFirst) {
-            const float iconSize = GetIconSize();
-            const float circleDiameter = iconSize * 1.25f;
-            const float circleRadius = circleDiameter * 0.5f;
-            const float iconRadius = iconSize * 0.5f;
-            float maxPrefixWidth = 0.0f;
-            for (const auto& renderInfo : batch) {
-                const ImVec2 textSize = ImGui::CalcTextSize(renderInfo.text.c_str());
-                const float rowHeight = std::max(circleDiameter, textSize.y);
-                const float textOffset = (rowHeight - textSize.y) * 0.5f;
-                const float textPad = circleRadius - iconRadius + textOffset;
-                maxPrefixWidth = std::max(maxPrefixWidth, textSize.x + textPad);
-            }
-            textFirstIconX = ImGui::GetCursorPosX() + ImGui::GetStyle().ItemSpacing.x + maxPrefixWidth;
+            const auto layout = MeasureVerticalPrompts(batch);
+            textFirstIconX = ImGui::GetCursorPosX() + layout.iconX;
         }
         for (const auto& renderInfo : batch) {
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, renderInfo.alpha);
@@ -798,7 +904,7 @@ namespace {
         }
     }
 
-    void RenderPromptsHorizontalCentered(const std::vector<ImGui::RenderInfo>& batch, const float lineSpacingPx) {
+    void RenderPromptsHorizontal(const std::vector<ImGui::RenderInfo>& batch, const float lineSpacingPx) {
         if (batch.empty()) return;
 
         const float iconSz = GetIconSize();
@@ -806,50 +912,18 @@ namespace {
         ImFont* font = ImGui::GetFont();
         const float fs = ImGui::GetFontSize();
 
-        struct ItemDim {
-            float width;
-            float height;
-            float textWidth;
-            float textHeight;
-            float textPad; // icon-to-text gap
-        };
-        std::vector<ItemDim> dims;
-        dims.reserve(batch.size());
+        const auto layout = MeasureHorizontalPrompts(batch, lineSpacingPx);
 
-        // Measure each item's width (circle + vertical-style text padding + text)
-        for (auto& ri : batch) {
-            const ImVec2 textSize = ImGui::CalcTextSize(ri.text.c_str());
-            const float circle_radius = circleDia * 0.5f;
-            const float radius = iconSz * 0.5f;
-            const float rowHeight = std::max(circleDia, textSize.y);
-
-            // Same padding formula as ButtonIconWithCircularProgress
-            const float textPad = circle_radius - radius + (rowHeight - textSize.y) * 0.5f;
-
-            const float totalWidth = circleDia + textPad + textSize.x;
-            dims.push_back({.width = totalWidth, .height = rowHeight, .textWidth = textSize.x, .textHeight = textSize.y, .textPad = textPad});
-        }
-
-        // Total width of batch including spacing
-        float totalWidth = 0.0f;
-        for (size_t i = 0; i < dims.size(); ++i) {
-            totalWidth += dims[i].width;
-            if (i != dims.size() - 1)
-                totalWidth += lineSpacingPx; // gap between items
-        }
-
-        // Start so that batch is centered at current cursor
-        ImVec2 startPos = ImGui::GetCursorScreenPos();
-        startPos.x -= totalWidth * 0.5f;
+        const ImVec2 startPos = ImGui::GetCursorScreenPos();
 
         ImDrawList* dl = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
 
         float xCursor = startPos.x;
-        const float yCenter = startPos.y + dims[0].height * 0.5f; // vertical center line
+        const float yCenter = startPos.y + layout.size.y * 0.5f;
 
         for (size_t i = 0; i < batch.size(); ++i) {
             const auto& ri = batch[i];
-            const auto& dim = dims[i];
+            const auto& dim = layout.items[i];
 
             // Icon center and text position can be swapped by theme.
             const bool textFirst = Theme::last_theme->prompt_order == Theme::kTextFirst;
@@ -887,6 +961,8 @@ namespace {
             // Advance cursor for next item
             xCursor += dim.width + lineSpacingPx;
         }
+
+        ImGui::Dummy(layout.size);
     }
 
     SkyPrompt::AddOns::SpecialEffects::SpecialsView
@@ -944,7 +1020,25 @@ void ImGui::DrawCycleIndicators(SkyPromptAPI::ClientID curr_index, SkyPromptAPI:
     }
 }
 
-void ImGui::RenderSkyPrompt() {
+ImVec2 ImGui::GetSkyPromptContentOrigin(const ImVec2& anchor) {
+    std::ranges::sort(renderBatch,
+                      [](const RenderInfo& a, const RenderInfo& b) {
+                          return a.row < b.row;
+                      });
+
+    if (renderBatch.empty() || Theme::last_theme->prompt_alignment == Theme::kRadial) {
+        return anchor;
+    }
+
+    const float lineSpacingPx = GetFontSize() * Theme::last_theme->linespacing;
+    if (Theme::last_theme->prompt_alignment == Theme::kHorizontal) {
+        const auto layout = MeasureHorizontalPrompts(renderBatch, lineSpacingPx);
+        return GetContentOrigin(anchor, {.min = {0.0f, 0.0f}, .size = layout.size});
+    }
+    return GetContentOrigin(anchor, MeasureVerticalPrompts(renderBatch).bounds);
+}
+
+void ImGui::RenderSkyPrompt(const ImVec2& anchor) {
     if (renderBatch.empty()) {
         return;
     }
@@ -953,35 +1047,28 @@ void ImGui::RenderSkyPrompt() {
     const auto prompt_alignment = curr_theme->prompt_alignment;
     const auto special_effect = curr_theme->special_effect;
 
-    std::ranges::sort(renderBatch,
-                      [](const RenderInfo& a, const RenderInfo& b) {
-                          return a.row < b.row;
-                      });
-
     switch (prompt_alignment) {
         case Theme::PromptAlignment::kVertical:
             RenderPromptsVertical(renderBatch);
             break;
         case Theme::PromptAlignment::kHorizontal:
-            RenderPromptsHorizontalCentered(renderBatch, GetFontSize() * curr_theme->linespacing);
+            RenderPromptsHorizontal(renderBatch, GetFontSize() * curr_theme->linespacing);
             break;
         case Theme::PromptAlignment::kRadial: {
             const float lineSpacingPx = GetFontSize() * curr_theme->linespacing;
             const float iconSize = GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
-            const float baseRadius = iconSize * 3;
-            const auto a_center = GetWindowPos();
+            const float bendRadius = iconSize * 6;
 
-            RenderPromptsRadialRotated(a_center,
+            RenderPromptsRadialRotated(anchor,
                                        renderBatch,
-                                       lineSpacingPx, baseRadius, 0.0f); // ray to the right
+                                       lineSpacingPx, bendRadius, 0.0f);
             break;
         }
     }
 
     if (special_effect > 0) {
-        const auto a_center = GetWindowPos();
         const auto a_size = GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
-        SkyPrompt::AddOns::RenderSpecialEffect(GetSpecialsView(*curr_theme), a_center, a_size,
+        SkyPrompt::AddOns::RenderSpecialEffect(GetSpecialsView(*curr_theme), anchor, a_size,
                                                Renderer::GetResolutionScale());
     }
 }

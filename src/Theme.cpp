@@ -61,6 +61,22 @@ Theme::PromptPivot Theme::toPromptPivot(const std::string& value) {
     return kBottomRight;
 }
 
+std::string_view Theme::toPromptPivotString(const PromptPivot pivot) {
+    switch (pivot) {
+        case kTopLeft:
+            return "top-left";
+        case kTopRight:
+            return "top-right";
+        case kBottomLeft:
+            return "bottom-left";
+        case kCenter:
+            return "center";
+        case kBottomRight:
+        default:
+            return "bottom-right";
+    }
+}
+
 Theme::Theme::Theme(const ThemeBlock& block) {
     theme_name = block.theme_name.get();
     theme_description = block.theme_description.get();

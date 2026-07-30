@@ -5,6 +5,7 @@
 #include "Settings.h"
 #include "Styles.h"
 #include "Theme.h"
+#include "Translations.h"
 #include "Utils.h"
 #include "PapyrusAPI/Bindings.h"
 #include "Tutorial.h"
@@ -13,6 +14,9 @@ namespace {
     void OnMessage(SKSE::MessagingInterface::Message* message) {
         if (message->type == SKSE::MessagingInterface::kDataLoaded) {
             SpeedProfiler profiler("Plugin load (Part 2)");
+
+            Translations::Load();
+            ImGui::Styles::GetSingleton()->RefreshStyle();
 
             ImGui::Renderer::InstallInputHook();
 

@@ -72,6 +72,7 @@ namespace Theme {
     };
 
     PromptPivot toPromptPivot(const std::string& value);
+    std::string_view toPromptPivotString(PromptPivot pivot);
 
     struct Theme {
         std::string theme_name = "Default Theme";

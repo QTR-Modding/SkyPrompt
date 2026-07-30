@@ -241,5 +241,6 @@ namespace ImGui {
 
     inline std::vector<RenderInfo> renderBatch;
 
-    void RenderSkyPrompt();
+    ImVec2 GetSkyPromptContentOrigin(const ImVec2& anchor);
+    void RenderSkyPrompt(const ImVec2& anchor);
 }

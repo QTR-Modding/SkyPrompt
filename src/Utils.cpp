@@ -1,12 +1,26 @@
 #include "Utils.h"
 #include "IconsFonts.h"
 #include "Renderer.h"
+#include "Translations.h"
 #include "imgui.h"
 
 namespace {
     bool IsTokenChar(const char a_char) {
         const auto byte = static_cast<unsigned char>(a_char);
         return std::isalnum(byte) || a_char == '_' || a_char == ':' || a_char == '.' || a_char == '-';
+    }
+
+    bool TranslateToken(const std::string& a_key, std::string& a_result) {
+        if (const auto* own_translation = Translations::TryGet(a_key)) {
+            a_result = *own_translation;
+            return true;
+        }
+
+        if (SKSE::Translation::Translate(a_key, a_result)) {
+            return true;
+        }
+
+        return false;
     }
 }
 
@@ -39,11 +53,19 @@ std::vector<std::string> ReadLogFile() {
     return logLines;
 }
 
-void BeginImGuiWindow(const char* window_name) {
+void BeginImGuiWindow(const char* window_name, const ImVec2& content_position) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,
                         ImVec2(0.4f * Theme::last_theme->prompt_size, 0.4f * Theme::last_theme->prompt_size));
     // Padding for cleaner layout
+
+    auto window_position = ImVec2(
+        content_position.x - ImGui::GetStyle().WindowPadding.x,
+        content_position.y - ImGui::GetStyle().WindowPadding.y);
+    #ifndef NDEBUG
+    window_position.y -= ImGui::GetFrameHeight();
+    #endif
+    ImGui::SetNextWindowPos(window_position, ImGuiCond_Always);
 
     ImGui::Begin(window_name, nullptr,
                  #ifndef NDEBUG
@@ -72,7 +94,7 @@ void EndImGuiWindow() {
 void TranslateEmbedded(std::string& a_text) {
     if (a_text.starts_with('$')) {
         std::string full = a_text;
-        if (SKSE::Translation::Translate(full, full)) {
+        if (TranslateToken(full, full)) {
             a_text = std::move(full);
         }
     }
@@ -119,7 +141,7 @@ void TranslateEmbedded(std::string& a_text) {
 
         std::string token = a_text.substr(tokenStart, tokenEnd - tokenStart);
         std::string replacement = token;
-        if (SKSE::Translation::Translate(token, replacement)) {
+        if (TranslateToken(token, replacement)) {
             a_text.replace(tokenStart, tokenEnd - tokenStart, replacement);
             searchPos = tokenStart + replacement.size();
         } else {
@@ -137,7 +159,15 @@ void SkyrimMessageBox::Show(const std::string& bodyText, const std::vector<std::
     const RE::BSTSmartPointer<RE::IMessageBoxCallback> messageCallback =
         RE::make_smart<MessageBoxResultCallback>(callback);
     messagebox->callback = messageCallback;
-    messagebox->bodyText = bodyText;
-    for (auto& text : buttonTextValues) messagebox->buttonText.push_back(text.c_str());
+
+    auto translatedBody = bodyText;
+    TranslateEmbedded(translatedBody);
+    messagebox->bodyText = translatedBody;
+
+    for (auto text : buttonTextValues) {
+        TranslateEmbedded(text);
+        messagebox->buttonText.push_back(text.c_str());
+    }
+
     RE::MessageBoxMenu::QueueMessage(messagebox);
 }
