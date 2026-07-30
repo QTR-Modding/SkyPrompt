@@ -788,7 +788,7 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
     if (compatibleID == 0) {
         compatibleID = a_clientID;
 
-        if (last_clientID != 0 && last_clientID != a_clientID) {
+        if (std::shared_lock lock(mutex_); last_clientID != 0 && last_clientID != a_clientID) {
             bool found_client = false;
             bool all_compatible = true;
 
