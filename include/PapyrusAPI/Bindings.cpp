@@ -139,6 +139,10 @@ namespace {
     bool RequestTheme(RE::StaticFunctionTag*, SkyPromptAPI::ClientID clientID, std::string theme_name) {
         return SkyPromptAPI::RequestTheme(clientID, theme_name);
     }
+
+    bool RequestHandshake(RE::StaticFunctionTag*, SkyPromptAPI::ClientID clientID, uint32_t key, uint32_t otherKey) {
+        return SkyPromptAPI::RequestHandshake(clientID, key, otherKey);
+    }
 }
 
 bool PapyrusAPI::Register(RE::BSScript::IVirtualMachine* vm) {
@@ -148,6 +152,7 @@ bool PapyrusAPI::Register(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("SendPromptForControl", "SkyPrompt", SendPromptForControl);
     vm->RegisterFunction("RemovePrompt", "SkyPrompt", RemovePrompt);
     vm->RegisterFunction("RequestTheme", "SkyPrompt", RequestTheme);
+    vm->RegisterFunction("RequestHandshake", "SkyPrompt", RequestHandshake);
 
     return true;
 }
