@@ -200,6 +200,181 @@ namespace {
         }
         return labels;
     }
+
+    template <std::size_t N>
+    bool InputStringValue(const char* a_label, std::string& a_value, const ImGuiMCP::ImGuiInputTextFlags a_flags = 0) {
+        static_assert(N > 1);
+        std::array<char, N> buffer{};
+        a_value.copy(buffer.data(), std::min(a_value.size(), buffer.size() - 1));
+        if (!ImGuiMCP::InputText(a_label, buffer.data(), buffer.size(), a_flags)) {
+            return false;
+        }
+        a_value = buffer.data();
+        return true;
+    }
+
+    template <std::size_t N>
+    bool LocalizedInputString(const std::string_view a_key, const std::string_view a_id, std::string& a_value) {
+        ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.35f);
+        const auto label = Translations::ImGuiLabel(a_key, a_id);
+        return InputStringValue<N>(label.c_str(), a_value);
+    }
+
+    template <class T, class Editor>
+    bool RenderVectorEditor(const std::string_view a_key, const std::string_view a_id, std::vector<T>& a_values,
+                            Editor&& a_editor) {
+        bool changed = false;
+        LocalizedText(a_key);
+        const auto id = std::string(a_id);
+        ImGuiMCP::PushID(id.c_str());
+        for (std::size_t index = 0; index < a_values.size();) {
+            ImGuiMCP::PushID(static_cast<int>(index));
+            ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.25f);
+            if (a_editor(a_values[index])) {
+                changed = true;
+            }
+            ImGuiMCP::SameLine();
+            if (ImGuiMCP::SmallButton("-")) {
+                a_values.erase(a_values.begin() + static_cast<std::ptrdiff_t>(index));
+                changed = true;
+                ImGuiMCP::PopID();
+                continue;
+            }
+            ImGuiMCP::PopID();
+            ++index;
+        }
+        if (ImGuiMCP::SmallButton("+")) {
+            a_values.emplace_back();
+            changed = true;
+        }
+        ImGuiMCP::PopID();
+        return changed;
+    }
+
+    bool ThemeMetadataSettings() {
+        bool changed = false;
+        changed |= LocalizedInputString<256>("$SkyPromptMCPThemeName", "theme.name", Theme::default_theme.theme_name);
+        changed |= LocalizedInputString<1024>("$SkyPromptMCPThemeDescription", "theme.description",
+                                              Theme::default_theme.theme_description);
+        changed |=
+            LocalizedInputString<256>("$SkyPromptMCPThemeAuthor", "theme.author", Theme::default_theme.theme_author);
+        changed |=
+            LocalizedInputString<128>("$SkyPromptMCPThemeVersion", "theme.version", Theme::default_theme.theme_version);
+        return changed;
+    }
+
+    bool SpecialThemeSettings() {
+        const auto header = Translations::ImGuiLabel("$SkyPromptMCPThemeSpecialSettings", "theme.specialSettings");
+        if (!ImGuiMCP::CollapsingHeader(header.c_str())) {
+            return false;
+        }
+
+        bool changed = false;
+        ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.25f);
+        const auto effect_label = Translations::ImGuiLabel("$SkyPromptMCPThemeSpecialEffect", "theme.specialEffect");
+        changed |= ImGuiMCP::InputScalar(effect_label.c_str(), ImGuiMCP::ImGuiDataType_U32,
+                                         &Theme::default_theme.special_effect);
+        changed |=
+            RenderVectorEditor("$SkyPromptMCPThemeSpecialIntegers", "theme.specialIntegers",
+                               Theme::default_theme.special_integers, [](std::uint32_t& a_value) {
+                                   return ImGuiMCP::InputScalar("##value", ImGuiMCP::ImGuiDataType_U32, &a_value);
+                               });
+        changed |= RenderVectorEditor("$SkyPromptMCPThemeSpecialStrings", "theme.specialStrings",
+                                      Theme::default_theme.special_strings,
+                                      [](std::string& a_value) { return InputStringValue<512>("##value", a_value); });
+        changed |= RenderVectorEditor("$SkyPromptMCPThemeSpecialFloats", "theme.specialFloats",
+                                      Theme::default_theme.special_floats,
+                                      [](float& a_value) { return ImGuiMCP::InputFloat("##value", &a_value); });
+        changed |= RenderVectorEditor("$SkyPromptMCPThemeSpecialBools", "theme.specialBools",
+                                      Theme::default_theme.special_bools, [](std::uint8_t& a_value) {
+                                          bool value = a_value != 0;
+                                          if (!ImGuiMCP::Checkbox("##value", &value)) {
+                                              return false;
+                                          }
+                                          a_value = value;
+                                          return true;
+                                      });
+        return changed;
+    }
+
+    std::array<char, 241> export_name{};
+    std::string export_status;
+    std::string export_error;
+
+    void SetExportName(const std::string_view a_name) {
+        export_name.fill('\0');
+        std::ranges::copy_n(a_name.begin(), std::min(a_name.size(), export_name.size() - 1), export_name.begin());
+    }
+
+    const std::string* ExportNameError(const Theme::ExportNameStatus a_status) {
+        switch (a_status) {
+            case Theme::ExportNameStatus::kEmpty:
+                return std::addressof(Translations::Get("$SkyPromptMCPThemeExportEmpty"));
+            case Theme::ExportNameStatus::kInvalid:
+                return std::addressof(Translations::Get("$SkyPromptMCPThemeExportInvalid"));
+            case Theme::ExportNameStatus::kExists:
+                return std::addressof(Translations::Get("$SkyPromptMCPThemeExportExists"));
+            case Theme::ExportNameStatus::kValid:
+            default:
+                return nullptr;
+        }
+    }
+
+    void RenderThemeExport() {
+        const auto popup = Translations::ImGuiLabel("$SkyPromptMCPThemeExportTitle", "theme.export.popup");
+        if (LocalizedButton("$SkyPromptMCPThemeExportOpen", "theme.export.open")) {
+            SetExportName(Theme::NextExportName());
+            export_status.clear();
+            export_error.clear();
+            ImGuiMCP::OpenPopup(popup.c_str());
+        }
+        if (!export_status.empty()) {
+            ImGuiMCP::TextColored({0.35f, 1.0f, 0.35f, 1.0f}, "%s", export_status.c_str());
+        }
+
+        if (!ImGuiMCP::BeginPopupModal(popup.c_str(), nullptr, ImGuiMCP::ImGuiWindowFlags_AlwaysAutoResize)) {
+            return;
+        }
+
+        ImGuiMCP::SetNextItemWidth(300.0f);
+        if (ImGuiMCP::IsWindowAppearing()) {
+            ImGuiMCP::SetKeyboardFocusHere();
+        }
+        const auto filename_label =
+            Translations::ImGuiLabel("$SkyPromptMCPThemeExportFilename", "theme.export.filename");
+        if (ImGuiMCP::InputText(filename_label.c_str(), export_name.data(), export_name.size(),
+                                ImGuiMCP::ImGuiInputTextFlags_AutoSelectAll)) {
+            export_error.clear();
+        }
+        ImGuiMCP::SameLine();
+        ImGuiMCP::TextUnformatted(".json");
+
+        const auto name = std::string_view(export_name.data());
+        const auto validation = Theme::ValidateExportName(name);
+        if (const auto* error = ExportNameError(validation)) {
+            ImGuiMCP::TextColored({1.0f, 0.35f, 0.35f, 1.0f}, "%s", error->c_str());
+        }
+        if (!export_error.empty()) {
+            ImGuiMCP::TextColored({1.0f, 0.35f, 0.35f, 1.0f}, "%s", export_error.c_str());
+        }
+
+        ImGuiMCP::BeginDisabled(validation != Theme::ExportNameStatus::kValid);
+        if (LocalizedButton("$SkyPromptMCPThemeExport", "theme.export.confirm")) {
+            if (const auto path = Theme::ExportTheme(Theme::default_theme, name)) {
+                export_status = Translations::Format("$SkyPromptMCPThemeExportSuccess", path->string());
+                export_error.clear();
+                ImGuiMCP::CloseCurrentPopup();
+            } else {
+                export_error = Translations::Get("$SkyPromptMCPThemeExportFailed");
+            }
+        }
+        ImGuiMCP::EndDisabled();
+        ImGuiMCP::SameLine();
+        if (LocalizedButton("$SkyPromptMCPThemeExportCancel", "theme.export.cancel")) {
+            ImGuiMCP::CloseCurrentPopup();
+        }
+        ImGuiMCP::EndPopup();
+    }
 }
 
 void __stdcall MCP::RenderSettings() {
@@ -717,8 +892,37 @@ void MCP::Settings::to_json() {
 
     // theme
     Value theme(kObjectType);
+    theme.AddMember("name", Value(Theme::default_theme.theme_name.c_str(), allocator).Move(), allocator);
+    theme.AddMember("description", Value(Theme::default_theme.theme_description.c_str(), allocator).Move(), allocator);
+    theme.AddMember("author", Value(Theme::default_theme.theme_author.c_str(), allocator).Move(), allocator);
+    theme.AddMember("version", Value(Theme::default_theme.theme_version.c_str(), allocator).Move(), allocator);
     theme.AddMember("font_name", Value(Theme::default_theme.font_name.c_str(), allocator).Move(), allocator);
     theme.AddMember("font_shadow", Theme::default_theme.font_shadow, allocator);
+
+    theme.AddMember("special_effect", Theme::default_theme.special_effect, allocator);
+    Value special_integers(kArrayType);
+    for (const auto value : Theme::default_theme.special_integers) {
+        special_integers.PushBack(value, allocator);
+    }
+    theme.AddMember("special_integers", special_integers, allocator);
+
+    Value special_strings(kArrayType);
+    for (const auto& value : Theme::default_theme.special_strings) {
+        special_strings.PushBack(Value(value.c_str(), allocator).Move(), allocator);
+    }
+    theme.AddMember("special_strings", special_strings, allocator);
+
+    Value special_floats(kArrayType);
+    for (const auto value : Theme::default_theme.special_floats) {
+        special_floats.PushBack(value, allocator);
+    }
+    theme.AddMember("special_floats", special_floats, allocator);
+
+    Value special_bools(kArrayType);
+    for (const auto value : Theme::default_theme.special_bools) {
+        special_bools.PushBack(value != 0, allocator);
+    }
+    theme.AddMember("special_bools", special_bools, allocator);
     // theme:: file name for active icon, like font_name
     root.AddMember("Theme", theme, allocator);
 
@@ -892,8 +1096,47 @@ void MCP::Settings::from_json() {
 
     if (mcp.HasMember("Theme")) {
         const rapidjson::Value& theme = mcp["Theme"];
+        if (theme.HasMember("name") && theme["name"].IsString()) {
+            Theme::default_theme.theme_name = theme["name"].GetString();
+        }
+        if (theme.HasMember("description") && theme["description"].IsString()) {
+            Theme::default_theme.theme_description = theme["description"].GetString();
+        }
+        if (theme.HasMember("author") && theme["author"].IsString()) {
+            Theme::default_theme.theme_author = theme["author"].GetString();
+        }
+        if (theme.HasMember("version") && theme["version"].IsString()) {
+            Theme::default_theme.theme_version = theme["version"].GetString();
+        }
         if (theme.HasMember("font_name")) Theme::default_theme.font_name = theme["font_name"].GetString();
         if (theme.HasMember("font_shadow")) Theme::default_theme.font_shadow = theme["font_shadow"].GetFloat();
+        if (theme.HasMember("special_effect") && theme["special_effect"].IsUint()) {
+            Theme::default_theme.special_effect = theme["special_effect"].GetUint();
+        }
+        if (theme.HasMember("special_integers") && theme["special_integers"].IsArray()) {
+            Theme::default_theme.special_integers.clear();
+            for (const auto& value : theme["special_integers"].GetArray()) {
+                if (value.IsUint()) Theme::default_theme.special_integers.push_back(value.GetUint());
+            }
+        }
+        if (theme.HasMember("special_strings") && theme["special_strings"].IsArray()) {
+            Theme::default_theme.special_strings.clear();
+            for (const auto& value : theme["special_strings"].GetArray()) {
+                if (value.IsString()) Theme::default_theme.special_strings.emplace_back(value.GetString());
+            }
+        }
+        if (theme.HasMember("special_floats") && theme["special_floats"].IsArray()) {
+            Theme::default_theme.special_floats.clear();
+            for (const auto& value : theme["special_floats"].GetArray()) {
+                if (value.IsNumber()) Theme::default_theme.special_floats.push_back(value.GetFloat());
+            }
+        }
+        if (theme.HasMember("special_bools") && theme["special_bools"].IsArray()) {
+            Theme::default_theme.special_bools.clear();
+            for (const auto& value : theme["special_bools"].GetArray()) {
+                if (value.IsBool()) Theme::default_theme.special_bools.push_back(value.GetBool());
+            }
+        }
     }
 
     refreshStyle.store(true);
@@ -955,11 +1198,14 @@ void __stdcall MCP::RenderControls() {
 void __stdcall MCP::RenderTheme() {
     bool changed = false;
 
+    if (ThemeMetadataSettings()) changed = true;
     if (Settings::FontSettings()) changed = true;
+    if (SpecialThemeSettings()) changed = true;
     if (LocalizedButton("$SkyPromptMCPThemeReloadThemes", "theme.reloadThemes")) {
         Settings::ReloadThemes();
         changed = true;
     }
+    RenderThemeExport();
 
     if (changed) {
         Settings::to_json();
