@@ -827,7 +827,7 @@ namespace {
             const float textPad = circle_radius - radius + (rowHeight - textSize.y) * 0.5f;
 
             const float totalWidth = circleDia + textPad + textSize.x;
-            dims.push_back({totalWidth, rowHeight, textSize.x, textSize.y, textPad});
+            dims.push_back({.width = totalWidth, .height = rowHeight, .textWidth = textSize.x, .textHeight = textSize.y, .textPad = textPad});
         }
 
         // Total width of batch including spacing

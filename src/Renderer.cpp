@@ -341,9 +341,8 @@ bool Manager::IsGameFrozen() {
 
 void SubManager::SendEvent(const Interaction& a_interaction, const SkyPromptAPI::PromptEventType event_type,
                            const std::pair<float, float> delta, const float progress_override) {
-    constexpr uint32_t a_max = std::numeric_limits<SkyPromptAPI::ClientID>::max();
-    const SkyPromptAPI::EventID a_event = a_interaction.event % a_max;
-    const SkyPromptAPI::ActionID a_action = a_interaction.action % a_max;
+    const SkyPromptAPI::EventID a_event = InteractionID::Local(a_interaction.event);
+    const SkyPromptAPI::ActionID a_action = InteractionID::Local(a_interaction.action);
     std::shared_lock lock(sink_mutex_);
     if (const auto it = sinks.find(a_interaction); it != sinks.end()) {
         for (const auto& a_sink : it->second) {
@@ -779,7 +778,7 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
             }
         }
         const auto interaction = MakeInteraction(a_clientID, a_event, a_action);
-        if (const auto submanager = Add2Q(a_clientID, interaction, {a_txt, text_color, progress}, a_type, a_refid,
+        if (const auto submanager = Add2Q(a_clientID, interaction, {.text = a_txt, .text_color = text_color, .progress = progress}, a_type, a_refid,
                                           temp_button_keys, true)) {
             if (!GetManagerList(a_clientID)) {
                 logger::error("Failed to get manager list");
@@ -990,10 +989,9 @@ void SubManager::NextPrompt() {
         }
     }
     if (Tutorial::Tutorial2::showing_tutorial.load()) {
-        const SCENES::Event a_id = Tutorial::client_id * std::numeric_limits<SkyPromptAPI::ClientID>::max();
+        const SCENES::Event a_id = InteractionID::Pack(Tutorial::client_id, 0);
         if (const auto a_interaction = GetCurrentInteraction(); a_id == a_interaction.event) {
-            Tutorial::Tutorial2::to_be_deleted.erase(
-                static_cast<SkyPromptAPI::ActionID>(a_interaction.action - static_cast<ACTIONS::Action>(a_id)));
+            Tutorial::Tutorial2::to_be_deleted.erase(InteractionID::Local(a_interaction.action));
             if (Tutorial::Tutorial2::to_be_deleted.empty()) {
                 SKSE::GetTaskInterface()->AddTask([]() {
                         SkyPromptAPI::RemovePrompt(Tutorial::Tutorial2::Sink::GetSingleton(), Tutorial::client_id);
@@ -1272,11 +1270,7 @@ void Manager::Clear(const SkyPromptAPI::PromptEventType a_event_type) {
 
 Interaction Manager::MakeInteraction(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::EventID a_event,
                                      const SkyPromptAPI::ActionID a_action) {
-    const uint32_t start_index = a_clientID * std::numeric_limits<SkyPromptAPI::ClientID>::max();
-    const uint32_t event_id = start_index + a_event;
-    const uint32_t action_id = start_index + a_action;
-    auto interaction = Interaction(event_id, action_id);
-    return interaction;
+    return {InteractionID::Pack(a_clientID, a_event), InteractionID::Pack(a_clientID, a_action)};
 }
 
 void Manager::ResetQueue() const {
@@ -1352,9 +1346,9 @@ void Manager::AddEventToSend(const SkyPromptAPI::PromptSink* a_sink, const SkyPr
                              pair<float, float> a_delta) {
     std::unique_lock lock(events_to_send_mutex);
     if (const auto it = events_to_send_.find(a_sink); it != events_to_send_.end()) {
-        it->second.push_back({a_prompt, event_type, a_delta});
+        it->second.push_back({.prompt = a_prompt, .type = event_type, .delta = a_delta});
     } else {
-        events_to_send_[a_sink] = {{a_prompt, event_type, a_delta}};
+        events_to_send_[a_sink] = {{.prompt = a_prompt, .type = event_type, .delta = a_delta}};
     }
 }
 
