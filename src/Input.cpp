@@ -417,12 +417,6 @@ namespace Input {
                     keys.push_back(Convert(key, RE::INPUT_DEVICE::kKeyboard));
                 }
                 for (const auto key : magic_enum::enum_values<MOUSE>()) {
-                    if (key == MOUSE::kWheelDown ||
-                        key == MOUSE::kWheelUp ||
-                        key == MOUSE::kButton4 // We don't have an icon for it
-                    ) {
-                        continue;
-                    }
                     keys.push_back(Convert(key, RE::INPUT_DEVICE::kMouse));
                 }
                 break;

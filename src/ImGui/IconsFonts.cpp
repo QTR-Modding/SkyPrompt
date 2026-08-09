@@ -259,6 +259,7 @@ namespace IconFont {
 
     const IconTexture* Manager::GetIcon(const std::uint32_t key) {
         switch (key) {
+            case KEY::kUp:
             case SKSE::InputMap::kGamepadButtonOffset_DPAD_UP:
                 return &upKey;
             case KEY::kDown:
