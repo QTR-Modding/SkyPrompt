@@ -210,10 +210,12 @@ namespace IconFont {
             {256 + +MOUSE::kRightButton, IconTexture(L"Mouse2"sv)},
             {256 + +MOUSE::kMiddleButton, IconTexture(L"Mouse3"sv)},
             {256 + +MOUSE::kButton3, IconTexture(L"Mouse4"sv)},
-            {256 + +MOUSE::kButton4, IconTexture(L"Mouse5 "sv)},
+            {256 + +MOUSE::kButton4, IconTexture(L"Mouse5"sv)},
             {256 + +MOUSE::kButton5, IconTexture(L"Mouse6"sv)},
             {256 + +MOUSE::kButton6, IconTexture(L"Mouse7"sv)},
             {256 + +MOUSE::kButton7, IconTexture(L"Mouse8"sv)},
+            {256 + +MOUSE::kWheelUp, IconTexture(L"WheelUp"sv)},
+            {256 + +MOUSE::kWheelDown, IconTexture(L"WheelDown"sv)},
             {SkyPromptAPI::kMouseMove, IconTexture(L"mouse"sv)},
             {SkyPromptAPI::kSkyrim, IconTexture(L"skyrim"sv)},
         };
