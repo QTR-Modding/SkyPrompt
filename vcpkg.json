@@ -9,7 +9,6 @@
     "clib-util",
     "clib-utils-qtr",
     "skse-mcp",
-    "magic-enum",
     "directxtex",
     "skyprompt-api",
     "skyprompt-addon",

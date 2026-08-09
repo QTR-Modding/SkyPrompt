@@ -2,30 +2,6 @@
 #include "Renderer.h"
 #include "imgui_internal.h"
 #include <imgui.h>
-#include <magic_enum/magic_enum.hpp>
-
-namespace magic_enum::customize {
-    template <>
-    struct enum_range<GAMEPAD_DIRECTX> {
-        // Correctly specializing within magic_enum::customize
-        static constexpr int min = 0x0001; // Smallest key value
-        static constexpr int max = 0x8000; // Largest key value
-    };
-
-    template <>
-    struct enum_range<GAMEPAD_ORBIS> {
-        // Correctly specializing within magic_enum::customize
-        static constexpr int min = 0x0001; // Smallest key value
-        static constexpr int max = 65536; // Largest key value
-    };
-
-    template <>
-    struct enum_range<KEY> {
-        // Correctly specializing within magic_enum::customize
-        static constexpr int min = 0x0001; // Smallest key value
-        static constexpr int max = 0xDC; // Largest key value
-    };
-}
 
 namespace {
     ImGuiKey ToImGuiKey(const KEY a_key) {
@@ -410,33 +386,27 @@ namespace Input {
     }
 
     std::vector<uint32_t> Manager::GetKeys(const DEVICE a_device) {
+        using namespace SKSE::InputMap;
+
         std::vector<uint32_t> keys;
         switch (a_device) {
             case kKeyboardMouse:
-                for (const auto key : magic_enum::enum_values<KEY>()) {
-                    keys.push_back(Convert(key, RE::INPUT_DEVICE::kKeyboard));
+                for (uint32_t key = 1; key <= static_cast<uint32_t>(KEY::kRightWin); ++key) {
+                    const auto keyboard_key = static_cast<KEY>(key);
+                    if (keyboard_key == KEY::kLeftWin || keyboard_key == KEY::kRightWin ||
+                        ToImGuiKey(keyboard_key) == ImGuiKey_None) {
+                        continue;
+                    }
+                    keys.push_back(key);
                 }
-                for (const auto key : magic_enum::enum_values<MOUSE>()) {
-                    keys.push_back(Convert(key, RE::INPUT_DEVICE::kMouse));
+                for (uint32_t key = kMacro_MouseButtonOffset; key < kMacro_GamepadOffset; ++key) {
+                    keys.push_back(key);
                 }
                 break;
             case kGamepadDirectX:
-                for (const auto key : magic_enum::enum_values<GAMEPAD_DIRECTX>()) {
-                    if (key == GAMEPAD_DIRECTX::kLeftStick ||
-                        key == GAMEPAD_DIRECTX::kRightStick) {
-                        continue;
-                    }
-                    keys.push_back(Convert(key, RE::INPUT_DEVICE::kGamepad));
-                }
-                break;
             case kGamepadOrbis:
-                for (const auto key : magic_enum::enum_values<GAMEPAD_ORBIS>()) {
-                    if (key == GAMEPAD_ORBIS::kPS3_LS ||
-                        key == GAMEPAD_ORBIS::kPS3_RS
-                    ) {
-                        continue;
-                    }
-                    keys.push_back(Convert(key, RE::INPUT_DEVICE::kGamepad));
+                for (uint32_t key = kMacro_GamepadOffset; key < kMaxMacros; ++key) {
+                    keys.push_back(key);
                 }
                 break;
             default:
