@@ -27,14 +27,16 @@ function(copyOutputs TARGET_FOLDER)
         LIST_DIRECTORIES false
         "${CMAKE_CURRENT_SOURCE_DIR}/Interface/Translations/*.txt"
     )
+    set(LICENSE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSES.txt")
     string(MD5 TRANSLATION_TARGET_ID "${TARGET_FOLDER}")
     set(TRANSLATION_TARGET "${PROJECT_NAME}_translations_${TRANSLATION_TARGET_ID}")
     add_custom_target(
         "${TRANSLATION_TARGET}" ALL
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${TRANSLATIONS_FOLDER}"
         COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/Interface/Translations" "${TRANSLATIONS_FOLDER}"
-        DEPENDS ${TRANSLATION_FILES}
-        COMMENT "Copying SkyPrompt translation tables to ${TRANSLATIONS_FOLDER}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${LICENSE_FILE}" "${TARGET_FOLDER}/LICENSES.txt"
+        DEPENDS ${TRANSLATION_FILES} "${LICENSE_FILE}"
+        COMMENT "Copying SkyPrompt translation tables and third-party notices to ${TARGET_FOLDER}"
         VERBATIM
     )
     add_dependencies("${PROJECT_NAME}" "${TRANSLATION_TARGET}")
