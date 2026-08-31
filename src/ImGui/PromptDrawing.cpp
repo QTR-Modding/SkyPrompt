@@ -319,10 +319,11 @@ namespace {
         const ImVec4 clip = dl->_ClipRectStack.back();
         font->RenderText(dl, font_size, topleft, col, clip, text_begin, text_end, 0.0f, false);
         const int vtx_end = dl->VtxBuffer.Size;
+        const auto subpixelOffset = topleft - ImTrunc(topleft);
 
         const float c = cosf(angle), s = sinf(angle);
         for (int i = vtx_start; i < vtx_end; ++i) {
-            const ImVec2 p = dl->VtxBuffer[i].pos;
+            const ImVec2 p = dl->VtxBuffer[i].pos + subpixelOffset;
             const ImVec2 d = {p.x - pivot.x, p.y - pivot.y};
             dl->VtxBuffer[i].pos.x = pivot.x + d.x * c - d.y * s;
             dl->VtxBuffer[i].pos.y = pivot.y + d.x * s + d.y * c;
