@@ -234,9 +234,10 @@ namespace {
             return std::addressof(Translations::Get("$SkyPromptMCPThemeExportEmpty"));
         }
 
+        const auto path = std::filesystem::path(theme_export_folder) / std::format("{}.json", a_name);
         constexpr std::string_view invalid_characters = R"(<>:"/\|?*)";
-        if (a_name.size() > max_export_name_length || a_name == "." || a_name == ".." || a_name.back() == '.' ||
-            a_name.back() == ' ' ||
+        if (a_name.size() > max_export_name_length || path.native().size() >= MAX_PATH || a_name == "." ||
+            a_name == ".." || a_name.back() == '.' || a_name.back() == ' ' ||
             std::ranges::any_of(a_name, [&](const unsigned char character) {
                 return character < 32 || invalid_characters.contains(static_cast<char>(character));
             }) ||
