@@ -15,6 +15,7 @@ set(headers ${headers}
 	src/ImGui/Graphics.h
     src/ImGui/Styles.h
     src/ImGui/IconsFonts.h
+    src/ImGui/PromptLayouts.h
     include/PapyrusAPI/Bindings.h
     include/PapyrusAPI/Sinks.h
 )
