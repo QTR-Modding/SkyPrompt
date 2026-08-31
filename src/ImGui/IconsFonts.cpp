@@ -825,7 +825,7 @@ namespace {
 
     struct PromptItemDimensions {
         float width;
-        [[maybe_unused]] float height;
+        float height;
         float textWidth;
         float textHeight;
         float textPad;
@@ -866,6 +866,73 @@ namespace {
         return layout;
     }
 
+    constexpr std::array diamondTextFirstForIconFirst = {false, true, true, false};
+
+    bool CanRenderPromptsDiamond(const std::vector<ImGui::RenderInfo>& batch) {
+        return batch.size() <= diamondTextFirstForIconFirst.size() &&
+               std::ranges::all_of(batch, [](const ImGui::RenderInfo& renderInfo) {
+                   return renderInfo.slot >= 0 &&
+                          static_cast<std::size_t>(renderInfo.slot) < diamondTextFirstForIconFirst.size();
+               });
+    }
+
+    bool IsDiamondTextFirst(const int slot) {
+        const bool textFirst = diamondTextFirstForIconFirst[static_cast<std::size_t>(slot)];
+        return Theme::last_theme->prompt_order == Theme::kIconFirst ? textFirst : !textFirst;
+    }
+
+    struct DiamondPromptLayout {
+        HorizontalPromptLayout prompts;
+        std::vector<ImVec2> positions;
+        PromptBounds bounds;
+    };
+
+    DiamondPromptLayout MeasureDiamondPrompts(const std::vector<ImGui::RenderInfo>& batch,
+                                              const float lineSpacingPx) {
+        DiamondPromptLayout layout;
+        layout.prompts = MeasureHorizontalPrompts(batch, 0.0f);
+        layout.positions.reserve(batch.size());
+
+        const float radius = layout.prompts.size.y + lineSpacingPx;
+        const std::array directions = {
+            ImVec2{1.0f, 0.0f},
+            ImVec2{-1.0f, 0.0f},
+            ImVec2{0.0f, -1.0f},
+            ImVec2{0.0f, 1.0f}
+        };
+        const float circleDiameter = GetIconSize() * 1.25f;
+        const float highest = std::numeric_limits<float>::max();
+        const float lowest = std::numeric_limits<float>::lowest();
+        ImVec2 boundsMin{highest, highest};
+        ImVec2 boundsMax{lowest, lowest};
+
+        for (std::size_t i = 0; i < batch.size(); ++i) {
+            const auto& renderInfo = batch[i];
+            const auto& dimensions = layout.prompts.items[i];
+            const auto& direction = directions[static_cast<std::size_t>(renderInfo.slot)];
+            const ImVec2 iconCenter{direction.x * radius, direction.y * radius};
+            const float iconCenterX = IsDiamondTextFirst(renderInfo.slot)
+                                          ? dimensions.textWidth + dimensions.textPad + circleDiameter * 0.5f
+                                          : circleDiameter * 0.5f;
+            const ImVec2 position{
+                iconCenter.x - iconCenterX,
+                iconCenter.y - dimensions.height * 0.5f
+            };
+
+            layout.positions.push_back(position);
+            boundsMin.x = std::min(boundsMin.x, position.x);
+            boundsMin.y = std::min(boundsMin.y, position.y);
+            boundsMax.x = std::max(boundsMax.x, position.x + dimensions.width);
+            boundsMax.y = std::max(boundsMax.y, position.y + dimensions.height);
+        }
+
+        for (auto& position : layout.positions) {
+            position -= boundsMin;
+        }
+        layout.bounds = {.min = {0.0f, 0.0f}, .size = boundsMax - boundsMin};
+        return layout;
+    }
+
     ImVec2 GetPromptPivotFactor(const Theme::PromptPivot pivot) {
         switch (pivot) {
             case Theme::kTopLeft:
@@ -890,6 +957,44 @@ namespace {
         };
     }
 
+    void DrawHorizontalPrompt(ImDrawList* drawList, ImFont* font, const float fontSize,
+                              const ImGui::RenderInfo& renderInfo,
+                              const PromptItemDimensions& dimensions,
+                              const ImVec2& position, const bool textFirst) {
+        const float iconSize = GetIconSize();
+        const float circleDiameter = iconSize * 1.25f;
+        const float yCenter = position.y + dimensions.height * 0.5f;
+        const float iconCenterX = textFirst
+                                      ? position.x + dimensions.textWidth + dimensions.textPad +
+                                        circleDiameter * 0.5f
+                                      : position.x + circleDiameter * 0.5f;
+        const ImVec2 iconCenter{iconCenterX, yCenter};
+
+        if (renderInfo.texture && renderInfo.texture->srView.Get()) {
+            AddImageRotated(drawList, (ImTextureID)renderInfo.texture->srView.Get(), iconCenter,
+                            {iconSize, iconSize}, 0.0f,
+                            IM_COL32(255, 255, 255, static_cast<int>(255 * renderInfo.alpha)));
+        }
+
+        {
+            const float outerRadius = circleDiameter * 0.5f;
+            const float thickness = outerRadius / 6.0f;
+            DrawPromptStateOverlay(drawList, renderInfo, iconCenter, outerRadius, thickness,
+                                   [&]() {
+                                       DrawHoldMark(drawList, iconCenter, outerRadius, iconSize * 0.5f);
+                                   });
+        }
+
+        const ImVec2 textPosition{
+            textFirst ? position.x : position.x + circleDiameter + dimensions.textPad,
+            yCenter - dimensions.textHeight * 0.5f
+        };
+        const ImU32 color = renderInfo.text_color
+                                ? renderInfo.text_color
+                                : IM_COL32(255, 255, 255, 255);
+        AddTextWithShadow(drawList, font, fontSize, textPosition, color, renderInfo.text.c_str());
+    }
+
     void RenderPromptsVertical(const std::vector<ImGui::RenderInfo>& batch) {
         float textFirstIconX = 0.0f;
         if (Theme::last_theme->prompt_order == Theme::kTextFirst) {
@@ -908,62 +1013,42 @@ namespace {
     void RenderPromptsHorizontal(const std::vector<ImGui::RenderInfo>& batch, const float lineSpacingPx) {
         if (batch.empty()) return;
 
-        const float iconSz = GetIconSize();
-        const float circleDia = iconSz * 1.25f;
         ImFont* font = ImGui::GetFont();
         const float fs = ImGui::GetFontSize();
 
         const auto layout = MeasureHorizontalPrompts(batch, lineSpacingPx);
-
         const ImVec2 startPos = ImGui::GetCursorScreenPos();
-
         ImDrawList* dl = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
 
         float xCursor = startPos.x;
         const float yCenter = startPos.y + layout.size.y * 0.5f;
+        const bool textFirst = Theme::last_theme->prompt_order == Theme::kTextFirst;
 
         for (size_t i = 0; i < batch.size(); ++i) {
             const auto& ri = batch[i];
             const auto& dim = layout.items[i];
-
-            // Icon center and text position can be swapped by theme.
-            const bool textFirst = Theme::last_theme->prompt_order == Theme::kTextFirst;
-            const float iconCenterX = textFirst
-                                          ? xCursor + dim.textWidth + dim.textPad + circleDia * 0.5f
-                                          : xCursor + circleDia * 0.5f;
-            const ImVec2 iconCenter{
-                iconCenterX,
-                yCenter
-            };
-
-            // --- Icon ---
-            if (ri.texture && ri.texture->srView.Get()) {
-                AddImageRotated(dl, (ImTextureID)ri.texture->srView.Get(), iconCenter, {iconSz, iconSz}, 0.0f,
-                                IM_COL32(255, 255, 255, static_cast<int>(255 * ri.alpha)));
-            }
-
-            {
-                const float outerR = circleDia * 0.5f;
-                const float thick = outerR / 6.f;
-                DrawPromptStateOverlay(dl, ri, iconCenter, outerR, thick,
-                                       [&]() {
-                                           DrawHoldMark(dl, iconCenter, outerR, iconSz * 0.5f);
-                                       });
-            }
-
-            const ImVec2 textPos{
-                textFirst ? xCursor : xCursor + circleDia + dim.textPad,
-                yCenter - dim.textHeight * 0.5f
-            };
-
-            const ImU32 color = ri.text_color ? ri.text_color : IM_COL32(255, 255, 255, 255);
-            AddTextWithShadow(dl, font, fs, textPos, color, ri.text.c_str());
-
-            // Advance cursor for next item
+            DrawHorizontalPrompt(dl, font, fs, ri, dim,
+                                 {xCursor, yCenter - dim.height * 0.5f}, textFirst);
             xCursor += dim.width + lineSpacingPx;
         }
 
         ImGui::Dummy(layout.size);
+    }
+
+    void RenderPromptsDiamond(const std::vector<ImGui::RenderInfo>& batch, const float lineSpacingPx) {
+        const auto layout = MeasureDiamondPrompts(batch, lineSpacingPx);
+        const ImVec2 startPosition = ImGui::GetCursorScreenPos();
+        ImDrawList* drawList = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
+        ImFont* font = ImGui::GetFont();
+        const float fontSize = ImGui::GetFontSize();
+
+        for (std::size_t i = 0; i < batch.size(); ++i) {
+            DrawHorizontalPrompt(drawList, font, fontSize, batch[i], layout.prompts.items[i],
+                                 startPosition + layout.positions[i],
+                                 IsDiamondTextFirst(batch[i].slot));
+        }
+
+        ImGui::Dummy(layout.bounds.size);
     }
 
     SkyPrompt::AddOns::SpecialEffects::SpecialsView
@@ -1022,17 +1107,27 @@ void ImGui::DrawCycleIndicators(SkyPromptAPI::ClientID curr_index, SkyPromptAPI:
 }
 
 ImVec2 ImGui::GetSkyPromptContentOrigin(const ImVec2& anchor) {
+    if (renderBatch.empty()) {
+        return anchor;
+    }
+
+    const auto promptAlignment = Theme::last_theme->prompt_alignment;
+    const float lineSpacingPx = GetFontSize() * Theme::last_theme->linespacing;
     std::ranges::sort(renderBatch,
                       [](const RenderInfo& a, const RenderInfo& b) {
                           return a.row < b.row;
                       });
 
-    if (renderBatch.empty() || Theme::last_theme->prompt_alignment == Theme::kRadial) {
+    if (promptAlignment == Theme::kDiamond && CanRenderPromptsDiamond(renderBatch)) {
+        const auto layout = MeasureDiamondPrompts(renderBatch, lineSpacingPx);
+        return GetContentOrigin(anchor, layout.bounds);
+    }
+
+    if (promptAlignment == Theme::kRadial) {
         return anchor;
     }
 
-    const float lineSpacingPx = GetFontSize() * Theme::last_theme->linespacing;
-    if (Theme::last_theme->prompt_alignment == Theme::kHorizontal) {
+    if (promptAlignment == Theme::kHorizontal) {
         const auto layout = MeasureHorizontalPrompts(renderBatch, lineSpacingPx);
         return GetContentOrigin(anchor, {.min = {0.0f, 0.0f}, .size = layout.size});
     }
@@ -1055,6 +1150,14 @@ void ImGui::RenderSkyPrompt(const ImVec2& anchor) {
         case Theme::PromptAlignment::kHorizontal:
             RenderPromptsHorizontal(renderBatch, GetFontSize() * curr_theme->linespacing);
             break;
+        case Theme::PromptAlignment::kDiamond: {
+            if (CanRenderPromptsDiamond(renderBatch)) {
+                RenderPromptsDiamond(renderBatch, GetFontSize() * curr_theme->linespacing);
+            } else {
+                RenderPromptsVertical(renderBatch);
+            }
+            break;
+        }
         case Theme::PromptAlignment::kRadial: {
             const float lineSpacingPx = GetFontSize() * curr_theme->linespacing;
             const float iconSize = GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
