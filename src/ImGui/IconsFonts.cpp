@@ -790,6 +790,7 @@ namespace {
                                 IM_COL32(255, 255, 255, static_cast<int>(255 * ri.alpha)));
             }
 
+            const auto firstOverlayVertex = dl->VtxBuffer.Size;
             {
                 const float thick = outerR / 6.f;
                 DrawPromptStateOverlay(dl, ri, iconCenter, outerR, thick,
@@ -798,6 +799,9 @@ namespace {
                                            DrawTriangleRotated(dl, iconCenter, outerR, iconSz * 0.5f, angle, tri_col);
                                        },
                                        angle);
+            }
+            for (auto vertex = firstOverlayVertex; vertex < dl->VtxBuffer.Size; ++vertex) {
+                dl->VtxBuffer[vertex].col = MulAlpha(dl->VtxBuffer[vertex].col, ri.alpha);
             }
 
             const ImVec2 textCenter = {
@@ -1056,12 +1060,15 @@ namespace {
             const auto layout = MeasureVerticalPrompts(batch);
             textFirstIconX = ImGui::GetCursorPosX() + layout.iconX;
         }
+        auto* drawList = ImGui::GetWindowDrawList();
         for (const auto& renderInfo : batch) {
-            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, renderInfo.alpha);
+            const auto firstVertex = drawList->VtxBuffer.Size;
             ButtonIconWithCircularProgress(renderInfo.text.c_str(), renderInfo.text_color,
                                            renderInfo.texture, renderInfo.progress,
                                            renderInfo.button_state, textFirstIconX);
-            ImGui::PopStyleVar();
+            for (auto vertex = firstVertex; vertex < drawList->VtxBuffer.Size; ++vertex) {
+                drawList->VtxBuffer[vertex].col = MulAlpha(drawList->VtxBuffer[vertex].col, renderInfo.alpha);
+            }
         }
     }
 
