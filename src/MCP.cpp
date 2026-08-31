@@ -2,6 +2,7 @@
 #include "SKSEMCP/SKSEMenuFramework.hpp"
 #include "Utils.h"
 #include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "Hooks.h"
@@ -199,6 +200,187 @@ namespace {
             });
         }
         return labels;
+    }
+
+    constexpr std::size_t max_export_name_length = 240;
+    constexpr std::string_view theme_export_folder = R"(Data\SKSE\Plugins\SkyPrompt\themes)";
+
+    std::array<char, max_export_name_length + 1> export_name{};
+    std::string export_status;
+    std::string export_error;
+
+    void SetExportName(const std::string_view a_name) {
+        export_name.fill('\0');
+        std::ranges::copy_n(a_name.begin(), std::min(a_name.size(), export_name.size() - 1), export_name.begin());
+    }
+
+    bool IsReservedWindowsName(const std::string_view a_name) {
+        auto base = std::string(a_name.substr(0, a_name.find('.')));
+        std::ranges::transform(base, base.begin(), [](const unsigned char character) {
+            return static_cast<char>(std::toupper(character));
+        });
+
+        constexpr std::array reserved = {"CON"sv, "PRN"sv, "AUX"sv, "NUL"sv};
+        if (std::ranges::find(reserved, base) != reserved.end()) {
+            return true;
+        }
+        return base.size() == 4 && (base.starts_with("COM") || base.starts_with("LPT")) && base.back() >= '1' &&
+               base.back() <= '9';
+    }
+
+    const std::string* ExportNameError(const std::string_view a_name) {
+        if (a_name.empty() ||
+            std::ranges::all_of(a_name, [](const unsigned char character) { return character == ' '; })) {
+            return std::addressof(Translations::Get("$SkyPromptMCPThemeExportEmpty"));
+        }
+
+        const auto path = std::filesystem::path(theme_export_folder) / std::format("{}.json", a_name);
+        constexpr std::string_view invalid_characters = R"(<>:"/\|?*)";
+        if (a_name.size() > max_export_name_length || path.native().size() >= MAX_PATH || a_name == "." ||
+            a_name == ".." || a_name.back() == '.' || a_name.back() == ' ' ||
+            std::ranges::any_of(a_name, [&](const unsigned char character) {
+                return character < 32 || invalid_characters.contains(static_cast<char>(character));
+            }) ||
+            IsReservedWindowsName(a_name)) {
+            return std::addressof(Translations::Get("$SkyPromptMCPThemeExportInvalid"));
+        }
+        return nullptr;
+    }
+
+    std::filesystem::path ExportTheme(const Theme::Theme& a_theme, const std::string_view a_name) {
+        using namespace rapidjson;
+
+        if (ExportNameError(a_name)) {
+            return {};
+        }
+
+        const auto local_time = std::chrono::floor<std::chrono::seconds>(
+            std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
+        const auto plugin_version = SKSE::PluginDeclaration::GetSingleton()->GetVersion();
+        const auto description =
+            std::format("{}. SkyPrompt {}.{}.{}. {:%Y-%m-%d %H:%M:%S}.",
+                        Translations::Get("$SkyPromptThemeExportDescription"), plugin_version.major(),
+                        plugin_version.minor(), plugin_version.patch(), local_time);
+
+        Document document;
+        document.SetObject();
+        auto& allocator = document.GetAllocator();
+        const auto add_string = [&](const char* a_key, const std::string_view a_value) {
+            Value key;
+            key.SetString(a_key, allocator);
+            Value value;
+            value.SetString(a_value.data(), static_cast<SizeType>(a_value.size()), allocator);
+            document.AddMember(key, value, allocator);
+        };
+
+        auto* player = RE::PlayerCharacter::GetSingleton();
+        const auto* player_name = player ? player->GetDisplayFullName() : nullptr;
+        add_string("name", a_name);
+        add_string("description", description);
+        add_string("author", player_name ? player_name : "");
+        add_string("version", "1.0.0");
+        document.AddMember("n_max_buttons", a_theme.n_max_buttons, allocator);
+        document.AddMember("marginX", a_theme.marginX, allocator);
+        document.AddMember("marginY", a_theme.marginY, allocator);
+        document.AddMember("xPercent", a_theme.xPercent, allocator);
+        document.AddMember("yPercent", a_theme.yPercent, allocator);
+        document.AddMember("prompt_size", a_theme.prompt_size, allocator);
+        document.AddMember("icon2font_ratio", a_theme.icon2font_ratio, allocator);
+        document.AddMember("linespacing", a_theme.linespacing, allocator);
+        document.AddMember("progress_speed", a_theme.progress_speed, allocator);
+        document.AddMember("fadeSpeed", a_theme.fadeSpeed, allocator);
+        add_string("font_name", a_theme.font_name);
+        document.AddMember("font_shadow", a_theme.font_shadow, allocator);
+        add_string("prompt_alignment", Theme::toPromptAlignmentString(a_theme.prompt_alignment));
+        add_string("prompt_order", Theme::toPromptOrderString(a_theme.prompt_order));
+        add_string("prompt_pivot", Theme::toPromptPivotString(a_theme.prompt_pivot));
+
+        StringBuffer buffer;
+        PrettyWriter<StringBuffer> writer(buffer);
+        document.Accept(writer);
+
+        const auto folder = std::filesystem::path(theme_export_folder);
+        std::error_code error;
+        std::filesystem::create_directories(folder, error);
+        if (error) {
+            logger::error("Failed to create theme export folder: {}", error.message());
+            return {};
+        }
+
+        const auto path = folder / std::format("{}.json", a_name);
+        std::ofstream file(path, std::ios::binary | std::ios::out | std::ios::trunc);
+        if (!file.is_open()) {
+            logger::error("Failed to open theme export path: {}", path.string());
+            return {};
+        }
+        file.write(buffer.GetString(), static_cast<std::streamsize>(buffer.GetSize()));
+        file.put('\n');
+        file.close();
+        if (file.fail()) {
+            logger::error("Failed to export theme: {}", path.string());
+            return {};
+        }
+
+        logger::info("Exported theme: {}", path.string());
+        return path;
+    }
+
+    void RenderThemeExport() {
+        const auto popup = Translations::ImGuiLabel("$SkyPromptMCPThemeExport", "theme.export.popup");
+        if (LocalizedButton("$SkyPromptMCPThemeExport", "theme.export.open")) {
+            const auto local_time = std::chrono::floor<std::chrono::seconds>(
+                std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
+            SetExportName(std::format("Theme_{:%Y-%m-%d_%H-%M-%S}", local_time));
+            export_status.clear();
+            export_error.clear();
+            ImGuiMCP::OpenPopup(popup.c_str());
+        }
+        ImGuiMCP::SameLine();
+        HelpMarker("$SkyPromptMCPThemeExportHelp");
+        if (!export_status.empty()) {
+            ImGuiMCP::TextColored({0.35f, 1.0f, 0.35f, 1.0f}, "%s", export_status.c_str());
+        }
+
+        if (!ImGuiMCP::BeginPopupModal(popup.c_str(), nullptr, ImGuiMCP::ImGuiWindowFlags_AlwaysAutoResize)) {
+            return;
+        }
+
+        ImGuiMCP::SetNextItemWidth(300.0f);
+        if (ImGuiMCP::IsWindowAppearing()) {
+            ImGuiMCP::SetKeyboardFocusHere();
+        }
+        if (ImGuiMCP::InputText("##theme.export.filename", export_name.data(), export_name.size(),
+                                ImGuiMCP::ImGuiInputTextFlags_AutoSelectAll)) {
+            export_error.clear();
+        }
+        ImGuiMCP::SameLine();
+        ImGuiMCP::TextUnformatted(".json");
+
+        const auto name = std::string_view(export_name.data());
+        const auto* validation_error = ExportNameError(name);
+        if (validation_error) {
+            ImGuiMCP::TextColored({1.0f, 0.35f, 0.35f, 1.0f}, "%s", validation_error->c_str());
+        }
+        if (!export_error.empty()) {
+            ImGuiMCP::TextColored({1.0f, 0.35f, 0.35f, 1.0f}, "%s", export_error.c_str());
+        }
+
+        ImGuiMCP::BeginDisabled(validation_error != nullptr);
+        if (LocalizedButton("$SkyPromptMCPThemeExportConfirm", "theme.export.confirm")) {
+            if (const auto path = ExportTheme(Theme::default_theme, name); !path.empty()) {
+                export_status = Translations::Format("$SkyPromptMCPThemeExportSuccess", path.string());
+                export_error.clear();
+                ImGuiMCP::CloseCurrentPopup();
+            } else {
+                export_error = Translations::Get("$SkyPromptMCPThemeExportFailed");
+            }
+        }
+        ImGuiMCP::EndDisabled();
+        ImGuiMCP::SameLine();
+        if (LocalizedButton("$SkyPromptMCPThemeExportCancel", "theme.export.cancel")) {
+            ImGuiMCP::CloseCurrentPopup();
+        }
+        ImGuiMCP::EndPopup();
     }
 }
 
@@ -960,6 +1142,7 @@ void __stdcall MCP::RenderTheme() {
         Settings::ReloadThemes();
         changed = true;
     }
+    RenderThemeExport();
 
     if (changed) {
         Settings::to_json();
