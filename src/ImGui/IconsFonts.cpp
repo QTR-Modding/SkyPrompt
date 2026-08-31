@@ -1027,6 +1027,7 @@ namespace {
                             IM_COL32(255, 255, 255, static_cast<int>(255 * renderInfo.alpha)));
         }
 
+        const auto firstVertex = drawList->VtxBuffer.Size;
         {
             const float outerRadius = circleDiameter * 0.5f;
             const float thickness = outerRadius / 6.0f;
@@ -1044,6 +1045,9 @@ namespace {
                                 ? renderInfo.text_color
                                 : IM_COL32(255, 255, 255, 255);
         AddTextWithShadow(drawList, font, fontSize, textPosition, color, renderInfo.text.c_str());
+        for (auto i = firstVertex; i < drawList->VtxBuffer.Size; ++i) {
+            drawList->VtxBuffer[i].col = MulAlpha(drawList->VtxBuffer[i].col, renderInfo.alpha);
+        }
     }
 
     void RenderPromptsVertical(const std::vector<ImGui::RenderInfo>& batch) {
