@@ -348,9 +348,7 @@ namespace {
         if (ImGuiMCP::IsWindowAppearing()) {
             ImGuiMCP::SetKeyboardFocusHere();
         }
-        const auto filename_label =
-            Translations::ImGuiLabel("$SkyPromptMCPThemeExportFilename", "theme.export.filename");
-        if (ImGuiMCP::InputText(filename_label.c_str(), export_name.data(), export_name.size(),
+        if (ImGuiMCP::InputText("##theme.export.filename", export_name.data(), export_name.size(),
                                 ImGuiMCP::ImGuiInputTextFlags_AutoSelectAll)) {
             export_error.clear();
         }

@@ -132,7 +132,6 @@ namespace {
          "Adds Japanese, Korean, and full Chinese glyph sets. Increases font atlas size and loading time."},
         {"$SkyPromptMCPThemeExport", "Export Theme"},
         {"$SkyPromptMCPThemeExportHelp", "Exports the current settings to a theme file."},
-        {"$SkyPromptMCPThemeExportFilename", "Filename"},
         {"$SkyPromptMCPThemeExportConfirm", "Export"},
         {"$SkyPromptMCPThemeExportCancel", "Cancel"},
         {"$SkyPromptMCPThemeExportEmpty", "Enter a filename."},
