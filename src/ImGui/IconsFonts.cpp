@@ -866,19 +866,28 @@ namespace {
         return layout;
     }
 
-    constexpr std::array diamondTextFirstForIconFirst = {false, true, true, false};
+    enum DiamondArm : std::size_t {
+        kDiamondBottom,
+        kDiamondRight,
+        kDiamondLeft,
+        kDiamondTop,
+        kDiamondArmCount
+    };
 
-    bool CanRenderPromptsDiamond(const std::vector<ImGui::RenderInfo>& batch) {
-        return batch.size() <= diamondTextFirstForIconFirst.size() &&
-               std::ranges::all_of(batch, [](const ImGui::RenderInfo& renderInfo) {
-                   return renderInfo.slot >= 0 &&
-                          static_cast<std::size_t>(renderInfo.slot) < diamondTextFirstForIconFirst.size();
-               });
+    DiamondArm GetDiamondArm(const std::size_t index) {
+        return static_cast<DiamondArm>(index % kDiamondArmCount);
     }
 
-    bool IsDiamondTextFirst(const int slot) {
-        const bool textFirst = diamondTextFirstForIconFirst[static_cast<std::size_t>(slot)];
+    bool IsDiamondTextFirst(const DiamondArm arm) {
+        const bool textFirst = arm == kDiamondLeft || arm == kDiamondTop;
         return Theme::last_theme->prompt_order == Theme::kIconFirst ? textFirst : !textFirst;
+    }
+
+    float GetPromptIconCenterX(const PromptItemDimensions& dimensions, const bool textFirst) {
+        const float circleDiameter = GetIconSize() * 1.25f;
+        return textFirst
+                   ? dimensions.textWidth + dimensions.textPad + circleDiameter * 0.5f
+                   : circleDiameter * 0.5f;
     }
 
     struct DiamondPromptLayout {
@@ -891,35 +900,80 @@ namespace {
                                               const float lineSpacingPx) {
         DiamondPromptLayout layout;
         layout.prompts = MeasureHorizontalPrompts(batch, 0.0f);
-        layout.positions.reserve(batch.size());
+        layout.positions.resize(batch.size());
+        if (batch.empty()) {
+            return layout;
+        }
 
-        const float radius = layout.prompts.size.y + lineSpacingPx;
-        const std::array directions = {
-            ImVec2{1.0f, 0.0f},
-            ImVec2{-1.0f, 0.0f},
-            ImVec2{0.0f, -1.0f},
-            ImVec2{0.0f, 1.0f}
-        };
-        const float circleDiameter = GetIconSize() * 1.25f;
+        float leftInward = 0.0f;
+        float rightInward = 0.0f;
+        for (std::size_t i = 0; i < batch.size(); ++i) {
+            const auto arm = GetDiamondArm(i);
+            if (arm != kDiamondLeft && arm != kDiamondRight) {
+                continue;
+            }
+            const auto& dimensions = layout.prompts.items[i];
+            const float iconCenterX = GetPromptIconCenterX(dimensions, IsDiamondTextFirst(arm));
+            if (arm == kDiamondLeft) {
+                leftInward = std::max(leftInward, dimensions.width - iconCenterX);
+            } else {
+                rightInward = std::max(rightInward, iconCenterX);
+            }
+        }
+
+        float radius = layout.prompts.size.y + lineSpacingPx;
+        if (leftInward > 0.0f && rightInward > 0.0f) {
+            radius = std::max(radius, (leftInward + rightInward + lineSpacingPx) * 0.5f);
+        }
+        std::array<float, kDiamondArmCount> nextPosition{};
+        std::array<std::size_t, kDiamondArmCount> armSizes{};
+        float sideBottom = std::numeric_limits<float>::lowest();
+        float bottomHeight = 0.0f;
+
+        for (std::size_t i = 0; i < batch.size(); ++i) {
+            const auto arm = GetDiamondArm(i);
+            const auto& dimensions = layout.prompts.items[i];
+            const float iconCenterX = GetPromptIconCenterX(dimensions, IsDiamondTextFirst(arm));
+            auto& position = layout.positions[i];
+
+            if (arm == kDiamondBottom || arm == kDiamondTop) {
+                const float centerY = arm == kDiamondBottom ? radius : -radius;
+                const float left = armSizes[arm] == 0 ? -iconCenterX : nextPosition[arm];
+                position = {left, centerY - dimensions.height * 0.5f};
+                nextPosition[arm] = left + dimensions.width + lineSpacingPx;
+                if (arm == kDiamondBottom) {
+                    bottomHeight = std::max(bottomHeight, dimensions.height);
+                }
+            } else {
+                const float centerX = arm == kDiamondRight ? radius : -radius;
+                const float top = armSizes[arm] == 0
+                                      ? -dimensions.height * 0.5f
+                                      : nextPosition[arm];
+                position = {centerX - iconCenterX, top};
+                nextPosition[arm] = top + dimensions.height + lineSpacingPx;
+                sideBottom = std::max(sideBottom, top + dimensions.height);
+            }
+            ++armSizes[arm];
+        }
+
+        if (armSizes[kDiamondBottom] > 0 &&
+            armSizes[kDiamondRight] + armSizes[kDiamondLeft] > 0) {
+            const float bottomCenter = std::max(
+                radius, sideBottom + lineSpacingPx + bottomHeight * 0.5f);
+            const float offset = bottomCenter - radius;
+            for (std::size_t i = kDiamondBottom; i < layout.positions.size(); i += kDiamondArmCount) {
+                layout.positions[i].y += offset;
+            }
+        }
+
         const float highest = std::numeric_limits<float>::max();
         const float lowest = std::numeric_limits<float>::lowest();
         ImVec2 boundsMin{highest, highest};
         ImVec2 boundsMax{lowest, lowest};
 
         for (std::size_t i = 0; i < batch.size(); ++i) {
-            const auto& renderInfo = batch[i];
             const auto& dimensions = layout.prompts.items[i];
-            const auto& direction = directions[static_cast<std::size_t>(renderInfo.slot)];
-            const ImVec2 iconCenter{direction.x * radius, direction.y * radius};
-            const float iconCenterX = IsDiamondTextFirst(renderInfo.slot)
-                                          ? dimensions.textWidth + dimensions.textPad + circleDiameter * 0.5f
-                                          : circleDiameter * 0.5f;
-            const ImVec2 position{
-                iconCenter.x - iconCenterX,
-                iconCenter.y - dimensions.height * 0.5f
-            };
-
-            layout.positions.push_back(position);
+            const auto& position = layout.positions[i];
             boundsMin.x = std::min(boundsMin.x, position.x);
             boundsMin.y = std::min(boundsMin.y, position.y);
             boundsMax.x = std::max(boundsMax.x, position.x + dimensions.width);
@@ -964,10 +1018,7 @@ namespace {
         const float iconSize = GetIconSize();
         const float circleDiameter = iconSize * 1.25f;
         const float yCenter = position.y + dimensions.height * 0.5f;
-        const float iconCenterX = textFirst
-                                      ? position.x + dimensions.textWidth + dimensions.textPad +
-                                        circleDiameter * 0.5f
-                                      : position.x + circleDiameter * 0.5f;
+        const float iconCenterX = position.x + GetPromptIconCenterX(dimensions, textFirst);
         const ImVec2 iconCenter{iconCenterX, yCenter};
 
         if (renderInfo.texture && renderInfo.texture->srView.Get()) {
@@ -1045,7 +1096,7 @@ namespace {
         for (std::size_t i = 0; i < batch.size(); ++i) {
             DrawHorizontalPrompt(drawList, font, fontSize, batch[i], layout.prompts.items[i],
                                  startPosition + layout.positions[i],
-                                 IsDiamondTextFirst(batch[i].slot));
+                                 IsDiamondTextFirst(GetDiamondArm(i)));
         }
 
         ImGui::Dummy(layout.bounds.size);
@@ -1118,7 +1169,7 @@ ImVec2 ImGui::GetSkyPromptContentOrigin(const ImVec2& anchor) {
                           return a.row < b.row;
                       });
 
-    if (promptAlignment == Theme::kDiamond && CanRenderPromptsDiamond(renderBatch)) {
+    if (promptAlignment == Theme::kDiamond) {
         const auto layout = MeasureDiamondPrompts(renderBatch, lineSpacingPx);
         return GetContentOrigin(anchor, layout.bounds);
     }
@@ -1150,14 +1201,9 @@ void ImGui::RenderSkyPrompt(const ImVec2& anchor) {
         case Theme::PromptAlignment::kHorizontal:
             RenderPromptsHorizontal(renderBatch, GetFontSize() * curr_theme->linespacing);
             break;
-        case Theme::PromptAlignment::kDiamond: {
-            if (CanRenderPromptsDiamond(renderBatch)) {
-                RenderPromptsDiamond(renderBatch, GetFontSize() * curr_theme->linespacing);
-            } else {
-                RenderPromptsVertical(renderBatch);
-            }
+        case Theme::PromptAlignment::kDiamond:
+            RenderPromptsDiamond(renderBatch, GetFontSize() * curr_theme->linespacing);
             break;
-        }
         case Theme::PromptAlignment::kRadial: {
             const float lineSpacingPx = GetFontSize() * curr_theme->linespacing;
             const float iconSize = GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;

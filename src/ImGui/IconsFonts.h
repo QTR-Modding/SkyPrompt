@@ -233,8 +233,7 @@ namespace ImGui {
         float button_state;
         float alpha;
 
-        SCENES::Event row = 0;
-        int slot = 0;
+        SCENES::Event row = 0; // Row index for vertical alignment
     };
 
 
