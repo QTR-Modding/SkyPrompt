@@ -49,7 +49,8 @@ namespace Theme {
     enum PromptAlignment : uint8_t {
         kRadial,
         kHorizontal,
-        kVertical
+        kVertical,
+        kDiamond
     };
 
     PromptAlignment toPromptAlignment(const std::string& alignment);

@@ -7,6 +7,7 @@ Theme::PromptAlignment Theme::toPromptAlignment(const std::string& alignment) {
     if (alignment == "radial") return kRadial;
     if (alignment == "horizontal") return kHorizontal;
     if (alignment == "vertical") return kVertical;
+    if (alignment == "diamond") return kDiamond;
     return kVertical; // default
 }
 
@@ -16,6 +17,8 @@ std::string_view Theme::toPromptAlignmentString(const PromptAlignment alignment)
             return "radial";
         case kHorizontal:
             return "horizontal";
+        case kDiamond:
+            return "diamond";
         case kVertical:
         default:
             return "vertical";
