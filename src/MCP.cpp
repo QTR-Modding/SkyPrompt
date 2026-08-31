@@ -2,6 +2,7 @@
 #include "SKSEMCP/SKSEMenuFramework.hpp"
 #include "Utils.h"
 #include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "Hooks.h"
@@ -201,103 +202,10 @@ namespace {
         return labels;
     }
 
-    template <std::size_t N>
-    bool InputStringValue(const char* a_label, std::string& a_value, const ImGuiMCP::ImGuiInputTextFlags a_flags = 0) {
-        static_assert(N > 1);
-        std::array<char, N> buffer{};
-        a_value.copy(buffer.data(), std::min(a_value.size(), buffer.size() - 1));
-        if (!ImGuiMCP::InputText(a_label, buffer.data(), buffer.size(), a_flags)) {
-            return false;
-        }
-        a_value = buffer.data();
-        return true;
-    }
+    constexpr std::size_t max_export_name_length = 240;
+    constexpr std::string_view theme_export_folder = R"(Data\SKSE\Plugins\SkyPrompt\themes)";
 
-    template <std::size_t N>
-    bool LocalizedInputString(const std::string_view a_key, const std::string_view a_id, std::string& a_value) {
-        ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.35f);
-        const auto label = Translations::ImGuiLabel(a_key, a_id);
-        return InputStringValue<N>(label.c_str(), a_value);
-    }
-
-    template <class T, class Editor>
-    bool RenderVectorEditor(const std::string_view a_key, const std::string_view a_id, std::vector<T>& a_values,
-                            Editor&& a_editor) {
-        bool changed = false;
-        LocalizedText(a_key);
-        const auto id = std::string(a_id);
-        ImGuiMCP::PushID(id.c_str());
-        for (std::size_t index = 0; index < a_values.size();) {
-            ImGuiMCP::PushID(static_cast<int>(index));
-            ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.25f);
-            if (a_editor(a_values[index])) {
-                changed = true;
-            }
-            ImGuiMCP::SameLine();
-            if (ImGuiMCP::SmallButton("-")) {
-                a_values.erase(a_values.begin() + static_cast<std::ptrdiff_t>(index));
-                changed = true;
-                ImGuiMCP::PopID();
-                continue;
-            }
-            ImGuiMCP::PopID();
-            ++index;
-        }
-        if (ImGuiMCP::SmallButton("+")) {
-            a_values.emplace_back();
-            changed = true;
-        }
-        ImGuiMCP::PopID();
-        return changed;
-    }
-
-    bool ThemeMetadataSettings() {
-        bool changed = false;
-        changed |= LocalizedInputString<256>("$SkyPromptMCPThemeName", "theme.name", Theme::default_theme.theme_name);
-        changed |= LocalizedInputString<1024>("$SkyPromptMCPThemeDescription", "theme.description",
-                                              Theme::default_theme.theme_description);
-        changed |=
-            LocalizedInputString<256>("$SkyPromptMCPThemeAuthor", "theme.author", Theme::default_theme.theme_author);
-        changed |=
-            LocalizedInputString<128>("$SkyPromptMCPThemeVersion", "theme.version", Theme::default_theme.theme_version);
-        return changed;
-    }
-
-    bool SpecialThemeSettings() {
-        const auto header = Translations::ImGuiLabel("$SkyPromptMCPThemeSpecialSettings", "theme.specialSettings");
-        if (!ImGuiMCP::CollapsingHeader(header.c_str())) {
-            return false;
-        }
-
-        bool changed = false;
-        ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.25f);
-        const auto effect_label = Translations::ImGuiLabel("$SkyPromptMCPThemeSpecialEffect", "theme.specialEffect");
-        changed |= ImGuiMCP::InputScalar(effect_label.c_str(), ImGuiMCP::ImGuiDataType_U32,
-                                         &Theme::default_theme.special_effect);
-        changed |=
-            RenderVectorEditor("$SkyPromptMCPThemeSpecialIntegers", "theme.specialIntegers",
-                               Theme::default_theme.special_integers, [](std::uint32_t& a_value) {
-                                   return ImGuiMCP::InputScalar("##value", ImGuiMCP::ImGuiDataType_U32, &a_value);
-                               });
-        changed |= RenderVectorEditor("$SkyPromptMCPThemeSpecialStrings", "theme.specialStrings",
-                                      Theme::default_theme.special_strings,
-                                      [](std::string& a_value) { return InputStringValue<512>("##value", a_value); });
-        changed |= RenderVectorEditor("$SkyPromptMCPThemeSpecialFloats", "theme.specialFloats",
-                                      Theme::default_theme.special_floats,
-                                      [](float& a_value) { return ImGuiMCP::InputFloat("##value", &a_value); });
-        changed |= RenderVectorEditor("$SkyPromptMCPThemeSpecialBools", "theme.specialBools",
-                                      Theme::default_theme.special_bools, [](std::uint8_t& a_value) {
-                                          bool value = a_value != 0;
-                                          if (!ImGuiMCP::Checkbox("##value", &value)) {
-                                              return false;
-                                          }
-                                          a_value = value;
-                                          return true;
-                                      });
-        return changed;
-    }
-
-    std::array<char, 241> export_name{};
+    std::array<char, max_export_name_length + 1> export_name{};
     std::string export_status;
     std::string export_error;
 
@@ -306,28 +214,128 @@ namespace {
         std::ranges::copy_n(a_name.begin(), std::min(a_name.size(), export_name.size() - 1), export_name.begin());
     }
 
-    const std::string* ExportNameError(const Theme::ExportNameStatus a_status) {
-        switch (a_status) {
-            case Theme::ExportNameStatus::kEmpty:
-                return std::addressof(Translations::Get("$SkyPromptMCPThemeExportEmpty"));
-            case Theme::ExportNameStatus::kInvalid:
-                return std::addressof(Translations::Get("$SkyPromptMCPThemeExportInvalid"));
-            case Theme::ExportNameStatus::kExists:
-                return std::addressof(Translations::Get("$SkyPromptMCPThemeExportExists"));
-            case Theme::ExportNameStatus::kValid:
-            default:
-                return nullptr;
+    bool IsReservedWindowsName(const std::string_view a_name) {
+        auto base = std::string(a_name.substr(0, a_name.find('.')));
+        std::ranges::transform(base, base.begin(), [](const unsigned char character) {
+            return static_cast<char>(std::toupper(character));
+        });
+
+        constexpr std::array reserved = {"CON"sv, "PRN"sv, "AUX"sv, "NUL"sv};
+        if (std::ranges::find(reserved, base) != reserved.end()) {
+            return true;
         }
+        return base.size() == 4 && (base.starts_with("COM") || base.starts_with("LPT")) && base.back() >= '1' &&
+               base.back() <= '9';
+    }
+
+    const std::string* ExportNameError(const std::string_view a_name) {
+        if (a_name.empty() ||
+            std::ranges::all_of(a_name, [](const unsigned char character) { return character == ' '; })) {
+            return std::addressof(Translations::Get("$SkyPromptMCPThemeExportEmpty"));
+        }
+
+        constexpr std::string_view invalid_characters = R"(<>:"/\|?*)";
+        if (a_name.size() > max_export_name_length || a_name == "." || a_name == ".." || a_name.back() == '.' ||
+            a_name.back() == ' ' ||
+            std::ranges::any_of(a_name, [&](const unsigned char character) {
+                return character < 32 || invalid_characters.contains(static_cast<char>(character));
+            }) ||
+            IsReservedWindowsName(a_name)) {
+            return std::addressof(Translations::Get("$SkyPromptMCPThemeExportInvalid"));
+        }
+        return nullptr;
+    }
+
+    std::filesystem::path ExportTheme(const Theme::Theme& a_theme, const std::string_view a_name) {
+        using namespace rapidjson;
+
+        if (ExportNameError(a_name)) {
+            return {};
+        }
+
+        const auto local_time = std::chrono::floor<std::chrono::seconds>(
+            std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
+        const auto plugin_version = SKSE::PluginDeclaration::GetSingleton()->GetVersion();
+        const auto description =
+            std::format("{}. SkyPrompt {}.{}.{}. {:%Y-%m-%d %H:%M:%S}.",
+                        Translations::Get("$SkyPromptThemeExportDescription"), plugin_version.major(),
+                        plugin_version.minor(), plugin_version.patch(), local_time);
+
+        Document document;
+        document.SetObject();
+        auto& allocator = document.GetAllocator();
+        const auto add_string = [&](const char* a_key, const std::string_view a_value) {
+            Value key;
+            key.SetString(a_key, allocator);
+            Value value;
+            value.SetString(a_value.data(), static_cast<SizeType>(a_value.size()), allocator);
+            document.AddMember(key, value, allocator);
+        };
+
+        auto* player = RE::PlayerCharacter::GetSingleton();
+        const auto* player_name = player ? player->GetDisplayFullName() : nullptr;
+        add_string("name", a_name);
+        add_string("description", description);
+        add_string("author", player_name ? player_name : "");
+        add_string("version", "1.0.0");
+        document.AddMember("n_max_buttons", a_theme.n_max_buttons, allocator);
+        document.AddMember("marginX", a_theme.marginX, allocator);
+        document.AddMember("marginY", a_theme.marginY, allocator);
+        document.AddMember("xPercent", a_theme.xPercent, allocator);
+        document.AddMember("yPercent", a_theme.yPercent, allocator);
+        document.AddMember("prompt_size", a_theme.prompt_size, allocator);
+        document.AddMember("icon2font_ratio", a_theme.icon2font_ratio, allocator);
+        document.AddMember("linespacing", a_theme.linespacing, allocator);
+        document.AddMember("progress_speed", a_theme.progress_speed, allocator);
+        document.AddMember("fadeSpeed", a_theme.fadeSpeed, allocator);
+        add_string("font_name", a_theme.font_name);
+        document.AddMember("font_shadow", a_theme.font_shadow, allocator);
+        add_string("prompt_alignment", Theme::toPromptAlignmentString(a_theme.prompt_alignment));
+        add_string("prompt_order", Theme::toPromptOrderString(a_theme.prompt_order));
+        add_string("prompt_pivot", Theme::toPromptPivotString(a_theme.prompt_pivot));
+
+        StringBuffer buffer;
+        PrettyWriter<StringBuffer> writer(buffer);
+        document.Accept(writer);
+
+        const auto folder = std::filesystem::path(theme_export_folder);
+        std::error_code error;
+        std::filesystem::create_directories(folder, error);
+        if (error) {
+            logger::error("Failed to create theme export folder: {}", error.message());
+            return {};
+        }
+
+        const auto path = folder / std::format("{}.json", a_name);
+        std::ofstream file(path, std::ios::binary | std::ios::out | std::ios::trunc);
+        if (!file.is_open()) {
+            logger::error("Failed to open theme export path: {}", path.string());
+            return {};
+        }
+        file.write(buffer.GetString(), static_cast<std::streamsize>(buffer.GetSize()));
+        file.put('\n');
+        file.close();
+        if (file.fail()) {
+            logger::error("Failed to export theme: {}", path.string());
+            return {};
+        }
+
+        logger::info("Exported theme: {}", path.string());
+        return path;
     }
 
     void RenderThemeExport() {
-        const auto popup = Translations::ImGuiLabel("$SkyPromptMCPThemeExportTitle", "theme.export.popup");
-        if (LocalizedButton("$SkyPromptMCPThemeExportOpen", "theme.export.open")) {
-            SetExportName(Theme::NextExportName());
+        const auto popup = Translations::ImGuiLabel("$SkyPromptMCPThemeExport", "theme.export.popup");
+        if (LocalizedButton("$SkyPromptMCPThemeExport", "theme.export.open")) {
+            const auto local_time = std::chrono::floor<std::chrono::seconds>(
+                std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
+            SetExportName(std::format("Theme_{:%Y-%m-%d_%H-%M-%S}", local_time));
             export_status.clear();
             export_error.clear();
             ImGuiMCP::OpenPopup(popup.c_str());
         }
+        ImGuiMCP::SameLine();
+        HelpMarker("$SkyPromptMCPThemeExportHelp");
         if (!export_status.empty()) {
             ImGuiMCP::TextColored({0.35f, 1.0f, 0.35f, 1.0f}, "%s", export_status.c_str());
         }
@@ -350,18 +358,18 @@ namespace {
         ImGuiMCP::TextUnformatted(".json");
 
         const auto name = std::string_view(export_name.data());
-        const auto validation = Theme::ValidateExportName(name);
-        if (const auto* error = ExportNameError(validation)) {
-            ImGuiMCP::TextColored({1.0f, 0.35f, 0.35f, 1.0f}, "%s", error->c_str());
+        const auto* validation_error = ExportNameError(name);
+        if (validation_error) {
+            ImGuiMCP::TextColored({1.0f, 0.35f, 0.35f, 1.0f}, "%s", validation_error->c_str());
         }
         if (!export_error.empty()) {
             ImGuiMCP::TextColored({1.0f, 0.35f, 0.35f, 1.0f}, "%s", export_error.c_str());
         }
 
-        ImGuiMCP::BeginDisabled(validation != Theme::ExportNameStatus::kValid);
-        if (LocalizedButton("$SkyPromptMCPThemeExport", "theme.export.confirm")) {
-            if (const auto path = Theme::ExportTheme(Theme::default_theme, name)) {
-                export_status = Translations::Format("$SkyPromptMCPThemeExportSuccess", path->string());
+        ImGuiMCP::BeginDisabled(validation_error != nullptr);
+        if (LocalizedButton("$SkyPromptMCPThemeExportConfirm", "theme.export.confirm")) {
+            if (const auto path = ExportTheme(Theme::default_theme, name); !path.empty()) {
+                export_status = Translations::Format("$SkyPromptMCPThemeExportSuccess", path.string());
                 export_error.clear();
                 ImGuiMCP::CloseCurrentPopup();
             } else {
@@ -892,37 +900,8 @@ void MCP::Settings::to_json() {
 
     // theme
     Value theme(kObjectType);
-    theme.AddMember("name", Value(Theme::default_theme.theme_name.c_str(), allocator).Move(), allocator);
-    theme.AddMember("description", Value(Theme::default_theme.theme_description.c_str(), allocator).Move(), allocator);
-    theme.AddMember("author", Value(Theme::default_theme.theme_author.c_str(), allocator).Move(), allocator);
-    theme.AddMember("version", Value(Theme::default_theme.theme_version.c_str(), allocator).Move(), allocator);
     theme.AddMember("font_name", Value(Theme::default_theme.font_name.c_str(), allocator).Move(), allocator);
     theme.AddMember("font_shadow", Theme::default_theme.font_shadow, allocator);
-
-    theme.AddMember("special_effect", Theme::default_theme.special_effect, allocator);
-    Value special_integers(kArrayType);
-    for (const auto value : Theme::default_theme.special_integers) {
-        special_integers.PushBack(value, allocator);
-    }
-    theme.AddMember("special_integers", special_integers, allocator);
-
-    Value special_strings(kArrayType);
-    for (const auto& value : Theme::default_theme.special_strings) {
-        special_strings.PushBack(Value(value.c_str(), allocator).Move(), allocator);
-    }
-    theme.AddMember("special_strings", special_strings, allocator);
-
-    Value special_floats(kArrayType);
-    for (const auto value : Theme::default_theme.special_floats) {
-        special_floats.PushBack(value, allocator);
-    }
-    theme.AddMember("special_floats", special_floats, allocator);
-
-    Value special_bools(kArrayType);
-    for (const auto value : Theme::default_theme.special_bools) {
-        special_bools.PushBack(value != 0, allocator);
-    }
-    theme.AddMember("special_bools", special_bools, allocator);
     // theme:: file name for active icon, like font_name
     root.AddMember("Theme", theme, allocator);
 
@@ -1096,47 +1075,8 @@ void MCP::Settings::from_json() {
 
     if (mcp.HasMember("Theme")) {
         const rapidjson::Value& theme = mcp["Theme"];
-        if (theme.HasMember("name") && theme["name"].IsString()) {
-            Theme::default_theme.theme_name = theme["name"].GetString();
-        }
-        if (theme.HasMember("description") && theme["description"].IsString()) {
-            Theme::default_theme.theme_description = theme["description"].GetString();
-        }
-        if (theme.HasMember("author") && theme["author"].IsString()) {
-            Theme::default_theme.theme_author = theme["author"].GetString();
-        }
-        if (theme.HasMember("version") && theme["version"].IsString()) {
-            Theme::default_theme.theme_version = theme["version"].GetString();
-        }
         if (theme.HasMember("font_name")) Theme::default_theme.font_name = theme["font_name"].GetString();
         if (theme.HasMember("font_shadow")) Theme::default_theme.font_shadow = theme["font_shadow"].GetFloat();
-        if (theme.HasMember("special_effect") && theme["special_effect"].IsUint()) {
-            Theme::default_theme.special_effect = theme["special_effect"].GetUint();
-        }
-        if (theme.HasMember("special_integers") && theme["special_integers"].IsArray()) {
-            Theme::default_theme.special_integers.clear();
-            for (const auto& value : theme["special_integers"].GetArray()) {
-                if (value.IsUint()) Theme::default_theme.special_integers.push_back(value.GetUint());
-            }
-        }
-        if (theme.HasMember("special_strings") && theme["special_strings"].IsArray()) {
-            Theme::default_theme.special_strings.clear();
-            for (const auto& value : theme["special_strings"].GetArray()) {
-                if (value.IsString()) Theme::default_theme.special_strings.emplace_back(value.GetString());
-            }
-        }
-        if (theme.HasMember("special_floats") && theme["special_floats"].IsArray()) {
-            Theme::default_theme.special_floats.clear();
-            for (const auto& value : theme["special_floats"].GetArray()) {
-                if (value.IsNumber()) Theme::default_theme.special_floats.push_back(value.GetFloat());
-            }
-        }
-        if (theme.HasMember("special_bools") && theme["special_bools"].IsArray()) {
-            Theme::default_theme.special_bools.clear();
-            for (const auto& value : theme["special_bools"].GetArray()) {
-                if (value.IsBool()) Theme::default_theme.special_bools.push_back(value.GetBool());
-            }
-        }
     }
 
     refreshStyle.store(true);
@@ -1198,9 +1138,7 @@ void __stdcall MCP::RenderControls() {
 void __stdcall MCP::RenderTheme() {
     bool changed = false;
 
-    if (ThemeMetadataSettings()) changed = true;
     if (Settings::FontSettings()) changed = true;
-    if (SpecialThemeSettings()) changed = true;
     if (LocalizedButton("$SkyPromptMCPThemeReloadThemes", "theme.reloadThemes")) {
         Settings::ReloadThemes();
         changed = true;

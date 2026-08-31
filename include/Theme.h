@@ -1,17 +1,12 @@
 #pragma once
-#include <filesystem>
-#include <optional>
 #include <shared_mutex>
-
-#include "CLibUtilsQTR/PresetHelpers/Config.hpp"
 #include "SkyPrompt/API.hpp"
 #include "boost/pfr/core.hpp"
+#include "CLibUtilsQTR/PresetHelpers/Config.hpp"
 #include "rapidjson/document.h"
 
 namespace Theme {
     using namespace Presets;
-
-    inline constexpr std::string_view themes_folder = R"(Data\SKSE\Plugins\SkyPrompt\themes)";
 
     struct ThemeBlock {
         Field<std::string, rapidjson::Value> theme_name = {"name", ""};
@@ -117,13 +112,7 @@ namespace Theme {
         void ReLoad(std::string_view a_filename);
     };
 
-    enum class ExportNameStatus : std::uint8_t { kValid, kEmpty, kInvalid, kExists };
-
     inline auto default_theme = Theme();
-
-    [[nodiscard]] ExportNameStatus ValidateExportName(std::string_view a_name);
-    [[nodiscard]] std::string NextExportName();
-    [[nodiscard]] std::optional<std::filesystem::path> ExportTheme(const Theme& a_theme, std::string_view a_name);
 
     void LoadThemes();
     void ReLoadDefaultTheme();
