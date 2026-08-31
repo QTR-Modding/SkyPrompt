@@ -14,7 +14,9 @@ set(sources ${sources}
  	src/Theme.cpp
 	src/ImGui/Graphics.cpp
     src/ImGui/Styles.cpp
-    src/ImGui/IconsFonts.cpp
+    src/ImGui/IconFont.cpp
+    src/ImGui/PromptDrawing.cpp
+    src/ImGui/PromptLayouts.cpp
     include/PapyrusAPI/Bindings.cpp
     include/PapyrusAPI/Sinks.cpp
 )
