@@ -701,7 +701,14 @@ SubManager* Manager::Add2Q(
         ++index;
     }
 
-    if (manager_list->size() < Theme::last_theme->n_max_buttons) {
+    int n_max_buttons;
+    {
+        std::shared_lock theme_lock(Theme::m_theme_);
+        const auto theme = Theme::themes.find(a_clientID);
+        n_max_buttons =
+            theme != Theme::themes.end() ? theme->second->n_max_buttons : Theme::default_theme.n_max_buttons;
+    }
+    if (manager_list->size() < n_max_buttons) {
         // if no manager has the event, make a new manager
         manager_list->emplace_back(std::make_unique<SubManager>());
     } else {
