@@ -39,7 +39,7 @@ namespace {
 SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     SpeedProfiler profiler("Plugin load (Part 1)");
     SetupLog();
-    SKSE::Init(skse);
+    SKSE::Init(skse, false);
 
     logger::info("Plugin loaded");
 
