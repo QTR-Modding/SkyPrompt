@@ -22,8 +22,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository
+      - name: Check out main
         uses: actions/checkout@v7
+        with:
+          ref: main
 
       - name: Publish wiki
         env:
