@@ -31,7 +31,7 @@ SkyPrompt provides a unified “prompt bar” / interaction overlay:
 
 ## 🧩 Feature Highlights
 
-- Overlay prompt system (1–4 slots depending on configuration)
+- Overlay prompt system with a configurable prompt limit (4 by default) and vertical, horizontal, radial, or diamond layouts
 - Attach prompts to world object references (3D)
 - Single click, hold-to-interact, and hold-to-keep mechanics
 - Stack multiple prompts in one list
@@ -39,7 +39,7 @@ SkyPrompt provides a unified “prompt bar” / interaction overlay:
 - Hold-and-keep mode so a prompt persists while active
 - Progress circle & dynamic text + color control
 - Attach to inventory 3D objects
-- Theming (fonts, icons, layout, spacing)
+- Theming (fonts, icons, spacing, and in-game export)
 - Tutorial + in‑game settings + log panel
 
 ---
