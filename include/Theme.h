@@ -82,10 +82,10 @@ namespace Theme {
         std::string theme_version = "1.0.0";
 
         int n_max_buttons = 4;
-        float marginX = 0.f;
-        float marginY = 0.f;
-        float xPercent = 0.85f;
-        float yPercent = 0.85f;
+        float marginX = 38.714f;
+        float marginY = -140.979f;
+        float xPercent = 0.779f;
+        float yPercent = 0.737f;
         float prompt_size = 45.65f;
         float icon2font_ratio = 1.f;
         float linespacing = 0.267f;
@@ -97,7 +97,7 @@ namespace Theme {
 
         PromptAlignment prompt_alignment = kVertical;
         PromptOrder prompt_order = kIconFirst;
-        PromptPivot prompt_pivot = kBottomRight;
+        PromptPivot prompt_pivot = kBottomLeft;
         uint32_t special_effect = 0;
 
         std::vector<uint32_t> special_integers;
