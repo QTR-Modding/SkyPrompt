@@ -1162,11 +1162,10 @@ bool SubManager::IsInQueue(const Interaction& a_interaction) const {
 }
 
 uint32_t InteractionButton::GetKey() const {
-    const auto manager = MANAGER(Input)->GetSingleton();
-    const auto a_device = manager->GetInputDevice();
     if (Theme::last_theme->prompt_alignment == Theme::kList) {
-        return manager->GetActivateKey();
+        return GetControlKey(RE::UserEvents::GetSingleton()->activate);
     }
+    const auto a_device = MANAGER(Input)->GetInputDevice();
     if (const auto it = keys.find(a_device); it != keys.end()) {
         return it->second; // client-provided key for this device
     }
@@ -1461,7 +1460,7 @@ std::optional<bool> Manager::ProcessListInput(RE::InputEvent* event) {
     if (const auto button = event->AsButtonEvent()) {
         using namespace SKSE::InputMap;
         const auto key = Input::Manager::Convert(button->GetIDCode(), button->GetDevice());
-        if (key == MANAGER(Input)->GetActivateKey()) return std::nullopt;
+        if (key == GetControlKey(RE::UserEvents::GetSingleton()->activate)) return std::nullopt;
         const bool up = key == Input::Manager::Convert(MOUSE::kWheelUp, RE::INPUT_DEVICE::kMouse) ||
                         key == kGamepadButtonOffset_DPAD_UP;
         const bool down = key == Input::Manager::Convert(MOUSE::kWheelDown, RE::INPUT_DEVICE::kMouse) ||

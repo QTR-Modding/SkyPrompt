@@ -150,6 +150,18 @@ void TranslateEmbedded(std::string& a_text) {
     }
 }
 
+uint32_t GetControlKey(const std::string_view a_controlName) {
+    const auto controlMap = RE::ControlMap::GetSingleton();
+    auto device = MANAGER(Input)->GetInputDevice() == Input::kKeyboardMouse
+        ? RE::INPUT_DEVICE::kKeyboard : RE::INPUT_DEVICE::kGamepad;
+    auto key = controlMap->GetMappedKey(a_controlName, device);
+    if (key == RE::ControlMap::kInvalid && device == RE::INPUT_DEVICE::kKeyboard) {
+        device = RE::INPUT_DEVICE::kMouse;
+        key = controlMap->GetMappedKey(a_controlName, device);
+    }
+    return key == RE::ControlMap::kInvalid ? 0 : Input::Manager::Convert(key, device);
+}
+
 void SkyrimMessageBox::Show(const std::string& bodyText, const std::vector<std::string>& buttonTextValues,
                             std::function<void(unsigned int)> callback) {
     const auto factoryManager = RE::MessageDataFactoryManager::GetSingleton();

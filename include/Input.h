@@ -21,7 +21,6 @@ namespace Input {
         void UpdateInputDevice(RE::InputEvent* event);
         [[nodiscard]] static uint32_t Convert(uint32_t button_key, RE::INPUT_DEVICE a_device);
         static std::vector<uint32_t> GetKeys(DEVICE a_device);
-        uint32_t GetActivateKey() const;
 
     private:
         // members

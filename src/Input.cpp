@@ -385,18 +385,6 @@ namespace Input {
         return 0;
     }
 
-    uint32_t Manager::GetActivateKey() const {
-        const auto controlMap = RE::ControlMap::GetSingleton();
-        const auto& activate = RE::UserEvents::GetSingleton()->activate;
-        auto device = inputDevice == kKeyboardMouse ? RE::INPUT_DEVICE::kKeyboard : RE::INPUT_DEVICE::kGamepad;
-        auto key = controlMap->GetMappedKey(activate, device);
-        if (key == RE::ControlMap::kInvalid && device == RE::INPUT_DEVICE::kKeyboard) {
-            device = RE::INPUT_DEVICE::kMouse;
-            key = controlMap->GetMappedKey(activate, device);
-        }
-        return key == RE::ControlMap::kInvalid ? 0 : Convert(key, device);
-    }
-
     std::vector<uint32_t> Manager::GetKeys(const DEVICE a_device) {
         using namespace SKSE::InputMap;
 
