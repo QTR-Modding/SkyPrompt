@@ -277,15 +277,9 @@ namespace ImGui::Renderer {
     }
 
     std::optional<bool> Manager::ProcessListInput(RE::InputEvent* event) {
-        if (Theme::last_theme->prompt_alignment != Theme::kList) {
-            listState.stickDirection = 0;
-            return std::nullopt;
-        }
+        if (Theme::last_theme->prompt_alignment != Theme::kList) return std::nullopt;
         const auto selected = GetSelectedListPrompt();
-        if (!selected || selected->IsHidden()) {
-            listState.stickDirection = 0;
-            return std::nullopt;
-        }
+        if (!selected || selected->IsHidden()) return std::nullopt;
         const bool block = PromptTypeFlags::GetBlocksInput(selected->GetPromptType());
         if (const auto button = event->AsButtonEvent()) {
             using namespace SKSE::InputMap;
@@ -304,19 +298,6 @@ namespace ImGui::Renderer {
                 }
                 return block;
             }
-        } else if (const auto stick = event->AsThumbstickEvent(); stick && stick->IsRight()) {
-            const int direction = stick->yValue > ListState::stickDeadzone ? -1 :
-                                  stick->yValue < -ListState::stickDeadzone ? 1 : 0;
-            const auto now = std::chrono::steady_clock::now();
-            if (direction != 0 && (direction != listState.stickDirection || now >= listState.nextRepeat)) {
-                MoveListSelection(direction < 0);
-                listState.nextRepeat = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                    std::chrono::duration<float>(
-                        direction != listState.stickDirection ? ListState::repeatDelay : ListState::repeatRate));
-            }
-            const bool navigating = direction != 0 || listState.stickDirection != 0;
-            listState.stickDirection = direction;
-            return block && navigating;
         }
         return std::nullopt;
     }

@@ -172,12 +172,9 @@ namespace ImGui::Renderer {
         struct ListState {
             static constexpr float repeatDelay = 0.35f;
             static constexpr float repeatRate = 0.12f;
-            static constexpr float stickDeadzone = 0.5f;
 
             size_t selection = 0;
             size_t firstVisible = 0;
-            int stickDirection = 0;
-            std::chrono::steady_clock::time_point nextRepeat;
         };
         ListState listState;
 

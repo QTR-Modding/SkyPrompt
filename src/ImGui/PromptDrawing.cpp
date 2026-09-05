@@ -520,10 +520,6 @@ namespace {
             const auto firstVertex = drawList->VtxBuffer.Size;
             const ImVec2 center = start + ImVec2(layout.iconX + iconSize * 0.5f, row.centerY);
             if (info.selected) {
-                const float halfHeight = std::max(radius, row.textSize.y * 0.5f);
-                drawList->AddRectFilled(start + ImVec2(layout.bounds.min.x, row.centerY - halfHeight),
-                    start + ImVec2(layout.bounds.min.x + layout.bounds.size.x, row.centerY + halfHeight),
-                    ImGui::GetColorU32(ImGuiCol_Header));
                 drawList->AddImage((ImTextureID)info.texture->srView.Get(),
                     center - ImVec2(iconSize, iconSize) * 0.5f, center + ImVec2(iconSize, iconSize) * 0.5f);
                 DrawPromptStateOverlay(drawList, info, center, radius, radius / 6.0f,
