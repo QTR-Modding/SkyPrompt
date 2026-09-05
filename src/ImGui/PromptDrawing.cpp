@@ -507,6 +507,50 @@ namespace {
         }
     }
 
+    void RenderPromptsList(const std::vector<ImGui::RenderInfo>& batch) {
+        const auto layout = MeasureVerticalPrompts(batch);
+        const auto start = ImGui::GetCursorScreenPos();
+        auto* drawList = ImGui::GetWindowDrawList();
+        const float iconSize = GetIconSize();
+        const float radius = iconSize * 1.25f * 0.5f;
+        const bool textFirst = Theme::last_theme->prompt_order == Theme::kTextFirst;
+        for (size_t i = 0; i < batch.size(); ++i) {
+            const auto& info = batch[i];
+            const auto& row = layout.rows[i];
+            const auto firstVertex = drawList->VtxBuffer.Size;
+            const ImVec2 center = start + ImVec2(layout.iconX + iconSize * 0.5f, row.centerY);
+            if (info.selected) {
+                const float halfHeight = std::max(radius, row.textSize.y * 0.5f);
+                drawList->AddRectFilled(start + ImVec2(layout.bounds.min.x, row.centerY - halfHeight),
+                    start + ImVec2(layout.bounds.min.x + layout.bounds.size.x, row.centerY + halfHeight),
+                    ImGui::GetColorU32(ImGuiCol_Header));
+                drawList->AddImage((ImTextureID)info.texture->srView.Get(),
+                    center - ImVec2(iconSize, iconSize) * 0.5f, center + ImVec2(iconSize, iconSize) * 0.5f);
+                DrawPromptStateOverlay(drawList, info, center, radius, radius / 6.0f,
+                    [&]() { DrawHoldMark(drawList, center, radius, iconSize * 0.5f); });
+            }
+            const float textPad = radius - iconSize * 0.5f + row.textOffset;
+            const float textX = textFirst
+                ? layout.iconX - ImGui::GetStyle().ItemSpacing.x - textPad - row.textSize.x
+                : iconSize + ImGui::GetStyle().ItemSpacing.x + textPad;
+            AddTextWithShadow(drawList, ImGui::GetFont(), ImGui::GetFontSize(),
+                start + ImVec2(textX, row.centerY - row.textSize.y * 0.5f),
+                info.text_color ? info.text_color : IM_COL32_WHITE, info.text.c_str());
+            for (auto vertex = firstVertex; vertex < drawList->VtxBuffer.Size; ++vertex) {
+                drawList->VtxBuffer[vertex].col = MulAlpha(drawList->VtxBuffer[vertex].col, info.alpha);
+            }
+        }
+        if (batch.front().moreAbove) {
+            ImGui::RenderArrow(drawList, start + ImVec2(layout.iconX, 0.0f),
+                MulAlpha(IM_COL32_WHITE, batch.front().alpha), ImGuiDir_Up);
+        }
+        if (batch.back().moreBelow) {
+            ImGui::RenderArrow(drawList, start + ImVec2(layout.iconX, layout.bounds.size.y - ImGui::GetFontSize()),
+                MulAlpha(IM_COL32_WHITE, batch.back().alpha), ImGuiDir_Down);
+        }
+        ImGui::Dummy(layout.bounds.size);
+    }
+
     void RenderPromptsHorizontal(const std::vector<ImGui::RenderInfo>& batch, const float lineSpacingPx) {
         if (batch.empty()) return;
 
@@ -616,6 +660,9 @@ void ImGui::RenderSkyPrompt(const ImVec2& anchor) {
     switch (prompt_alignment) {
         case Theme::PromptAlignment::kVertical:
             RenderPromptsVertical(renderBatch);
+            break;
+        case Theme::PromptAlignment::kList:
+            RenderPromptsList(renderBatch);
             break;
         case Theme::PromptAlignment::kHorizontal:
             RenderPromptsHorizontal(renderBatch, GetFontSize() * curr_theme->linespacing);

@@ -50,7 +50,8 @@ namespace Theme {
         kRadial,
         kHorizontal,
         kVertical,
-        kDiamond
+        kDiamond,
+        kList
     };
 
     PromptAlignment toPromptAlignment(const std::string& alignment);

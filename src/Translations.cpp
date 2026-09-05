@@ -66,6 +66,7 @@ namespace {
         {"$SkyPromptMCPPromptAlignmentHorizontal", "Horizontal"},
         {"$SkyPromptMCPPromptAlignmentVertical", "Vertical"},
         {"$SkyPromptMCPPromptAlignmentDiamond", "Diamond"},
+        {"$SkyPromptMCPPromptAlignmentList", "List"},
         {"$SkyPromptMCPPromptPivotTopLeft", "Top Left"},
         {"$SkyPromptMCPPromptPivotTopRight", "Top Right"},
         {"$SkyPromptMCPPromptPivotBottomLeft", "Bottom Left"},

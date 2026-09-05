@@ -164,6 +164,10 @@ bool InputHook::ProcessInput(RE::InputEvent* event) {
     const auto input_manager = MANAGER(Input);
     input_manager->UpdateInputDevice(event);
 
+    if (const auto handled = input_manager->ProcessListInput(event)) {
+        return *handled;
+    }
+
     if (const auto button_event = event->AsButtonEvent()) {
         const auto key = input_manager->Convert(button_event->GetIDCode(), button_event->GetDevice());
         for (const auto prompt_buttons = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] :

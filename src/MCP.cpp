@@ -43,6 +43,8 @@ namespace {
                 return Translations::Get("$SkyPromptMCPPromptAlignmentHorizontal");
             case Theme::kDiamond:
                 return Translations::Get("$SkyPromptMCPPromptAlignmentDiamond");
+            case Theme::kList:
+                return Translations::Get("$SkyPromptMCPPromptAlignmentList");
             case Theme::kVertical:
             default:
                 return Translations::Get("$SkyPromptMCPPromptAlignmentVertical");
@@ -482,7 +484,7 @@ void __stdcall MCP::RenderSettings() {
     const auto& prompt_alignment_preview = PromptAlignmentLabel(Theme::default_theme.prompt_alignment);
     if (LocalizedBeginCombo("$SkyPromptMCPSettingsPromptAlignment", "settings.promptAlignment",
                             prompt_alignment_preview.c_str())) {
-        for (const auto prompt_alignment : {Theme::kVertical, Theme::kHorizontal, Theme::kRadial, Theme::kDiamond}) {
+        for (const auto prompt_alignment : {Theme::kVertical, Theme::kHorizontal, Theme::kRadial, Theme::kDiamond, Theme::kList}) {
             const bool selected = Theme::default_theme.prompt_alignment == prompt_alignment;
             const auto id = std::format("settings.promptAlignment.{}", static_cast<int>(prompt_alignment));
             if (LocalizedSelectableText(PromptAlignmentLabel(prompt_alignment), id, selected)) {

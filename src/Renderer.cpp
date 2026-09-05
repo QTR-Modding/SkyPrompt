@@ -701,19 +701,16 @@ SubManager* Manager::Add2Q(
         ++index;
     }
 
-    int n_max_buttons;
     {
         std::shared_lock theme_lock(Theme::m_theme_);
-        const auto theme = Theme::themes.find(a_clientID);
-        n_max_buttons =
-            theme != Theme::themes.end() ? theme->second->n_max_buttons : Theme::default_theme.n_max_buttons;
+        const auto it = Theme::themes.find(a_clientID);
+        const auto& theme = it != Theme::themes.end() ? *it->second : Theme::default_theme;
+        if (theme.prompt_alignment != Theme::kList && manager_list->size() >= theme.n_max_buttons) {
+            return nullptr;
+        }
     }
-    if (manager_list->size() < n_max_buttons) {
-        // if no manager has the event, make a new manager
-        manager_list->emplace_back(std::make_unique<SubManager>());
-    } else {
-        return nullptr;
-    }
+    // If no manager has the event, make a new row.
+    manager_list->emplace_back(std::make_unique<SubManager>());
 
     const auto iButton = InteractionButton(a_interaction, a_mutables, a_type, a_refid, a_bttn_map, index);
     manager_list->back()->Add2Q(iButton, show);
@@ -740,6 +737,7 @@ bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
 
     managers = std::move(client_managers.at(client_id));
     last_clientID = client_id;
+    listSelection = listFirstVisible = 0;
 
     std::shared_lock theme_lock(Theme::m_theme_);
     const auto last_theme = Theme::last_theme;
@@ -1165,6 +1163,9 @@ bool SubManager::IsInQueue(const Interaction& a_interaction) const {
 uint32_t InteractionButton::GetKey() const {
     const auto manager = MANAGER(Input)->GetSingleton();
     const auto a_device = manager->GetInputDevice();
+    if (Theme::last_theme->prompt_alignment == Theme::kList) {
+        return manager->GetActivateKey();
+    }
     if (const auto it = keys.find(a_device); it != keys.end()) {
         return it->second; // client-provided key for this device
     }
@@ -1238,6 +1239,8 @@ void Manager::CleanUpQueue() {
             for (const size_t idx : to_remove) {
                 managers.erase(managers.begin() + idx);
             }
+            listSelection = managers.empty() ? 0 : std::min(listSelection, managers.size() - 1);
+            listFirstVisible = std::min(listFirstVisible, listSelection);
         }
         if (std::shared_lock lock(mutex_); managers.empty()) {
             lock.unlock();
@@ -1263,16 +1266,37 @@ void Manager::ShowQueue() {
         height * Theme::last_theme->yPercent - Theme::last_theme->marginY * resScale
         );
 
-    std::map<RefID, std::vector<SubManager*>> object_managers;
+    const bool list = Theme::last_theme->prompt_alignment == Theme::kList;
+    const auto visibleCount = static_cast<size_t>(std::max(Theme::last_theme->n_max_buttons, 1));
+    if (list) {
+        std::unique_lock lock(mutex_);
+        listSelection = managers.empty() ? 0 : std::min(listSelection, managers.size() - 1);
+        listFirstVisible = std::clamp(listFirstVisible,
+            listSelection >= visibleCount ? listSelection - visibleCount + 1 : 0, listSelection);
+    }
+    // Advance every row's lifetime, but draw only the List viewport.
+    const auto show = [&](const size_t index) {
+        const auto before = renderBatch.size();
+        managers[index]->ShowQueue();
+        if (!list || renderBatch.size() == before) return;
+        if (index < listFirstVisible || index - listFirstVisible >= visibleCount) {
+            renderBatch.resize(before);
+            return;
+        }
+        auto& row = renderBatch.back();
+        row.selected = index == listSelection;
+        row.moreAbove = index == listFirstVisible && listFirstVisible > 0;
+        row.moreBelow = index - listFirstVisible == visibleCount - 1 && index + 1 < managers.size();
+    };
+    std::map<RefID, std::vector<size_t>> object_managers;
     renderBatch.clear();
 
-    for (std::shared_lock lock(mutex_);
-         auto& a_manager : managers) {
-        if (const auto a_ref = a_manager->GetAttachedObject()) {
-            object_managers[a_ref->GetFormID()].push_back(a_manager.get());
+    for (std::shared_lock lock(mutex_); const auto index : std::views::iota(size_t{0}, managers.size())) {
+        if (const auto a_ref = managers[index]->GetAttachedObject()) {
+            object_managers[a_ref->GetFormID()].push_back(index);
             continue;
         }
-        a_manager->ShowQueue();
+        show(index);
     }
 
     BeginImGuiWindow("SkyPrompt", GetSkyPromptContentOrigin(windowPos));
@@ -1304,12 +1328,12 @@ void Manager::ShowQueue() {
     int i = 0;
     for (std::shared_lock lock(mutex_);
          const auto& managers_ : object_managers | std::views::values) {
-        auto window_pos = managers_[0]->GetAttachedObjectPos();
+        auto window_pos = managers[managers_[0]]->GetAttachedObjectPos();
         window_pos.x -= Theme::last_theme->marginX * resScale;
         window_pos.y -= Theme::last_theme->marginY * resScale;
         renderBatch.clear();
-        for (const auto a_manager : managers_) {
-            a_manager->ShowQueue();
+        for (const auto index : managers_) {
+            show(index);
         }
         BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str(),
                          GetSkyPromptContentOrigin(window_pos));
@@ -1324,6 +1348,7 @@ void Manager::Clear(const SkyPromptAPI::PromptEventType a_event_type) {
         a_manager->ClearQueue(a_event_type);
     }
     managers.clear();
+    listSelection = listFirstVisible = 0;
 }
 
 Interaction Manager::MakeInteraction(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::EventID a_event,
@@ -1356,6 +1381,10 @@ bool Manager::IsHidden() const {
 }
 
 SubManager* Manager::GetSubManagerByKey(const uint32_t a_prompt_key) const {
+    if (Theme::last_theme->prompt_alignment == Theme::kList) {
+        const auto selected = GetSelectedListPrompt();
+        return selected && selected->GetPromptKey() == a_prompt_key ? selected : nullptr;
+    }
     std::shared_lock lock(mutex_);
     for (auto& a_manager : managers) {
         if (const auto key = a_manager->GetPromptKey(); key == a_prompt_key) {
@@ -1367,19 +1396,22 @@ SubManager* Manager::GetSubManagerByKey(const uint32_t a_prompt_key) const {
 
 std::vector<uint32_t> Manager::GetPromptKeys() const {
     std::vector<uint32_t> keys;
-    for (std::shared_lock lock(mutex_); const auto& a_manager : managers) {
-        if (a_manager->IsHidden()) {
-            continue;
-        }
-        if (const auto key = a_manager->GetPromptKey(); key != 0) {
-            keys.push_back(key);
-        }
+    for (const auto& button : GetPromptButtons()) {
+        keys.push_back(button.second);
     }
     return keys;
 }
 
 std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::GetPromptButtons() const {
     std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> buttons;
+    if (Theme::last_theme->prompt_alignment == Theme::kList) {
+        if (const auto selected = GetSelectedListPrompt(); selected && !selected->IsHidden()) {
+            if (const auto key = selected->GetPromptKey(); key != 0) {
+                buttons.emplace_back(selected->GetPromptType(), key);
+            }
+        }
+        return buttons;
+    }
     for (std::shared_lock lock(mutex_); const auto& a_manager : managers) {
         if (a_manager->IsHidden()) {
             continue;
@@ -1390,6 +1422,28 @@ std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::GetPromptBut
         }
     }
     return buttons;
+}
+
+SubManager* Manager::GetSelectedListPrompt() const {
+    std::shared_lock lock(mutex_);
+    return listSelection < managers.size() ? managers[listSelection].get() : nullptr;
+}
+
+void Manager::MoveListSelection(const bool previous) {
+    std::unique_lock lock(mutex_);
+    if (listSelection >= managers.size()) return;
+    const auto selected = managers[listSelection].get();
+    // Finish the current press before changing its target.
+    if (selected->buttonState.isPressing) return;
+    selected->buttonState.Reset();
+    if (previous && listSelection > 0) {
+        --listSelection;
+    } else if (!previous && listSelection + 1 < managers.size()) {
+        ++listSelection;
+    }
+    for (const auto& manager : managers) {
+        manager->WakeUpQueue();
+    }
 }
 
 void Manager::ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func) {

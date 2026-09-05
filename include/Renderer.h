@@ -168,6 +168,8 @@ namespace ImGui::Renderer {
         std::atomic<bool> isPaused = false;
 
         std::vector<std::unique_ptr<SubManager>> managers;
+        size_t listSelection = 0;
+        size_t listFirstVisible = 0;
 
         std::map<SkyPromptAPI::ClientID, std::vector<std::unique_ptr<SubManager>>> client_managers;
 
@@ -197,6 +199,8 @@ namespace ImGui::Renderer {
         bool IsPaused() const { return isPaused.load(); }
         bool IsHidden() const;
         SubManager* GetSubManagerByKey(uint32_t a_prompt_key) const;
+        SubManager* GetSelectedListPrompt() const;
+        void MoveListSelection(bool previous);
         std::vector<uint32_t> GetPromptKeys() const;
         std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> GetPromptButtons() const;
 

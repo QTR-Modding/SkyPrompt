@@ -22,7 +22,8 @@ namespace ImGui::PromptLayouts {
         layout.rows.reserve(batch.size());
         float maxPrefixWidth = 0.0f;
         float maxTextExtent = 0.0f;
-        float rowStart = 0.0f;
+        const float scrollPadding = Theme::last_theme->prompt_alignment == Theme::kList ? ImGui::GetFontSize() : 0.0f;
+        float rowStart = scrollPadding;
         float maxBottom = 0.0f;
         for (const auto& renderInfo : batch) {
             const ImVec2 textSize = ImGui::CalcTextSize(renderInfo.text.c_str());
@@ -52,7 +53,7 @@ namespace ImGui::PromptLayouts {
         layout.iconX = textFirst ? ImGui::GetStyle().ItemSpacing.x + maxPrefixWidth : 0.0f;
         layout.bounds = {
             .min = {textFirst ? 0.0f : -circleOverhang, 0.0f},
-            .size = {circleDiameter + ImGui::GetStyle().ItemSpacing.x + maxTextExtent, maxBottom}
+            .size = {circleDiameter + ImGui::GetStyle().ItemSpacing.x + maxTextExtent, maxBottom + scrollPadding}
         };
         return layout;
     }
@@ -228,10 +229,9 @@ ImVec2 ImGui::GetSkyPromptContentOrigin(const ImVec2& anchor) {
 
     const auto promptAlignment = Theme::last_theme->prompt_alignment;
     const float lineSpacingPx = GetFontSize() * Theme::last_theme->linespacing;
-    std::ranges::sort(renderBatch,
-                      [](const RenderInfo& a, const RenderInfo& b) {
-                          return a.row < b.row;
-                      });
+    if (promptAlignment != Theme::kList) {
+        std::ranges::sort(renderBatch, {}, &RenderInfo::row);
+    }
 
     if (promptAlignment == Theme::kDiamond) {
         const auto layout = MeasureDiamondPrompts(renderBatch, lineSpacingPx);

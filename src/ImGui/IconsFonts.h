@@ -234,6 +234,9 @@ namespace ImGui {
         float alpha;
 
         SCENES::Event row = 0; // Row index for vertical alignment
+        bool selected = false;
+        bool moreAbove = false;
+        bool moreBelow = false;
     };
 
 
