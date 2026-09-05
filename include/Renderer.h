@@ -183,6 +183,8 @@ namespace ImGui::Renderer {
 
         SubManager* GetSelectedListPrompt() const;
         void MoveListSelection(bool previous);
+        void UpdateListViewport(size_t visibleCount);
+        void ShowPromptRow(size_t index, bool list, size_t visibleCount);
 
         std::map<SkyPromptAPI::ClientID, std::vector<std::unique_ptr<SubManager>>> client_managers;
 

@@ -1251,6 +1251,28 @@ void Manager::CleanUpQueue() {
     }
 }
 
+void Manager::UpdateListViewport(const size_t visibleCount) {
+    std::unique_lock lock(mutex_);
+    listState.selection = managers.empty() ? 0 : std::min(listState.selection, managers.size() - 1);
+    listState.firstVisible = std::clamp(listState.firstVisible,
+        listState.selection >= visibleCount ? listState.selection - visibleCount + 1 : 0, listState.selection);
+}
+
+void Manager::ShowPromptRow(const size_t index, const bool list, const size_t visibleCount) {
+    // Advance every row's lifetime, but draw only the List viewport.
+    const auto before = renderBatch.size();
+    managers[index]->ShowQueue();
+    if (!list || renderBatch.size() == before) return;
+    if (index < listState.firstVisible || index - listState.firstVisible >= visibleCount) {
+        renderBatch.resize(before);
+        return;
+    }
+    auto& row = renderBatch.back();
+    row.selected = index == listState.selection;
+    row.moreAbove = index == listState.firstVisible && listState.firstVisible > 0;
+    row.moreBelow = index - listState.firstVisible == visibleCount - 1 && index + 1 < managers.size();
+}
+
 void Manager::ShowQueue() {
     if (IsPaused()) {
         return;
@@ -1269,25 +1291,8 @@ void Manager::ShowQueue() {
     const bool list = Theme::last_theme->prompt_alignment == Theme::kList;
     const auto visibleCount = static_cast<size_t>(std::max(Theme::last_theme->n_max_buttons, 1));
     if (list) {
-        std::unique_lock lock(mutex_);
-        listState.selection = managers.empty() ? 0 : std::min(listState.selection, managers.size() - 1);
-        listState.firstVisible = std::clamp(listState.firstVisible,
-            listState.selection >= visibleCount ? listState.selection - visibleCount + 1 : 0, listState.selection);
+        UpdateListViewport(visibleCount);
     }
-    // Advance every row's lifetime, but draw only the List viewport.
-    const auto show = [&](const size_t index) {
-        const auto before = renderBatch.size();
-        managers[index]->ShowQueue();
-        if (!list || renderBatch.size() == before) return;
-        if (index < listState.firstVisible || index - listState.firstVisible >= visibleCount) {
-            renderBatch.resize(before);
-            return;
-        }
-        auto& row = renderBatch.back();
-        row.selected = index == listState.selection;
-        row.moreAbove = index == listState.firstVisible && listState.firstVisible > 0;
-        row.moreBelow = index - listState.firstVisible == visibleCount - 1 && index + 1 < managers.size();
-    };
     std::map<RefID, std::vector<size_t>> object_managers;
     renderBatch.clear();
 
@@ -1296,7 +1301,7 @@ void Manager::ShowQueue() {
             object_managers[a_ref->GetFormID()].push_back(index);
             continue;
         }
-        show(index);
+        ShowPromptRow(index, list, visibleCount);
     }
 
     BeginImGuiWindow("SkyPrompt", GetSkyPromptContentOrigin(windowPos));
@@ -1333,7 +1338,7 @@ void Manager::ShowQueue() {
         window_pos.y -= Theme::last_theme->marginY * resScale;
         renderBatch.clear();
         for (const auto index : managers_) {
-            show(index);
+            ShowPromptRow(index, list, visibleCount);
         }
         BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str(),
                          GetSkyPromptContentOrigin(window_pos));
