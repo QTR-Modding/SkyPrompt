@@ -1270,12 +1270,12 @@ void Manager::ShowQueue() {
     if (list) {
         UpdateListViewport(visibleCount);
     }
-    std::map<RefID, std::vector<size_t>> object_managers;
+    std::map<RefID, std::vector<size_t>> rowsByObject;
     renderBatch.clear();
 
     for (std::shared_lock lock(mutex_); const auto index : std::views::iota(size_t{0}, managers.size())) {
         if (const auto a_ref = managers[index]->GetAttachedObject()) {
-            object_managers[a_ref->GetFormID()].push_back(index);
+            rowsByObject[a_ref->GetFormID()].push_back(index);
             continue;
         }
         ShowPromptRow(index, list, visibleCount);
@@ -1309,12 +1309,12 @@ void Manager::ShowQueue() {
 
     int i = 0;
     for (std::shared_lock lock(mutex_);
-         const auto& managers_ : object_managers | std::views::values) {
-        auto window_pos = managers[managers_[0]]->GetAttachedObjectPos();
+         const auto& rowIndices : rowsByObject | std::views::values) {
+        auto window_pos = managers[rowIndices[0]]->GetAttachedObjectPos();
         window_pos.x -= Theme::last_theme->marginX * resScale;
         window_pos.y -= Theme::last_theme->marginY * resScale;
         renderBatch.clear();
-        for (const auto index : managers_) {
+        for (const auto index : rowIndices) {
             ShowPromptRow(index, list, visibleCount);
         }
         BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str(),
