@@ -8,6 +8,7 @@
 #include "Service.h"
 #include "Tutorial.h"
 #include "API/HandshakeRegistry.h"
+#include "imgui_internal.h"
 
 
 using namespace ImGui::Renderer;
@@ -737,7 +738,7 @@ bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
 
     managers = std::move(client_managers.at(client_id));
     last_clientID = client_id;
-    listSelection = listFirstVisible = 0;
+    listState.selection = listState.firstVisible = 0;
 
     std::shared_lock theme_lock(Theme::m_theme_);
     const auto last_theme = Theme::last_theme;
@@ -1239,8 +1240,8 @@ void Manager::CleanUpQueue() {
             for (const size_t idx : to_remove) {
                 managers.erase(managers.begin() + idx);
             }
-            listSelection = managers.empty() ? 0 : std::min(listSelection, managers.size() - 1);
-            listFirstVisible = std::min(listFirstVisible, listSelection);
+            listState.selection = managers.empty() ? 0 : std::min(listState.selection, managers.size() - 1);
+            listState.firstVisible = std::min(listState.firstVisible, listState.selection);
         }
         if (std::shared_lock lock(mutex_); managers.empty()) {
             lock.unlock();
@@ -1270,23 +1271,23 @@ void Manager::ShowQueue() {
     const auto visibleCount = static_cast<size_t>(std::max(Theme::last_theme->n_max_buttons, 1));
     if (list) {
         std::unique_lock lock(mutex_);
-        listSelection = managers.empty() ? 0 : std::min(listSelection, managers.size() - 1);
-        listFirstVisible = std::clamp(listFirstVisible,
-            listSelection >= visibleCount ? listSelection - visibleCount + 1 : 0, listSelection);
+        listState.selection = managers.empty() ? 0 : std::min(listState.selection, managers.size() - 1);
+        listState.firstVisible = std::clamp(listState.firstVisible,
+            listState.selection >= visibleCount ? listState.selection - visibleCount + 1 : 0, listState.selection);
     }
     // Advance every row's lifetime, but draw only the List viewport.
     const auto show = [&](const size_t index) {
         const auto before = renderBatch.size();
         managers[index]->ShowQueue();
         if (!list || renderBatch.size() == before) return;
-        if (index < listFirstVisible || index - listFirstVisible >= visibleCount) {
+        if (index < listState.firstVisible || index - listState.firstVisible >= visibleCount) {
             renderBatch.resize(before);
             return;
         }
         auto& row = renderBatch.back();
-        row.selected = index == listSelection;
-        row.moreAbove = index == listFirstVisible && listFirstVisible > 0;
-        row.moreBelow = index - listFirstVisible == visibleCount - 1 && index + 1 < managers.size();
+        row.selected = index == listState.selection;
+        row.moreAbove = index == listState.firstVisible && listState.firstVisible > 0;
+        row.moreBelow = index - listState.firstVisible == visibleCount - 1 && index + 1 < managers.size();
     };
     std::map<RefID, std::vector<size_t>> object_managers;
     renderBatch.clear();
@@ -1348,7 +1349,7 @@ void Manager::Clear(const SkyPromptAPI::PromptEventType a_event_type) {
         a_manager->ClearQueue(a_event_type);
     }
     managers.clear();
-    listSelection = listFirstVisible = 0;
+    listState.selection = listState.firstVisible = 0;
 }
 
 Interaction Manager::MakeInteraction(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::EventID a_event,
@@ -1426,24 +1427,69 @@ std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::GetPromptBut
 
 SubManager* Manager::GetSelectedListPrompt() const {
     std::shared_lock lock(mutex_);
-    return listSelection < managers.size() ? managers[listSelection].get() : nullptr;
+    return listState.selection < managers.size() ? managers[listState.selection].get() : nullptr;
 }
 
 void Manager::MoveListSelection(const bool previous) {
     std::unique_lock lock(mutex_);
-    if (listSelection >= managers.size()) return;
-    const auto selected = managers[listSelection].get();
+    if (listState.selection >= managers.size()) return;
+    const auto selected = managers[listState.selection].get();
     // Finish the current press before changing its target.
     if (selected->buttonState.isPressing) return;
     selected->buttonState.Reset();
-    if (previous && listSelection > 0) {
-        --listSelection;
-    } else if (!previous && listSelection + 1 < managers.size()) {
-        ++listSelection;
+    if (previous && listState.selection > 0) {
+        --listState.selection;
+    } else if (!previous && listState.selection + 1 < managers.size()) {
+        ++listState.selection;
     }
     for (const auto& manager : managers) {
         manager->WakeUpQueue();
     }
+}
+
+std::optional<bool> Manager::ProcessListInput(RE::InputEvent* event) {
+    if (Theme::last_theme->prompt_alignment != Theme::kList) {
+        listState.stickDirection = 0;
+        return std::nullopt;
+    }
+    const auto selected = GetSelectedListPrompt();
+    if (!selected || selected->IsHidden()) {
+        listState.stickDirection = 0;
+        return std::nullopt;
+    }
+    const bool block = PromptTypeFlags::GetBlocksInput(selected->GetPromptType());
+    if (const auto button = event->AsButtonEvent()) {
+        using namespace SKSE::InputMap;
+        const auto key = Input::Manager::Convert(button->GetIDCode(), button->GetDevice());
+        if (key == MANAGER(Input)->GetActivateKey()) return std::nullopt;
+        const bool up = key == Input::Manager::Convert(MOUSE::kWheelUp, RE::INPUT_DEVICE::kMouse) ||
+                        key == kGamepadButtonOffset_DPAD_UP;
+        const bool down = key == Input::Manager::Convert(MOUSE::kWheelDown, RE::INPUT_DEVICE::kMouse) ||
+                          key == kGamepadButtonOffset_DPAD_DOWN;
+        if (up || down) {
+            const float held = button->HeldDuration();
+            if (button->IsDown() || (button->IsPressed() &&
+                ImGui::CalcTypematicRepeatAmount(held - ImGui::GetIO().DeltaTime, held,
+                    ListState::repeatDelay, ListState::repeatRate) > 0)) {
+                MoveListSelection(up);
+            }
+            return block;
+        }
+    } else if (const auto stick = event->AsThumbstickEvent(); stick && stick->IsRight()) {
+        const int direction = stick->yValue > ListState::stickDeadzone ? -1 :
+                              stick->yValue < -ListState::stickDeadzone ? 1 : 0;
+        const auto now = std::chrono::steady_clock::now();
+        if (direction != 0 && (direction != listState.stickDirection || now >= listState.nextRepeat)) {
+            MoveListSelection(direction < 0);
+            listState.nextRepeat = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                std::chrono::duration<float>(
+                    direction != listState.stickDirection ? ListState::repeatDelay : ListState::repeatRate));
+        }
+        const bool navigating = direction != 0 || listState.stickDirection != 0;
+        listState.stickDirection = direction;
+        return block && navigating;
+    }
+    return std::nullopt;
 }
 
 void Manager::ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func) {

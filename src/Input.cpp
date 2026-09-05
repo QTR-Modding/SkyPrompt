@@ -1,6 +1,5 @@
 #include "Input.h"
 #include "Renderer.h"
-#include "Service.h"
 #include "imgui_internal.h"
 #include <imgui.h>
 
@@ -396,52 +395,6 @@ namespace Input {
             key = controlMap->GetMappedKey(activate, device);
         }
         return key == RE::ControlMap::kInvalid ? 0 : Convert(key, device);
-    }
-
-    std::optional<bool> Manager::ProcessListInput(RE::InputEvent* event) {
-        if (Theme::last_theme->prompt_alignment != Theme::kList) {
-            listStickDirection = 0;
-            return std::nullopt;
-        }
-        const auto renderer = MANAGER(ImGui::Renderer);
-        const auto selected = renderer->GetSelectedListPrompt();
-        if (!selected || selected->IsHidden()) {
-            listStickDirection = 0;
-            return std::nullopt;
-        }
-        const bool block = PromptTypeFlags::GetBlocksInput(selected->GetPromptType());
-        constexpr float repeatDelay = 0.35f;
-        constexpr float repeatRate = 0.12f;
-        if (const auto button = event->AsButtonEvent()) {
-            using namespace SKSE::InputMap;
-            const auto key = Convert(button->GetIDCode(), button->GetDevice());
-            if (key == GetActivateKey()) return std::nullopt;
-            const bool up = key == Convert(MOUSE::kWheelUp, RE::INPUT_DEVICE::kMouse) ||
-                            key == kGamepadButtonOffset_DPAD_UP;
-            const bool down = key == Convert(MOUSE::kWheelDown, RE::INPUT_DEVICE::kMouse) ||
-                              key == kGamepadButtonOffset_DPAD_DOWN;
-            if (up || down) {
-                const float held = button->HeldDuration();
-                if (button->IsDown() || (button->IsPressed() &&
-                    ImGui::CalcTypematicRepeatAmount(held - ImGui::GetIO().DeltaTime, held, repeatDelay, repeatRate) > 0)) {
-                    renderer->MoveListSelection(up);
-                }
-                return block;
-            }
-        } else if (const auto stick = event->AsThumbstickEvent(); stick && stick->IsRight()) {
-            constexpr float deadzone = 0.5f;
-            const int direction = stick->yValue > deadzone ? -1 : stick->yValue < -deadzone ? 1 : 0;
-            const auto now = std::chrono::steady_clock::now();
-            if (direction != 0 && (direction != listStickDirection || now >= nextListRepeat)) {
-                renderer->MoveListSelection(direction < 0);
-                nextListRepeat = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                    std::chrono::duration<float>(direction != listStickDirection ? repeatDelay : repeatRate));
-            }
-            const bool navigating = direction != 0 || listStickDirection != 0;
-            listStickDirection = direction;
-            return block && navigating;
-        }
-        return std::nullopt;
     }
 
     std::vector<uint32_t> Manager::GetKeys(const DEVICE a_device) {

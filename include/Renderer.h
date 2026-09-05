@@ -168,8 +168,21 @@ namespace ImGui::Renderer {
         std::atomic<bool> isPaused = false;
 
         std::vector<std::unique_ptr<SubManager>> managers;
-        size_t listSelection = 0;
-        size_t listFirstVisible = 0;
+
+        struct ListState {
+            static constexpr float repeatDelay = 0.35f;
+            static constexpr float repeatRate = 0.12f;
+            static constexpr float stickDeadzone = 0.5f;
+
+            size_t selection = 0;
+            size_t firstVisible = 0;
+            int stickDirection = 0;
+            std::chrono::steady_clock::time_point nextRepeat;
+        };
+        ListState listState;
+
+        SubManager* GetSelectedListPrompt() const;
+        void MoveListSelection(bool previous);
 
         std::map<SkyPromptAPI::ClientID, std::vector<std::unique_ptr<SubManager>>> client_managers;
 
@@ -199,8 +212,7 @@ namespace ImGui::Renderer {
         bool IsPaused() const { return isPaused.load(); }
         bool IsHidden() const;
         SubManager* GetSubManagerByKey(uint32_t a_prompt_key) const;
-        SubManager* GetSelectedListPrompt() const;
-        void MoveListSelection(bool previous);
+        std::optional<bool> ProcessListInput(RE::InputEvent* event);
         std::vector<uint32_t> GetPromptKeys() const;
         std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> GetPromptButtons() const;
 

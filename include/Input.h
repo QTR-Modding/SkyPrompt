@@ -22,7 +22,6 @@ namespace Input {
         [[nodiscard]] static uint32_t Convert(uint32_t button_key, RE::INPUT_DEVICE a_device);
         static std::vector<uint32_t> GetKeys(DEVICE a_device);
         uint32_t GetActivateKey() const;
-        std::optional<bool> ProcessListInput(RE::InputEvent* event);
 
     private:
         // members
@@ -36,7 +35,5 @@ namespace Input {
         std::uint32_t screenshotGamepad{0};
 
         DEVICE inputDevice{kKeyboardMouse};
-        int listStickDirection = 0;
-        std::chrono::steady_clock::time_point nextListRepeat;
     };
 }
