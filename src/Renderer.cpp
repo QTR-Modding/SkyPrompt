@@ -1409,14 +1409,6 @@ SubManager* Manager::GetSubManagerByKey(const uint32_t a_prompt_key) const {
     return nullptr;
 }
 
-std::vector<uint32_t> Manager::GetPromptKeys() const {
-    std::vector<uint32_t> keys;
-    for (const auto& button : GetPromptButtons()) {
-        keys.push_back(button.second);
-    }
-    return keys;
-}
-
 std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::GetPromptButtons() const {
     std::shared_lock lock(mutex_);
     std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> buttons;

@@ -201,7 +201,6 @@ namespace ImGui::Renderer {
         bool IsHidden() const;
         SubManager* GetSubManagerByKey(uint32_t a_prompt_key) const;
         std::optional<bool> ProcessListInput(RE::InputEvent* event);
-        std::vector<uint32_t> GetPromptKeys() const;
         std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> GetPromptButtons() const;
 
         void ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func);
