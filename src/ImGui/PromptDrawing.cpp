@@ -659,6 +659,9 @@ void ImGui::RenderSkyPrompt(const ImVec2& anchor) {
     const auto prompt_alignment = curr_theme->prompt_alignment;
     const auto special_effect = curr_theme->special_effect;
 
+    // Decorations may extend beyond the auto-sized layout window.
+    auto* drawList = GetWindowDrawList();
+    drawList->PushClipRectFullScreen();
     switch (prompt_alignment) {
         case Theme::PromptAlignment::kVertical:
             RenderPromptsVertical(renderBatch);
@@ -683,6 +686,8 @@ void ImGui::RenderSkyPrompt(const ImVec2& anchor) {
             break;
         }
     }
+
+    drawList->PopClipRect();
 
     if (special_effect > 0) {
         const auto a_size = GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
