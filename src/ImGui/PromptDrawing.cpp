@@ -6,6 +6,17 @@
 namespace {
     using namespace ImGui::PromptLayouts;
 
+    SkyPrompt::AddOns::SpecialEffects::SpecialsView
+    GetSpecialsView(const Theme::Theme& t) {
+        SkyPrompt::AddOns::SpecialEffects::SpecialsView v;
+        v.effectID = t.special_effect;
+        v.integers = std::span{t.special_integers};
+        v.strings = std::span{t.special_strings};
+        v.floats = std::span{t.special_floats};
+        v.bools = std::span{t.special_bools};
+        return v;
+    }
+
     // Utility: scale a packed ImU32 color's alpha by factor in [0,1]
     ImU32 MulAlpha(const ImU32 c, float a) {
         a = ImClamp(a, 0.0f, 1.0f);
@@ -156,9 +167,11 @@ namespace {
 
 
     void AddTextWithShadow(ImDrawList* draw_list, ImFont* font, const float font_size, const ImVec2 position,
-                           const ImU32 text_color, const char* text) {
+                           const ImVec2 text_size, const ImU32 text_color, const char* text) {
         if (!draw_list || !font || !text || !*text) return;
 
+        SkyPrompt::AddOns::RenderSpecialEffect(GetSpecialsView(*Theme::last_theme), draw_list,
+                                               position, position + text_size);
         const auto shadow_color = IM_COL32(0, 0, 0, 255 * Theme::last_theme->font_shadow);
         draw_list->AddText(font, font_size, position + ImVec2(2.5f, 2.5f), shadow_color, text);
         draw_list->AddText(font, font_size, position, text_color, text);
@@ -249,7 +262,7 @@ namespace {
             ImGui::SetCursorPosX(a_textFirstIconX - ImGui::GetStyle().ItemSpacing.x - textPad - textSize.x);
             ImGui::SetCursorPosY(startY + textOffset);
             AddTextWithShadow(a_drawlist, ImGui::GetFont(), ImGui::GetFontSize(),
-                              ImGui::GetCursorScreenPos(), textColor, a_text);
+                              ImGui::GetCursorScreenPos(), textSize, textColor, a_text);
             ImGui::Dummy(textSize);
 
             ImGui::SameLine();
@@ -268,7 +281,7 @@ namespace {
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + textPad);
 
             AddTextWithShadow(a_drawlist, ImGui::GetFont(), ImGui::GetFontSize(),
-                              ImGui::GetCursorScreenPos(), textColor, a_text);
+                              ImGui::GetCursorScreenPos(), textSize, textColor, a_text);
             ImGui::Dummy(textSize); // Moves cursor forward horizontally
         }
 
@@ -441,6 +454,8 @@ namespace {
                 2.5f * (rowX.y + rowY.y)
             };
 
+            SkyPrompt::AddOns::RenderSpecialEffect(GetSpecialsView(*Theme::last_theme), dl,
+                textCenter - row.textSize * 0.5f, textCenter + row.textSize * 0.5f, angle, ri.alpha);
             AddTextRotated(dl, font, fs, textCenter + shadowOffset,
                            shadow, ri.text.c_str(), nullptr, angle, true);
             AddTextRotated(dl, font, fs, textCenter,
@@ -483,7 +498,8 @@ namespace {
         const ImU32 color = renderInfo.text_color
                                 ? renderInfo.text_color
                                 : IM_COL32(255, 255, 255, 255);
-        AddTextWithShadow(drawList, font, fontSize, textPosition, color, renderInfo.text.c_str());
+        AddTextWithShadow(drawList, font, fontSize, textPosition,
+                          {dimensions.textWidth, dimensions.textHeight}, color, renderInfo.text.c_str());
         for (auto i = firstVertex; i < drawList->VtxBuffer.Size; ++i) {
             drawList->VtxBuffer[i].col = MulAlpha(drawList->VtxBuffer[i].col, renderInfo.alpha);
         }
@@ -531,7 +547,7 @@ namespace {
                 : iconSize + ImGui::GetStyle().ItemSpacing.x + textPad;
             AddTextWithShadow(drawList, ImGui::GetFont(), ImGui::GetFontSize(),
                 start + ImVec2(textX, row.centerY - row.textSize.y * 0.5f),
-                info.text_color ? info.text_color : IM_COL32_WHITE, info.text.c_str());
+                row.textSize, info.text_color ? info.text_color : IM_COL32_WHITE, info.text.c_str());
             for (auto vertex = firstVertex; vertex < drawList->VtxBuffer.Size; ++vertex) {
                 drawList->VtxBuffer[vertex].col = MulAlpha(drawList->VtxBuffer[vertex].col, info.alpha);
             }
@@ -588,16 +604,6 @@ namespace {
         ImGui::Dummy(layout.bounds.size);
     }
 
-    SkyPrompt::AddOns::SpecialEffects::SpecialsView
-    GetSpecialsView(const Theme::Theme& t) {
-        SkyPrompt::AddOns::SpecialEffects::SpecialsView v;
-        v.effectID = t.special_effect;
-        v.integers = std::span{t.special_integers};
-        v.strings = std::span{t.special_strings};
-        v.floats = std::span{t.special_floats};
-        v.bools = std::span{t.special_bools};
-        return v;
-    }
 }
 
 
