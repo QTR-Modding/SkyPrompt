@@ -129,6 +129,11 @@ namespace {
         {"$SkyPromptMCPPositionCenterBottomLeftSlight", "CenterBottomLeftSlight"},
 
         {"$SkyPromptMCPThemeFont", "Font"},
+        {"$SkyPromptMCPThemeDefault", "Default"},
+        {"$SkyPromptMCPThemeActive", "{} (active)"},
+        {"$SkyPromptMCPThemeSave", "Save Theme"},
+        {"$SkyPromptMCPThemeSaveSuccess", "Saved theme: {}"},
+        {"$SkyPromptMCPThemeSaveFailed", "Failed to save the theme. Check SkyPrompt.log."},
         {"$SkyPromptMCPThemeFontShadow", "Font Shadow"},
         {"$SkyPromptMCPThemeFontHelp",
          "Adds Japanese, Korean, and full Chinese glyph sets. Increases font atlas size and loading time."},

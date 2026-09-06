@@ -1,6 +1,8 @@
 #include "Theme.h"
 #include "MCP.h"
 #include <rapidjson/error/en.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
 
 
 Theme::PromptAlignment Theme::toPromptAlignment(const std::string& alignment) {
@@ -120,13 +122,87 @@ Theme::Theme::Theme(const ThemeBlock& block) {
     hide_in_menu = block.hide_in_menu.get();
 }
 
+void Theme::Theme::UpdateSettings(rapidjson::Document& a_document) const {
+    auto& allocator = a_document.GetAllocator();
+    const auto set = [&](const char* a_key, const auto& a_value) {
+        rapidjson::Value value;
+        if constexpr (std::is_convertible_v<decltype(a_value), std::string_view>) {
+            const std::string_view text = a_value;
+            value.SetString(text.data(), static_cast<rapidjson::SizeType>(text.size()), allocator);
+        } else {
+            value.Set(a_value);
+        }
+        if (const auto member = a_document.FindMember(a_key); member != a_document.MemberEnd()) {
+            member->value = std::move(value);
+        } else {
+            a_document.AddMember(rapidjson::Value(a_key, allocator), value, allocator);
+        }
+    };
+
+    set("n_max_buttons", n_max_buttons);
+    set("marginX", marginX);
+    set("marginY", marginY);
+    set("xPercent", xPercent);
+    set("yPercent", yPercent);
+    set("prompt_size", prompt_size);
+    set("icon2font_ratio", icon2font_ratio);
+    set("linespacing", linespacing);
+    set("progress_speed", progress_speed);
+    set("fadeSpeed", fadeSpeed);
+    set("font_name", font_name);
+    set("font_shadow", font_shadow);
+    set("prompt_alignment", toPromptAlignmentString(prompt_alignment));
+    set("prompt_order", toPromptOrderString(prompt_order));
+    set("prompt_pivot", toPromptPivotString(prompt_pivot));
+}
+
+bool Theme::WriteThemeFile(const std::filesystem::path& a_path, const rapidjson::Document& a_document) {
+    rapidjson::StringBuffer buffer;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+    if (!a_document.Accept(writer)) {
+        logger::error("Failed to serialize theme: {}", a_path.string());
+        return false;
+    }
+
+    auto temporary = a_path;
+    temporary += ".tmp";
+    std::ofstream file(temporary, std::ios::binary | std::ios::out | std::ios::noreplace);
+    if (!file.is_open()) {
+        logger::error("Failed to open theme write path: {}", temporary.string());
+        return false;
+    }
+    file.write(buffer.GetString(), static_cast<std::streamsize>(buffer.GetSize()));
+    file.put('\n');
+    file.close();
+    const bool saved = !file.fail() && MoveFileExW(temporary.c_str(), a_path.c_str(), MOVEFILE_REPLACE_EXISTING);
+    if (!saved) {
+        logger::error("Failed to write theme: {}", a_path.string());
+        std::error_code error;
+        std::filesystem::remove(temporary, error);
+    }
+    return saved;
+}
+
+bool Theme::Theme::Save(const std::filesystem::path& a_path) const {
+    std::ifstream file(a_path);
+    const std::string json((std::istreambuf_iterator(file)), std::istreambuf_iterator<char>());
+    rapidjson::Document document;
+    document.Parse(json.c_str());
+    if (!file.is_open() || file.bad() || document.HasParseError() || !document.IsObject()) {
+        logger::error("Failed to read theme for saving: {}", a_path.string());
+        return false;
+    }
+    file.close();
+    UpdateSettings(document);
+    return WriteThemeFile(a_path, document);
+}
+
 void Theme::Theme::ReLoad(std::string_view a_filename) {
-    constexpr std::string_view themesFolder = R"(Data\SKSE\Plugins\SkyPrompt\themes)";
-    if (!std::filesystem::exists(themesFolder)) {
-        logger::error("Mod folder does not exist: {}", themesFolder);
+    if (!std::filesystem::exists(themes_folder)) {
+        logger::error("Mod folder does not exist: {}", themes_folder);
         return;
     }
-    for (const auto& file : std::filesystem::directory_iterator(themesFolder)) {
+    for (const auto& file : std::filesystem::directory_iterator(themes_folder)) {
         if (!file.is_regular_file() || file.path().extension() != ".json") {
             continue; // Skip non-JSON files
         }
@@ -157,13 +233,12 @@ void Theme::Theme::ReLoad(std::string_view a_filename) {
 }
 
 void Theme::LoadThemes() {
-    constexpr std::string_view themesFolder = R"(Data\SKSE\Plugins\SkyPrompt\themes)";
-    if (!std::filesystem::exists(themesFolder)) {
-        logger::error("Mod folder does not exist: {}", themesFolder);
+    if (!std::filesystem::exists(themes_folder)) {
+        logger::error("Mod folder does not exist: {}", themes_folder);
         return;
     }
 
-    for (const auto& file : std::filesystem::directory_iterator(themesFolder)) {
+    for (const auto& file : std::filesystem::directory_iterator(themes_folder)) {
         if (!file.is_regular_file() || file.path().extension() != ".json") {
             continue; // Skip non-JSON files
         }
