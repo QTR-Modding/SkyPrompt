@@ -164,7 +164,7 @@ bool InputHook::ProcessInput(RE::InputEvent* event) {
     const auto input_manager = MANAGER(Input);
     input_manager->UpdateInputDevice(event);
 
-    if (const auto handled = render_manager->list.ProcessInput(event)) {
+    if (const auto handled = render_manager->ProcessListInput(event)) {
         return *handled;
     }
 

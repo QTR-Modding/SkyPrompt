@@ -151,8 +151,6 @@ namespace ImGui::Renderer {
     };
 
     class Manager : public REX::Singleton<Manager> {
-        friend class PromptLayouts::ListController;
-
         void ReArrange();
         bool IsInQueue(const Interaction& a_interaction) const;
 
@@ -171,6 +169,7 @@ namespace ImGui::Renderer {
         std::atomic<bool> isPaused = false;
 
         std::vector<std::unique_ptr<SubManager>> managers;
+        PromptLayouts::List list;
 
         std::map<SkyPromptAPI::ClientID, std::vector<std::unique_ptr<SubManager>>> client_managers;
 
@@ -180,10 +179,9 @@ namespace ImGui::Renderer {
         SkyPromptAPI::ClientID FindCompatibleClientID(SkyPromptAPI::ClientID a_clientID) const;
 
         void Clear(SkyPromptAPI::PromptEventType a_event_type);
+        void ShowPromptRow(size_t index, bool isList, size_t visibleCount);
 
     public:
-        PromptLayouts::ListController list{*this};
-
         static bool IsGameFrozen();
         static Interaction MakeInteraction(SkyPromptAPI::ClientID a_clientID, SkyPromptAPI::EventID a_event,
                                            SkyPromptAPI::ActionID a_action);
@@ -202,6 +200,7 @@ namespace ImGui::Renderer {
         bool IsPaused() const { return isPaused.load(); }
         bool IsHidden() const;
         SubManager* GetSubManagerByKey(uint32_t a_prompt_key) const;
+        std::optional<bool> ProcessListInput(RE::InputEvent* event);
         std::vector<uint32_t> GetPromptKeys() const;
         std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> GetPromptButtons() const;
 

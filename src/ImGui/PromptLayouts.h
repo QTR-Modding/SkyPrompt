@@ -1,11 +1,6 @@
 #pragma once
 #include "IconsFonts.h"
 
-namespace ImGui::Renderer {
-    class Manager;
-    class SubManager;
-}
-
 namespace ImGui::PromptLayouts {
     struct PromptBounds {
         ImVec2 min;
@@ -61,27 +56,25 @@ namespace ImGui::PromptLayouts {
     DiamondPromptLayout MeasureDiamondPrompts(const std::vector<RenderInfo>& batch,
                                               float lineSpacingPx);
 
-    class ListController {
-    public:
-        explicit ListController(Renderer::Manager& manager) : owner(manager) {}
+    struct List {
+        enum class Navigation {
+            kUnhandled,
+            kNone,  // Navigation input without a step during release or repeat delay.
+            kPrevious,
+            kNext
+        };
 
-        Renderer::SubManager* GetSelectedPrompt() const;
-        std::optional<bool> ProcessInput(RE::InputEvent* event);
-        void UpdateViewport(size_t visibleCount);
-
-        // The owning manager holds its lock during these operations.
-        void Reset();
-        void ClampSelection();
-        void ShowPromptRow(size_t index, bool isList, size_t visibleCount);
-
-    private:
         static constexpr float repeatDelay = 0.35f;
         static constexpr float repeatRate = 0.12f;
 
-        Renderer::Manager& owner;
         size_t selection = 0;
         size_t firstVisible = 0;
 
-        void MoveSelection(bool previous);
+        static Navigation GetNavigation(const RE::ButtonEvent& button, uint32_t activateKey);
+        void MoveSelection(Navigation navigation, size_t promptCount);
+        void Reset();
+        void ClampSelection(size_t promptCount);
+        void UpdateViewport(size_t promptCount, size_t visibleCount);
+        bool PrepareRow(RenderInfo& row, size_t index, size_t promptCount, size_t visibleCount) const;
     };
 }

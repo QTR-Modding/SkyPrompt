@@ -1,8 +1,5 @@
 #include "PromptLayouts.h"
 #include "Theme.h"
-#include "Renderer.h"
-#include "Service.h"
-#include "Utils.h"
 #include "imgui_internal.h"
 
 namespace ImGui::PromptLayouts {
@@ -254,82 +251,58 @@ ImVec2 ImGui::GetSkyPromptContentOrigin(const ImVec2& anchor) {
 }
 
 namespace ImGui::PromptLayouts {
-    Renderer::SubManager* ListController::GetSelectedPrompt() const {
-        std::shared_lock lock(owner.mutex_);
-        return selection < owner.managers.size() ? owner.managers[selection].get() : nullptr;
-    }
-
-    void ListController::MoveSelection(const bool previous) {
-        std::unique_lock lock(owner.mutex_);
-        if (selection >= owner.managers.size()) return;
-        const auto selected = owner.managers[selection].get();
-        // Finish the current press before changing its target.
-        if (selected->buttonState.isPressing) return;
-        selected->buttonState.Reset();
-        if (previous && selection > 0) {
+    void List::MoveSelection(const Navigation navigation, const size_t promptCount) {
+        if (selection >= promptCount) return;
+        if (navigation == Navigation::kPrevious && selection > 0) {
             --selection;
-        } else if (!previous && selection + 1 < owner.managers.size()) {
+        } else if (navigation == Navigation::kNext && selection + 1 < promptCount) {
             ++selection;
         }
-        for (const auto& manager : owner.managers) {
-            manager->WakeUpQueue();
-        }
     }
 
-    std::optional<bool> ListController::ProcessInput(RE::InputEvent* event) {
-        if (Theme::last_theme->prompt_alignment != Theme::kList) return std::nullopt;
-        const auto selected = GetSelectedPrompt();
-        if (!selected || selected->IsHidden()) return std::nullopt;
-        const bool block = PromptTypeFlags::GetBlocksInput(selected->GetPromptType());
-        if (const auto button = event->AsButtonEvent()) {
-            using namespace SKSE::InputMap;
-            const auto key = Input::Manager::Convert(button->GetIDCode(), button->GetDevice());
-            if (key == GetControlKey(RE::UserEvents::GetSingleton()->activate)) return std::nullopt;
-            const bool up = key == Input::Manager::Convert(MOUSE::kWheelUp, RE::INPUT_DEVICE::kMouse) ||
-                            key == kGamepadButtonOffset_DPAD_UP;
-            const bool down = key == Input::Manager::Convert(MOUSE::kWheelDown, RE::INPUT_DEVICE::kMouse) ||
-                              key == kGamepadButtonOffset_DPAD_DOWN;
-            if (up || down) {
-                const float held = button->HeldDuration();
-                if (button->IsDown() || (button->IsPressed() &&
-                    ImGui::CalcTypematicRepeatAmount(held - ImGui::GetIO().DeltaTime, held,
-                        repeatDelay, repeatRate) > 0)) {
-                    MoveSelection(up);
-                }
-                return block;
+    List::Navigation List::GetNavigation(const RE::ButtonEvent& button, const uint32_t activateKey) {
+        using namespace SKSE::InputMap;
+        const auto key = Input::Manager::Convert(button.GetIDCode(), button.GetDevice());
+        if (key == activateKey) return Navigation::kUnhandled;
+        const bool up = key == Input::Manager::Convert(MOUSE::kWheelUp, RE::INPUT_DEVICE::kMouse) ||
+                        key == kGamepadButtonOffset_DPAD_UP;
+        const bool down = key == Input::Manager::Convert(MOUSE::kWheelDown, RE::INPUT_DEVICE::kMouse) ||
+                          key == kGamepadButtonOffset_DPAD_DOWN;
+        if (up || down) {
+            const float held = button.HeldDuration();
+            if (button.IsDown() || (button.IsPressed() &&
+                ImGui::CalcTypematicRepeatAmount(held - ImGui::GetIO().DeltaTime, held,
+                    repeatDelay, repeatRate) > 0)) {
+                return up ? Navigation::kPrevious : Navigation::kNext;
             }
+            return Navigation::kNone;
         }
-        return std::nullopt;
+        return Navigation::kUnhandled;
     }
 
-    void ListController::UpdateViewport(const size_t visibleCount) {
-        std::unique_lock lock(owner.mutex_);
-        ClampSelection();
+    void List::UpdateViewport(const size_t promptCount, const size_t visibleCount) {
+        ClampSelection(promptCount);
         firstVisible = std::clamp(firstVisible,
             selection >= visibleCount ? selection - visibleCount + 1 : 0, selection);
     }
 
-    void ListController::Reset() {
+    void List::Reset() {
         selection = firstVisible = 0;
     }
 
-    void ListController::ClampSelection() {
-        selection = owner.managers.empty() ? 0 : std::min(selection, owner.managers.size() - 1);
+    void List::ClampSelection(const size_t promptCount) {
+        selection = promptCount == 0 ? 0 : std::min(selection, promptCount - 1);
         firstVisible = std::min(firstVisible, selection);
     }
 
-    void ListController::ShowPromptRow(const size_t index, const bool isList, const size_t visibleCount) {
-        // Advance every row's lifetime, but draw only the List viewport.
-        const auto before = renderBatch.size();
-        owner.managers[index]->ShowQueue();
-        if (!isList || renderBatch.size() == before) return;
+    bool List::PrepareRow(RenderInfo& row, const size_t index, const size_t promptCount,
+                          const size_t visibleCount) const {
         if (index < firstVisible || index - firstVisible >= visibleCount) {
-            renderBatch.resize(before);
-            return;
+            return false;
         }
-        auto& row = renderBatch.back();
         row.selected = index == selection;
         row.moreAbove = index == firstVisible && firstVisible > 0;
-        row.moreBelow = index - firstVisible == visibleCount - 1 && index + 1 < owner.managers.size();
+        row.moreBelow = index - firstVisible == visibleCount - 1 && index + 1 < promptCount;
+        return true;
     }
 }
