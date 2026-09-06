@@ -701,19 +701,16 @@ SubManager* Manager::Add2Q(
         ++index;
     }
 
-    int n_max_buttons;
     {
         std::shared_lock theme_lock(Theme::m_theme_);
-        const auto theme = Theme::themes.find(a_clientID);
-        n_max_buttons =
-            theme != Theme::themes.end() ? theme->second->n_max_buttons : Theme::default_theme.n_max_buttons;
+        const auto it = Theme::themes.find(a_clientID);
+        const auto& theme = it != Theme::themes.end() ? *it->second : Theme::default_theme;
+        if (theme.prompt_alignment != Theme::kList && manager_list->size() >= theme.n_max_buttons) {
+            return nullptr;
+        }
     }
-    if (manager_list->size() < n_max_buttons) {
-        // if no manager has the event, make a new manager
-        manager_list->emplace_back(std::make_unique<SubManager>());
-    } else {
-        return nullptr;
-    }
+    // If no manager has the event, make a new row.
+    manager_list->emplace_back(std::make_unique<SubManager>());
 
     const auto iButton = InteractionButton(a_interaction, a_mutables, a_type, a_refid, a_bttn_map, index);
     manager_list->back()->Add2Q(iButton, show);
@@ -740,6 +737,7 @@ bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
 
     managers = std::move(client_managers.at(client_id));
     last_clientID = client_id;
+    list.Reset();
 
     std::shared_lock theme_lock(Theme::m_theme_);
     const auto last_theme = Theme::last_theme;
@@ -1163,8 +1161,10 @@ bool SubManager::IsInQueue(const Interaction& a_interaction) const {
 }
 
 uint32_t InteractionButton::GetKey() const {
-    const auto manager = MANAGER(Input)->GetSingleton();
-    const auto a_device = manager->GetInputDevice();
+    if (Theme::last_theme->prompt_alignment == Theme::kList) {
+        return GetControlKey(RE::UserEvents::GetSingleton()->activate);
+    }
+    const auto a_device = MANAGER(Input)->GetInputDevice();
     if (const auto it = keys.find(a_device); it != keys.end()) {
         return it->second; // client-provided key for this device
     }
@@ -1238,6 +1238,7 @@ void Manager::CleanUpQueue() {
             for (const size_t idx : to_remove) {
                 managers.erase(managers.begin() + idx);
             }
+            list.ClampSelection(managers.size());
         }
         if (std::shared_lock lock(mutex_); managers.empty()) {
             lock.unlock();
@@ -1245,6 +1246,16 @@ void Manager::CleanUpQueue() {
             return;
         }
         ReArrange();
+    }
+}
+
+void Manager::ShowPromptRow(const size_t index, const bool isList, const size_t visibleCount) {
+    // Advance every row's lifetime, but draw only the List viewport.
+    const auto before = renderBatch.size();
+    managers[index]->ShowQueue();
+    if (isList && renderBatch.size() != before &&
+        !list.PrepareRow(renderBatch.back(), index, managers.size(), visibleCount)) {
+        renderBatch.resize(before);
     }
 }
 
@@ -1263,16 +1274,21 @@ void Manager::ShowQueue() {
         height * Theme::last_theme->yPercent - Theme::last_theme->marginY * resScale
         );
 
-    std::map<RefID, std::vector<SubManager*>> object_managers;
+    const bool isList = Theme::last_theme->prompt_alignment == Theme::kList;
+    const auto visibleCount = static_cast<size_t>(std::max(Theme::last_theme->n_max_buttons, 1));
+    if (isList) {
+        std::unique_lock lock(mutex_);
+        list.UpdateViewport(managers.size(), visibleCount);
+    }
+    std::map<RefID, std::vector<size_t>> rowsByObject;
     renderBatch.clear();
 
-    for (std::shared_lock lock(mutex_);
-         auto& a_manager : managers) {
-        if (const auto a_ref = a_manager->GetAttachedObject()) {
-            object_managers[a_ref->GetFormID()].push_back(a_manager.get());
+    for (std::shared_lock lock(mutex_); const auto index : std::views::iota(size_t{0}, managers.size())) {
+        if (const auto a_ref = managers[index]->GetAttachedObject()) {
+            rowsByObject[a_ref->GetFormID()].push_back(index);
             continue;
         }
-        a_manager->ShowQueue();
+        ShowPromptRow(index, isList, visibleCount);
     }
 
     BeginImGuiWindow("SkyPrompt", GetSkyPromptContentOrigin(windowPos));
@@ -1303,13 +1319,13 @@ void Manager::ShowQueue() {
 
     int i = 0;
     for (std::shared_lock lock(mutex_);
-         const auto& managers_ : object_managers | std::views::values) {
-        auto window_pos = managers_[0]->GetAttachedObjectPos();
+         const auto& rowIndices : rowsByObject | std::views::values) {
+        auto window_pos = managers[rowIndices[0]]->GetAttachedObjectPos();
         window_pos.x -= Theme::last_theme->marginX * resScale;
         window_pos.y -= Theme::last_theme->marginY * resScale;
         renderBatch.clear();
-        for (const auto a_manager : managers_) {
-            a_manager->ShowQueue();
+        for (const auto index : rowIndices) {
+            ShowPromptRow(index, isList, visibleCount);
         }
         BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str(),
                          GetSkyPromptContentOrigin(window_pos));
@@ -1324,6 +1340,7 @@ void Manager::Clear(const SkyPromptAPI::PromptEventType a_event_type) {
         a_manager->ClearQueue(a_event_type);
     }
     managers.clear();
+    list.Reset();
 }
 
 Interaction Manager::MakeInteraction(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::EventID a_event,
@@ -1355,8 +1372,35 @@ bool Manager::IsHidden() const {
     return true;
 }
 
+std::optional<bool> Manager::ProcessListInput(RE::InputEvent* event) {
+    if (Theme::last_theme->prompt_alignment != Theme::kList) return std::nullopt;
+    const auto button = event->AsButtonEvent();
+    if (!button) return std::nullopt;
+    const auto navigation = list.GetNavigation(*button, GetControlKey(RE::UserEvents::GetSingleton()->activate));
+    if (navigation == PromptLayouts::List::Navigation::kUnhandled) return std::nullopt;
+
+    std::unique_lock lock(mutex_);
+    if (list.selection >= managers.size()) return std::nullopt;
+    const auto selected = managers[list.selection].get();
+    if (selected->IsHidden()) return std::nullopt;
+    const bool block = PromptTypeFlags::GetBlocksInput(selected->GetPromptType());
+    // Finish the current press before changing its target.
+    if (navigation != PromptLayouts::List::Navigation::kNone && !selected->buttonState.isPressing) {
+        selected->buttonState.Reset();
+        list.MoveSelection(navigation, managers.size());
+        for (const auto& manager : managers) {
+            manager->WakeUpQueue();
+        }
+    }
+    return block;
+}
+
 SubManager* Manager::GetSubManagerByKey(const uint32_t a_prompt_key) const {
     std::shared_lock lock(mutex_);
+    if (Theme::last_theme->prompt_alignment == Theme::kList) {
+        const auto selected = list.selection < managers.size() ? managers[list.selection].get() : nullptr;
+        return selected && selected->GetPromptKey() == a_prompt_key ? selected : nullptr;
+    }
     for (auto& a_manager : managers) {
         if (const auto key = a_manager->GetPromptKey(); key == a_prompt_key) {
             return a_manager.get();
@@ -1365,22 +1409,19 @@ SubManager* Manager::GetSubManagerByKey(const uint32_t a_prompt_key) const {
     return nullptr;
 }
 
-std::vector<uint32_t> Manager::GetPromptKeys() const {
-    std::vector<uint32_t> keys;
-    for (std::shared_lock lock(mutex_); const auto& a_manager : managers) {
-        if (a_manager->IsHidden()) {
-            continue;
-        }
-        if (const auto key = a_manager->GetPromptKey(); key != 0) {
-            keys.push_back(key);
-        }
-    }
-    return keys;
-}
-
 std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::GetPromptButtons() const {
+    std::shared_lock lock(mutex_);
     std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> buttons;
-    for (std::shared_lock lock(mutex_); const auto& a_manager : managers) {
+    if (Theme::last_theme->prompt_alignment == Theme::kList) {
+        if (const auto selected = list.selection < managers.size() ? managers[list.selection].get() : nullptr;
+            selected && !selected->IsHidden()) {
+            if (const auto key = selected->GetPromptKey(); key != 0) {
+                buttons.emplace_back(selected->GetPromptType(), key);
+            }
+        }
+        return buttons;
+    }
+    for (const auto& a_manager : managers) {
         if (a_manager->IsHidden()) {
             continue;
         }

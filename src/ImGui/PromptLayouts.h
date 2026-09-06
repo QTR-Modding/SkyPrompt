@@ -55,4 +55,26 @@ namespace ImGui::PromptLayouts {
     float GetPromptIconCenterX(const PromptItemDimensions& dimensions, bool textFirst);
     DiamondPromptLayout MeasureDiamondPrompts(const std::vector<RenderInfo>& batch,
                                               float lineSpacingPx);
+
+    struct List {
+        enum class Navigation {
+            kUnhandled,
+            kNone,  // Navigation input without a step during release or repeat delay.
+            kPrevious,
+            kNext
+        };
+
+        static constexpr float repeatDelay = 0.35f;
+        static constexpr float repeatRate = 0.12f;
+
+        size_t selection = 0;
+        size_t firstVisible = 0;
+
+        static Navigation GetNavigation(const RE::ButtonEvent& button, uint32_t activateKey);
+        void MoveSelection(Navigation navigation, size_t promptCount);
+        void Reset();
+        void ClampSelection(size_t promptCount);
+        void UpdateViewport(size_t promptCount, size_t visibleCount);
+        bool PrepareRow(RenderInfo& row, size_t index, size_t promptCount, size_t visibleCount) const;
+    };
 }

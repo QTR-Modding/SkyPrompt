@@ -1,5 +1,6 @@
 #include "PromptLayouts.h"
 #include "Theme.h"
+#include "imgui_internal.h"
 
 namespace ImGui::PromptLayouts {
     float GetIconSize() {
@@ -22,7 +23,8 @@ namespace ImGui::PromptLayouts {
         layout.rows.reserve(batch.size());
         float maxPrefixWidth = 0.0f;
         float maxTextExtent = 0.0f;
-        float rowStart = 0.0f;
+        const float scrollPadding = Theme::last_theme->prompt_alignment == Theme::kList ? ImGui::GetFontSize() : 0.0f;
+        float rowStart = scrollPadding;
         float maxBottom = 0.0f;
         for (const auto& renderInfo : batch) {
             const ImVec2 textSize = ImGui::CalcTextSize(renderInfo.text.c_str());
@@ -52,7 +54,7 @@ namespace ImGui::PromptLayouts {
         layout.iconX = textFirst ? ImGui::GetStyle().ItemSpacing.x + maxPrefixWidth : 0.0f;
         layout.bounds = {
             .min = {textFirst ? 0.0f : -circleOverhang, 0.0f},
-            .size = {circleDiameter + ImGui::GetStyle().ItemSpacing.x + maxTextExtent, maxBottom}
+            .size = {circleDiameter + ImGui::GetStyle().ItemSpacing.x + maxTextExtent, maxBottom + scrollPadding}
         };
         return layout;
     }
@@ -228,10 +230,9 @@ ImVec2 ImGui::GetSkyPromptContentOrigin(const ImVec2& anchor) {
 
     const auto promptAlignment = Theme::last_theme->prompt_alignment;
     const float lineSpacingPx = GetFontSize() * Theme::last_theme->linespacing;
-    std::ranges::sort(renderBatch,
-                      [](const RenderInfo& a, const RenderInfo& b) {
-                          return a.row < b.row;
-                      });
+    if (promptAlignment != Theme::kList) {
+        std::ranges::sort(renderBatch, {}, &RenderInfo::row);
+    }
 
     if (promptAlignment == Theme::kDiamond) {
         const auto layout = MeasureDiamondPrompts(renderBatch, lineSpacingPx);
@@ -247,4 +248,61 @@ ImVec2 ImGui::GetSkyPromptContentOrigin(const ImVec2& anchor) {
         return GetContentOrigin(anchor, {.min = {0.0f, 0.0f}, .size = layout.size});
     }
     return GetContentOrigin(anchor, MeasureVerticalPrompts(renderBatch).bounds);
+}
+
+namespace ImGui::PromptLayouts {
+    void List::MoveSelection(const Navigation navigation, const size_t promptCount) {
+        if (selection >= promptCount) return;
+        if (navigation == Navigation::kPrevious && selection > 0) {
+            --selection;
+        } else if (navigation == Navigation::kNext && selection + 1 < promptCount) {
+            ++selection;
+        }
+    }
+
+    List::Navigation List::GetNavigation(const RE::ButtonEvent& button, const uint32_t activateKey) {
+        using namespace SKSE::InputMap;
+        const auto key = Input::Manager::Convert(button.GetIDCode(), button.GetDevice());
+        if (key == activateKey) return Navigation::kUnhandled;
+        const bool up = key == Input::Manager::Convert(MOUSE::kWheelUp, RE::INPUT_DEVICE::kMouse) ||
+                        key == kGamepadButtonOffset_DPAD_UP;
+        const bool down = key == Input::Manager::Convert(MOUSE::kWheelDown, RE::INPUT_DEVICE::kMouse) ||
+                          key == kGamepadButtonOffset_DPAD_DOWN;
+        if (up || down) {
+            const float held = button.HeldDuration();
+            if (button.IsDown() || (button.IsPressed() &&
+                ImGui::CalcTypematicRepeatAmount(held - ImGui::GetIO().DeltaTime, held,
+                    repeatDelay, repeatRate) > 0)) {
+                return up ? Navigation::kPrevious : Navigation::kNext;
+            }
+            return Navigation::kNone;
+        }
+        return Navigation::kUnhandled;
+    }
+
+    void List::UpdateViewport(const size_t promptCount, const size_t visibleCount) {
+        ClampSelection(promptCount);
+        firstVisible = std::clamp(firstVisible,
+            selection >= visibleCount ? selection - visibleCount + 1 : 0, selection);
+    }
+
+    void List::Reset() {
+        selection = firstVisible = 0;
+    }
+
+    void List::ClampSelection(const size_t promptCount) {
+        selection = promptCount == 0 ? 0 : std::min(selection, promptCount - 1);
+        firstVisible = std::min(firstVisible, selection);
+    }
+
+    bool List::PrepareRow(RenderInfo& row, const size_t index, const size_t promptCount,
+                          const size_t visibleCount) const {
+        if (index < firstVisible || index - firstVisible >= visibleCount) {
+            return false;
+        }
+        row.selected = index == selection;
+        row.moreAbove = index == firstVisible && firstVisible > 0;
+        row.moreBelow = index - firstVisible == visibleCount - 1 && index + 1 < promptCount;
+        return true;
+    }
 }

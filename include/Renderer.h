@@ -5,6 +5,7 @@
 #include "Interaction.h"
 #include "MCP.h"
 #include "Theme.h"
+#include "PromptLayouts.h"
 #include "ClibUtil/simpleINI.hpp"
 
 
@@ -168,6 +169,7 @@ namespace ImGui::Renderer {
         std::atomic<bool> isPaused = false;
 
         std::vector<std::unique_ptr<SubManager>> managers;
+        PromptLayouts::List list;
 
         std::map<SkyPromptAPI::ClientID, std::vector<std::unique_ptr<SubManager>>> client_managers;
 
@@ -177,6 +179,7 @@ namespace ImGui::Renderer {
         SkyPromptAPI::ClientID FindCompatibleClientID(SkyPromptAPI::ClientID a_clientID) const;
 
         void Clear(SkyPromptAPI::PromptEventType a_event_type);
+        void ShowPromptRow(size_t index, bool isList, size_t visibleCount);
 
     public:
         static bool IsGameFrozen();
@@ -197,7 +200,7 @@ namespace ImGui::Renderer {
         bool IsPaused() const { return isPaused.load(); }
         bool IsHidden() const;
         SubManager* GetSubManagerByKey(uint32_t a_prompt_key) const;
-        std::vector<uint32_t> GetPromptKeys() const;
+        std::optional<bool> ProcessListInput(RE::InputEvent* event);
         std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> GetPromptButtons() const;
 
         void ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func);
