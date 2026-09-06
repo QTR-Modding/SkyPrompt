@@ -253,32 +253,32 @@ ImVec2 ImGui::GetSkyPromptContentOrigin(const ImVec2& anchor) {
     return GetContentOrigin(anchor, MeasureVerticalPrompts(renderBatch).bounds);
 }
 
-namespace ImGui::Renderer {
-    SubManager* Manager::GetSelectedListPrompt() const {
-        std::shared_lock lock(mutex_);
-        return listState.selection < managers.size() ? managers[listState.selection].get() : nullptr;
+namespace ImGui::PromptLayouts {
+    Renderer::SubManager* ListController::GetSelectedPrompt() const {
+        std::shared_lock lock(owner.mutex_);
+        return selection < owner.managers.size() ? owner.managers[selection].get() : nullptr;
     }
 
-    void Manager::MoveListSelection(const bool previous) {
-        std::unique_lock lock(mutex_);
-        if (listState.selection >= managers.size()) return;
-        const auto selected = managers[listState.selection].get();
+    void ListController::MoveSelection(const bool previous) {
+        std::unique_lock lock(owner.mutex_);
+        if (selection >= owner.managers.size()) return;
+        const auto selected = owner.managers[selection].get();
         // Finish the current press before changing its target.
         if (selected->buttonState.isPressing) return;
         selected->buttonState.Reset();
-        if (previous && listState.selection > 0) {
-            --listState.selection;
-        } else if (!previous && listState.selection + 1 < managers.size()) {
-            ++listState.selection;
+        if (previous && selection > 0) {
+            --selection;
+        } else if (!previous && selection + 1 < owner.managers.size()) {
+            ++selection;
         }
-        for (const auto& manager : managers) {
+        for (const auto& manager : owner.managers) {
             manager->WakeUpQueue();
         }
     }
 
-    std::optional<bool> Manager::ProcessListInput(RE::InputEvent* event) {
+    std::optional<bool> ListController::ProcessInput(RE::InputEvent* event) {
         if (Theme::last_theme->prompt_alignment != Theme::kList) return std::nullopt;
-        const auto selected = GetSelectedListPrompt();
+        const auto selected = GetSelectedPrompt();
         if (!selected || selected->IsHidden()) return std::nullopt;
         const bool block = PromptTypeFlags::GetBlocksInput(selected->GetPromptType());
         if (const auto button = event->AsButtonEvent()) {
@@ -293,8 +293,8 @@ namespace ImGui::Renderer {
                 const float held = button->HeldDuration();
                 if (button->IsDown() || (button->IsPressed() &&
                     ImGui::CalcTypematicRepeatAmount(held - ImGui::GetIO().DeltaTime, held,
-                        ListState::repeatDelay, ListState::repeatRate) > 0)) {
-                    MoveListSelection(up);
+                        repeatDelay, repeatRate) > 0)) {
+                    MoveSelection(up);
                 }
                 return block;
             }
@@ -302,25 +302,34 @@ namespace ImGui::Renderer {
         return std::nullopt;
     }
 
-    void Manager::UpdateListViewport(const size_t visibleCount) {
-        std::unique_lock lock(mutex_);
-        listState.selection = managers.empty() ? 0 : std::min(listState.selection, managers.size() - 1);
-        listState.firstVisible = std::clamp(listState.firstVisible,
-            listState.selection >= visibleCount ? listState.selection - visibleCount + 1 : 0, listState.selection);
+    void ListController::UpdateViewport(const size_t visibleCount) {
+        std::unique_lock lock(owner.mutex_);
+        ClampSelection();
+        firstVisible = std::clamp(firstVisible,
+            selection >= visibleCount ? selection - visibleCount + 1 : 0, selection);
     }
 
-    void Manager::ShowPromptRow(const size_t index, const bool list, const size_t visibleCount) {
+    void ListController::Reset() {
+        selection = firstVisible = 0;
+    }
+
+    void ListController::ClampSelection() {
+        selection = owner.managers.empty() ? 0 : std::min(selection, owner.managers.size() - 1);
+        firstVisible = std::min(firstVisible, selection);
+    }
+
+    void ListController::ShowPromptRow(const size_t index, const bool isList, const size_t visibleCount) {
         // Advance every row's lifetime, but draw only the List viewport.
         const auto before = renderBatch.size();
-        managers[index]->ShowQueue();
-        if (!list || renderBatch.size() == before) return;
-        if (index < listState.firstVisible || index - listState.firstVisible >= visibleCount) {
+        owner.managers[index]->ShowQueue();
+        if (!isList || renderBatch.size() == before) return;
+        if (index < firstVisible || index - firstVisible >= visibleCount) {
             renderBatch.resize(before);
             return;
         }
         auto& row = renderBatch.back();
-        row.selected = index == listState.selection;
-        row.moreAbove = index == listState.firstVisible && listState.firstVisible > 0;
-        row.moreBelow = index - listState.firstVisible == visibleCount - 1 && index + 1 < managers.size();
+        row.selected = index == selection;
+        row.moreAbove = index == firstVisible && firstVisible > 0;
+        row.moreBelow = index - firstVisible == visibleCount - 1 && index + 1 < owner.managers.size();
     }
 }

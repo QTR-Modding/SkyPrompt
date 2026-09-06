@@ -1,6 +1,11 @@
 #pragma once
 #include "IconsFonts.h"
 
+namespace ImGui::Renderer {
+    class Manager;
+    class SubManager;
+}
+
 namespace ImGui::PromptLayouts {
     struct PromptBounds {
         ImVec2 min;
@@ -55,4 +60,28 @@ namespace ImGui::PromptLayouts {
     float GetPromptIconCenterX(const PromptItemDimensions& dimensions, bool textFirst);
     DiamondPromptLayout MeasureDiamondPrompts(const std::vector<RenderInfo>& batch,
                                               float lineSpacingPx);
+
+    class ListController {
+    public:
+        explicit ListController(Renderer::Manager& manager) : owner(manager) {}
+
+        Renderer::SubManager* GetSelectedPrompt() const;
+        std::optional<bool> ProcessInput(RE::InputEvent* event);
+        void UpdateViewport(size_t visibleCount);
+
+        // The owning manager holds its lock during these operations.
+        void Reset();
+        void ClampSelection();
+        void ShowPromptRow(size_t index, bool isList, size_t visibleCount);
+
+    private:
+        static constexpr float repeatDelay = 0.35f;
+        static constexpr float repeatRate = 0.12f;
+
+        Renderer::Manager& owner;
+        size_t selection = 0;
+        size_t firstVisible = 0;
+
+        void MoveSelection(bool previous);
+    };
 }

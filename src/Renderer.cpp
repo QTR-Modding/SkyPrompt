@@ -737,7 +737,7 @@ bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
 
     managers = std::move(client_managers.at(client_id));
     last_clientID = client_id;
-    listState.selection = listState.firstVisible = 0;
+    list.Reset();
 
     std::shared_lock theme_lock(Theme::m_theme_);
     const auto last_theme = Theme::last_theme;
@@ -1238,8 +1238,7 @@ void Manager::CleanUpQueue() {
             for (const size_t idx : to_remove) {
                 managers.erase(managers.begin() + idx);
             }
-            listState.selection = managers.empty() ? 0 : std::min(listState.selection, managers.size() - 1);
-            listState.firstVisible = std::min(listState.firstVisible, listState.selection);
+            list.ClampSelection();
         }
         if (std::shared_lock lock(mutex_); managers.empty()) {
             lock.unlock();
@@ -1265,10 +1264,10 @@ void Manager::ShowQueue() {
         height * Theme::last_theme->yPercent - Theme::last_theme->marginY * resScale
         );
 
-    const bool list = Theme::last_theme->prompt_alignment == Theme::kList;
+    const bool isList = Theme::last_theme->prompt_alignment == Theme::kList;
     const auto visibleCount = static_cast<size_t>(std::max(Theme::last_theme->n_max_buttons, 1));
-    if (list) {
-        UpdateListViewport(visibleCount);
+    if (isList) {
+        list.UpdateViewport(visibleCount);
     }
     std::map<RefID, std::vector<size_t>> rowsByObject;
     renderBatch.clear();
@@ -1278,7 +1277,7 @@ void Manager::ShowQueue() {
             rowsByObject[a_ref->GetFormID()].push_back(index);
             continue;
         }
-        ShowPromptRow(index, list, visibleCount);
+        list.ShowPromptRow(index, isList, visibleCount);
     }
 
     BeginImGuiWindow("SkyPrompt", GetSkyPromptContentOrigin(windowPos));
@@ -1315,7 +1314,7 @@ void Manager::ShowQueue() {
         window_pos.y -= Theme::last_theme->marginY * resScale;
         renderBatch.clear();
         for (const auto index : rowIndices) {
-            ShowPromptRow(index, list, visibleCount);
+            list.ShowPromptRow(index, isList, visibleCount);
         }
         BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str(),
                          GetSkyPromptContentOrigin(window_pos));
@@ -1330,7 +1329,7 @@ void Manager::Clear(const SkyPromptAPI::PromptEventType a_event_type) {
         a_manager->ClearQueue(a_event_type);
     }
     managers.clear();
-    listState.selection = listState.firstVisible = 0;
+    list.Reset();
 }
 
 Interaction Manager::MakeInteraction(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::EventID a_event,
@@ -1364,7 +1363,7 @@ bool Manager::IsHidden() const {
 
 SubManager* Manager::GetSubManagerByKey(const uint32_t a_prompt_key) const {
     if (Theme::last_theme->prompt_alignment == Theme::kList) {
-        const auto selected = GetSelectedListPrompt();
+        const auto selected = list.GetSelectedPrompt();
         return selected && selected->GetPromptKey() == a_prompt_key ? selected : nullptr;
     }
     std::shared_lock lock(mutex_);
@@ -1387,7 +1386,7 @@ std::vector<uint32_t> Manager::GetPromptKeys() const {
 std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::GetPromptButtons() const {
     std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> buttons;
     if (Theme::last_theme->prompt_alignment == Theme::kList) {
-        if (const auto selected = GetSelectedListPrompt(); selected && !selected->IsHidden()) {
+        if (const auto selected = list.GetSelectedPrompt(); selected && !selected->IsHidden()) {
             if (const auto key = selected->GetPromptKey(); key != 0) {
                 buttons.emplace_back(selected->GetPromptType(), key);
             }
