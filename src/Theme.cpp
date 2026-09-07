@@ -166,7 +166,7 @@ bool Theme::WriteThemeFile(const std::filesystem::path& a_path, const rapidjson:
 
     auto temporary = a_path;
     temporary += ".tmp";
-    std::ofstream file(temporary, std::ios::binary | std::ios::out | std::ios::noreplace);
+    std::ofstream file(temporary, std::ios::binary | std::ios::out | std::ios::trunc);
     if (!file.is_open()) {
         logger::error("Failed to open theme write path: {}", temporary.string());
         return false;

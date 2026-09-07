@@ -73,6 +73,7 @@ namespace ImGui::PromptLayouts {
         static Navigation GetNavigation(const RE::ButtonEvent& button, uint32_t activateKey);
         void MoveSelection(Navigation navigation, size_t promptCount);
         void Reset();
+        void OnRowRemoved(size_t index);
         void ClampSelection(size_t promptCount);
         void UpdateViewport(size_t promptCount, size_t visibleCount);
         bool PrepareRow(RenderInfo& row, size_t index, size_t promptCount, size_t visibleCount) const;

@@ -221,7 +221,7 @@ const InteractionButton* ButtonQueue::Next() const {
 }
 
 void Manager::ReArrange() {
-    std::map<SCENES::Event, std::vector<InteractionButton>> interactions;
+    std::vector<InteractionButton> interactions;
     std::map<Interaction, std::vector<const SkyPromptAPI::PromptSink*>> sinks;
     SkyPromptAPI::ClientID a_clientID;
 
@@ -229,13 +229,7 @@ void Manager::ReArrange() {
         std::shared_lock lock(mutex_);
         a_clientID = last_clientID;
         for (const auto& a_manager : managers) {
-            for (const auto& interaction_button : a_manager->GetButtons()) {
-                auto& interaction = interaction_button.interaction;
-                for (auto i = Input::DEVICE::kKeyboardMouse; i < Input::DEVICE::kTotal;
-                     i = static_cast<Input::DEVICE>(static_cast<int>(i) + 1)) {
-                }
-                interactions[interaction.event].push_back(interaction_button);
-            }
+            interactions.append_range(a_manager->GetButtons());
 
             for (const auto& [interaction, a_sinks] : a_manager->GetSinks()) {
                 if (const auto it = sinks.find(interaction); it != sinks.end()) {
@@ -247,20 +241,22 @@ void Manager::ReArrange() {
         }
     }
 
+    if (Theme::last_theme->prompt_alignment != Theme::kList) {
+        std::ranges::stable_sort(interactions, {}, [](const auto& button) { return button.interaction.event; });
+    }
+
     {
         std::unique_lock lock(mutex_);
         managers.clear();
     }
 
     // distribute the interactions to the managers
-    for (const auto& interaction_buttons : interactions | std::views::values) {
-        for (const auto& interaction_button : interaction_buttons) {
-            const auto a_ref = interaction_button.attached_object.get().get();
-            const auto a_refid = a_ref ? a_ref->GetFormID() : 0;
-            if (!Add2Q(a_clientID, interaction_button.interaction, interaction_button.mutables, interaction_button.type,
-                       a_refid, interaction_button.keys, true)) {
-                logger::error("Failed to add interaction to the queue");
-            }
+    for (const auto& interaction_button : interactions) {
+        const auto a_ref = interaction_button.attached_object.get().get();
+        const auto a_refid = a_ref ? a_ref->GetFormID() : 0;
+        if (!Add2Q(a_clientID, interaction_button.interaction, interaction_button.mutables, interaction_button.type,
+                   a_refid, interaction_button.keys, true)) {
+            logger::error("Failed to add interaction to the queue");
         }
     }
 
@@ -1237,6 +1233,7 @@ void Manager::CleanUpQueue() {
             std::sort(to_remove.rbegin(), to_remove.rend());
             for (const size_t idx : to_remove) {
                 managers.erase(managers.begin() + idx);
+                list.OnRowRemoved(idx);
             }
             list.ClampSelection(managers.size());
         }
