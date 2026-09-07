@@ -587,23 +587,30 @@ namespace {
 }
 
 void __stdcall MCP::RenderSettings() {
+    PushMenuSpacing();
     bool enabled = Settings::initialized.load();
     if (LocalizedCheckbox("$SkyPromptMCPSettingsEnableMod", "settings.enableMod", &enabled)) {
         Settings::initialized.store(enabled);
     }
-    ImGuiMCP::SameLine();
-    if (LocalizedButton("$SkyPromptMCPSettingsStartTutorial", "settings.startTutorial")) {
-        Tutorial::Manager::Start();
-    }
 #ifndef NDEBUG
     LocalizedCheckbox("$SkyPromptMCPSettingsDrawDebug", "settings.drawDebug", &Settings::draw_debug);
 #endif
-    std::unique_lock lock(Theme::m_theme_);
-    const auto lifetimeLabel = Translations::ImGuiLabel("$SkyPromptMCPSettingsLifetime", "settings.lifetime");
-    if (SliderFloatCommitted(lifetimeLabel.c_str(), &Settings::lifetime, 1.0f, 30.0f)) {
-        Settings::shouldReloadLifetime.store(true);
-        Settings::to_json();
+    ImGuiMCP::Spacing();
+    if (BeginSettingsTable("settings.general")) {
+        std::unique_lock lock(Theme::m_theme_);
+        if (SettingFloat("$SkyPromptMCPSettingsLifetime", "settings.lifetime", &Settings::lifetime, 1.0f, 30.0f)) {
+            Settings::shouldReloadLifetime.store(true);
+            Settings::to_json();
+        }
+        ImGuiMCP::EndTable();
     }
+    ImGuiMCP::Spacing();
+    ImGuiMCP::Separator();
+    ImGuiMCP::Spacing();
+    if (LocalizedButton("$SkyPromptMCPSettingsStartTutorial", "settings.startTutorial")) {
+        Tutorial::Manager::Start();
+    }
+    ImGuiMCP::PopStyleVar(menuSpacingStyleCount);
 }
 
 void __stdcall MCP::RenderLog() {
@@ -1188,6 +1195,9 @@ void __stdcall MCP::RenderTheme() {
     }
 
     std::unique_lock lock(Theme::m_theme_);
+    ImGuiMCP::SameLine();
+    RenderThemeExport(theme_editor.GetTheme());
+    ImGuiMCP::Spacing();
     theme_editor.RenderSelector();
     auto& theme = theme_editor.GetTheme();
     bool changed = false;
@@ -1201,10 +1211,6 @@ void __stdcall MCP::RenderTheme() {
     changed |= theme_editor.RenderAnimation();
     changed |= theme_editor.RenderSpecialEffects();
     if (changed) theme_editor.OnChanged();
-    ImGuiMCP::Spacing();
-    ImGuiMCP::Separator();
-    ImGuiMCP::Spacing();
-    RenderThemeExport(theme);
     ImGuiMCP::PopStyleVar(menuSpacingStyleCount);
 }
 
