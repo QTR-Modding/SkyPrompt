@@ -25,23 +25,7 @@ Automatically imports:
 
 #### THEME SPECIAL EFFECTS
 
-In the Theme menu, open Special Effects to add Viny Arcs or Text Background.
-Each effect has its own settings; the X beside its name removes it. Text Background
-includes a color picker with transparency and controls for padding and corner radius.
-
-To combine effects in a theme JSON file, put their settings in a `special_effects` array:
-
-```json
-"special_effects": [
-    { "special_effect": 1 },
-    { "special_effect": 2, "special_floats": [8.0, 4.0, 3.0] }
-]
-```
-
-Each entry accepts `special_integers`, `special_floats`, `special_strings`, and
-`special_bools`. ID 1 is Viny Arcs; ID 2 is Text Background. Existing single-effect
-files still work. When present, the array takes precedence; an empty array disables
-all effects. Export Theme writes the selected theme's effects and settings.
+See the [theme special effects guide](https://github.com/QTR-Modding/SkyPrompt/wiki/Theme-Special-Effects).
 
 #### TRANSLATIONS
 

@@ -16,6 +16,8 @@ set(headers ${headers}
     src/ImGui/Styles.h
     src/ImGui/IconsFonts.h
     src/ImGui/PromptLayouts.h
+    src/ImGui/PromptEffects.h
+    src/ImGui/ActivationPop.h
     include/PapyrusAPI/Bindings.h
     include/PapyrusAPI/Sinks.h
 )

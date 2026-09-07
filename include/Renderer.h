@@ -6,6 +6,7 @@
 #include "MCP.h"
 #include "Theme.h"
 #include "PromptLayouts.h"
+#include "ActivationPop.h"
 #include "ClibUtil/simpleINI.hpp"
 
 
@@ -81,11 +82,13 @@ namespace ImGui::Renderer {
 
     struct ButtonState {
         bool isPressing = false;
+        bool acceptedThisPress = false;
         int pressCount = 0;
         std::chrono::steady_clock::time_point lastPressTime;
 
         void Reset() {
             isPressing = false;
+            acceptedThisPress = false;
             pressCount = 0;
         }
     };
@@ -182,6 +185,8 @@ namespace ImGui::Renderer {
         void ShowPromptRow(size_t index, bool isList, size_t visibleCount);
 
     public:
+        ActivationPop activationPop;
+
         static bool IsGameFrozen();
         static Interaction MakeInteraction(SkyPromptAPI::ClientID a_clientID, SkyPromptAPI::EventID a_event,
                                            SkyPromptAPI::ActionID a_action);

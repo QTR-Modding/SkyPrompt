@@ -14,6 +14,8 @@ Nexus Link: https://www.nexusmods.com/skyrimspecialedition/mods/148703
 
 These tutorials show how to register prompts, manage interaction states, customize visuals, and tap into advanced features.
 
+See [Theme Special Effects](https://github.com/QTR-Modding/SkyPrompt/wiki/Theme-Special-Effects) for menu settings and JSON parameters.
+
 ---
 
 ## ✨ Core Concept
