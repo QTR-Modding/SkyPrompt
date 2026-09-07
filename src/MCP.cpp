@@ -55,7 +55,9 @@ namespace {
             HelpMarker(a_help_key);
         }
         ImGuiMCP::TableSetColumnIndex(1);
-        ImGuiMCP::SetNextItemWidth(-std::numeric_limits<float>::min());
+        constexpr float controlWidthEm = 16.0f;
+        ImGuiMCP::SetNextItemWidth(std::min(ImGuiMCP::GetContentRegionAvail().x,
+                                          ImGuiMCP::GetFontSize() * controlWidthEm));
         return std::format("##{}", a_id);
     }
 
@@ -140,8 +142,9 @@ namespace {
         return ImGuiMCP::Button(label.c_str());
     }
 
-    bool SettingCombo(const std::string_view a_key, const std::string_view a_id, const char* a_preview) {
-        const auto label = SettingRow(Translations::Get(a_key), a_id);
+    bool SettingCombo(const std::string_view a_key, const std::string_view a_id, const char* a_preview,
+                      const std::string_view a_help_key = {}) {
+        const auto label = SettingRow(Translations::Get(a_key), a_id, a_help_key);
         return ImGuiMCP::BeginCombo(label.c_str(), a_preview);
     }
 
@@ -271,7 +274,8 @@ namespace {
         bool changed = false;
 #ifndef NDEBUG
         constexpr int minimumPromptCount = 1;
-        const auto label = SettingRow(Translations::Get("$SkyPromptMCPControlsMaxButtons"), "theme.maxButtons");
+        const auto label = SettingRow(Translations::Get("$SkyPromptMCPControlsMaxButtons"), "theme.maxButtons",
+                                      "$SkyPromptMCPControlsMaxButtonsHelp");
         if (ImGuiMCP::InputInt(label.c_str(), &theme.n_max_buttons)) {
             theme.n_max_buttons = std::max(theme.n_max_buttons, minimumPromptCount);
             changed = true;
@@ -304,7 +308,8 @@ namespace {
             ImGuiMCP::EndCombo();
         }
         changed |= orderBefore != theme.prompt_order;
-        changed |= SettingFloat("$SkyPromptMCPSettingsLineSpacing", "settings.lineSpacing", &theme.linespacing, 0.0f, 1.0f);
+        changed |= SettingFloat("$SkyPromptMCPSettingsLineSpacing", "settings.lineSpacing", &theme.linespacing,
+                                0.0f, 1.0f, "$SkyPromptMCPSettingsLineSpacingHelp");
         ImGuiMCP::EndTable();
         return changed;
     }
@@ -314,14 +319,18 @@ namespace {
         auto& theme = GetTheme();
         SyncOSPPresetSelection(theme);
         bool changed = MCP::Settings::OSPPresetBox(theme);
-        changed |= SettingFloat("$SkyPromptMCPSettingsXPercent", "settings.xPercent", &theme.xPercent, 0.0f, 1.0f);
-        changed |= SettingFloat("$SkyPromptMCPSettingsYPercent", "settings.yPercent", &theme.yPercent, 0.0f, 1.0f);
-        changed |= SettingFloat("$SkyPromptMCPSettingsMarginX", "settings.marginX", &theme.marginX, -1000.0f, 1000.0f);
-        changed |= SettingFloat("$SkyPromptMCPSettingsMarginY", "settings.marginY", &theme.marginY, -1000.0f, 1000.0f);
+        changed |= SettingFloat("$SkyPromptMCPSettingsXPercent", "settings.xPercent", &theme.xPercent,
+                                0.0f, 1.0f, "$SkyPromptMCPSettingsXPercentHelp");
+        changed |= SettingFloat("$SkyPromptMCPSettingsYPercent", "settings.yPercent", &theme.yPercent,
+                                0.0f, 1.0f, "$SkyPromptMCPSettingsYPercentHelp");
+        changed |= SettingFloat("$SkyPromptMCPSettingsMarginX", "settings.marginX", &theme.marginX,
+                                -1000.0f, 1000.0f, "$SkyPromptMCPSettingsMarginXHelp");
+        changed |= SettingFloat("$SkyPromptMCPSettingsMarginY", "settings.marginY", &theme.marginY,
+                                -1000.0f, 1000.0f, "$SkyPromptMCPSettingsMarginYHelp");
 
         const auto pivotBefore = theme.prompt_pivot;
         if (SettingCombo("$SkyPromptMCPSettingsPromptPivot", "settings.promptPivot",
-                         PromptPivotLabel(theme.prompt_pivot).c_str())) {
+                         PromptPivotLabel(theme.prompt_pivot).c_str(), "$SkyPromptMCPSettingsPromptPivotHelp")) {
             for (const auto pivot : {Theme::kTopLeft, Theme::kTopRight, Theme::kBottomLeft, Theme::kBottomRight, Theme::kCenter}) {
                 const bool selected = theme.prompt_pivot == pivot;
                 const auto id = std::format("settings.promptPivot.{}", static_cast<int>(pivot));
@@ -338,8 +347,10 @@ namespace {
     bool ThemeEditor::RenderAppearance() {
         if (!BeginSettingsGroup("$SkyPromptMCPThemeAppearance", "theme.appearance")) return false;
         auto& theme = GetTheme();
-        bool changed = SettingFloat("$SkyPromptMCPSettingsPromptSize", "settings.promptSize", &theme.prompt_size, 15.0f, 100.0f);
-        changed |= SettingFloat("$SkyPromptMCPSettingsIcon2FontRatio", "settings.icon2FontRatio", &theme.icon2font_ratio, 0.5f, 2.0f);
+        bool changed = SettingFloat("$SkyPromptMCPSettingsPromptSize", "settings.promptSize", &theme.prompt_size,
+                                    15.0f, 100.0f, "$SkyPromptMCPSettingsPromptSizeHelp");
+        changed |= SettingFloat("$SkyPromptMCPSettingsIcon2FontRatio", "settings.icon2FontRatio", &theme.icon2font_ratio,
+                                0.5f, 2.0f, "$SkyPromptMCPSettingsIcon2FontRatioHelp");
         if (changed) MCP::Settings::shouldReloadPromptSize.store(true);
         changed |= MCP::Settings::FontSettings(theme);
         ImGuiMCP::EndTable();
@@ -349,8 +360,10 @@ namespace {
     bool ThemeEditor::RenderAnimation() {
         if (!BeginSettingsGroup("$SkyPromptMCPThemeAnimation", "theme.animation")) return false;
         auto& theme = GetTheme();
-        bool changed = SettingFloat("$SkyPromptMCPSettingsFadeSpeed", "settings.fadeSpeed", &theme.fadeSpeed, 0.01f, 0.1f);
-        changed |= SettingFloat("$SkyPromptMCPSettingsProgressSpeed", "settings.progressSpeed", &theme.progress_speed, 0.0f, 1.0f);
+        bool changed = SettingFloat("$SkyPromptMCPSettingsFadeSpeed", "settings.fadeSpeed", &theme.fadeSpeed,
+                                    0.01f, 0.1f, "$SkyPromptMCPSettingsFadeSpeedHelp");
+        changed |= SettingFloat("$SkyPromptMCPSettingsProgressSpeed", "settings.progressSpeed", &theme.progress_speed,
+                                0.0f, 1.0f, "$SkyPromptMCPSettingsProgressSpeedHelp");
         ImGuiMCP::EndTable();
         return changed;
     }
@@ -364,15 +377,16 @@ namespace {
         constexpr float floatLimit = 500.0f;
         for (size_t i = 0; i < theme.special_floats.size(); ++i) {
             const auto label = SettingRow(Translations::Format("$SkyPromptMCPThemeSpecialFloat", i + 1),
-                                          std::format("theme.special.float.{}", i));
+                                          std::format("theme.special.float.{}", i), "$SkyPromptMCPThemeSpecialFloatHelp");
             changed |= SliderFloatCommitted(label.c_str(), &theme.special_floats[i], -floatLimit, floatLimit);
         }
         constexpr uint32_t integerStep = 1;
         for (size_t i = 0; i < theme.special_integers.size(); ++i) {
             auto& value = theme.special_integers[i];
             const auto label = SettingRow(Translations::Format("$SkyPromptMCPThemeSpecialInteger", i + 1),
-                                          std::format("theme.special.integer.{}", i));
-            ImGuiMCP::SetNextItemWidth(-(ImGuiMCP::GetFrameHeight() + ImGuiMCP::GetStyle()->ItemSpacing.x));
+                                          std::format("theme.special.integer.{}", i), "$SkyPromptMCPThemeSpecialIntegerHelp");
+            ImGuiMCP::SetNextItemWidth(ImGuiMCP::CalcItemWidth() - ImGuiMCP::GetFrameHeight() -
+                                      ImGuiMCP::GetStyle()->ItemSpacing.x);
             changed |= ImGuiMCP::InputScalar(label.c_str(), ImGuiMCP::ImGuiDataType_U32, &value, &integerStep);
             ImGuiMCP::SameLine();
             auto color = ImGuiMCP::ColorConvertU32ToFloat4(value);
@@ -602,7 +616,8 @@ void __stdcall MCP::RenderSettings() {
     ImGuiMCP::Spacing();
     if (BeginSettingsTable("settings.general")) {
         std::unique_lock lock(Theme::m_theme_);
-        if (SettingFloat("$SkyPromptMCPSettingsLifetime", "settings.lifetime", &Settings::lifetime, 1.0f, 30.0f)) {
+        if (SettingFloat("$SkyPromptMCPSettingsLifetime", "settings.lifetime", &Settings::lifetime,
+                         1.0f, 30.0f, "$SkyPromptMCPSettingsLifetimeHelp")) {
             Settings::shouldReloadLifetime.store(true);
             Settings::to_json();
         }
@@ -732,7 +747,7 @@ bool MCP::Settings::FontSettings(Theme::Theme& a_theme) {
     }
 
     if (SettingFloat("$SkyPromptMCPThemeFontShadow", "theme.fontShadow", &a_theme.font_shadow, 0.f,
-                     1.f, "$SkyPromptMCPThemeFontHelp")) {
+                     1.f, "$SkyPromptMCPThemeFontShadowHelp")) {
         changed = true;
     }
 
