@@ -31,15 +31,9 @@ namespace Theme {
         Field<std::string, rapidjson::Value> prompt_order = {"prompt_order", "icon-first"};
         Field<std::string, rapidjson::Value> prompt_pivot = {"prompt_pivot", "bottom-right"};
 
-        Field<uint32_t, rapidjson::Value> special_effect = {"special_effect", 0};
-        Field<std::vector<uint32_t>, rapidjson::Value> special_integers = {"special_integers", {}};
-        Field<std::vector<std::string>, rapidjson::Value> special_strings = {"special_strings", {}};
-        Field<std::vector<float>, rapidjson::Value> special_floats = {"special_floats", {}};
-        Field<std::vector<bool>, rapidjson::Value> special_bools = {"special_bools", {}};
-
         Field<bool, rapidjson::Value> hide_in_menu = {"hide_in_menu", false};
 
-        void load(rapidjson::Value& a_block) {
+        void load(const rapidjson::Value& a_block) {
             boost::pfr::for_each_field(*this, [&](auto& field) {
                 field.load(a_block);
             });
@@ -76,6 +70,14 @@ namespace Theme {
     PromptPivot toPromptPivot(const std::string& value);
     std::string_view toPromptPivotString(PromptPivot pivot);
 
+    struct SpecialEffect {
+        uint32_t id = 0;
+        std::vector<uint32_t> integers;
+        std::vector<std::string> strings;
+        std::vector<float> floats;
+        std::vector<uint8_t> bools;
+    };
+
     struct Theme {
         std::string theme_name = "Default Theme";
         std::string theme_description = "Default theme for SkyPrompt";
@@ -99,19 +101,16 @@ namespace Theme {
         PromptAlignment prompt_alignment = kVertical;
         PromptOrder prompt_order = kIconFirst;
         PromptPivot prompt_pivot = kBottomLeft;
-        uint32_t special_effect = 0;
-
-        std::vector<uint32_t> special_integers;
-        std::vector<std::string> special_strings;
-        std::vector<float> special_floats;
-        std::vector<uint8_t> special_bools;
+        std::vector<SpecialEffect> special_effects;
 
         bool hide_in_menu = false;
 
         Theme() = default;
-        explicit Theme(const ThemeBlock& block);
+        explicit Theme(const rapidjson::Value& a_value);
 
         void ReLoad(std::string_view a_filename);
+        void LoadSpecialEffects(const rapidjson::Value& a_value);
+        void UpdateSpecialEffects(rapidjson::Value& a_value, rapidjson::Document::AllocatorType& a_allocator) const;
         void UpdateSettings(rapidjson::Document& a_document) const;
         bool Save(const std::filesystem::path& a_path) const;
     };

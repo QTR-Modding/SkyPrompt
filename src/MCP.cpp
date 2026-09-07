@@ -9,6 +9,7 @@
 #include "Settings.h"
 #include "Translations.h"
 #include "Tutorial.h"
+#include "SkyPrompt/AddOns.hpp"
 
 namespace {
     void HelpMarker(const std::string_view a_key) {
@@ -368,36 +369,118 @@ namespace {
         return changed;
     }
 
-    bool ThemeEditor::RenderSpecialEffects() {
-        auto& theme = GetTheme();
-        if (theme.special_floats.empty() && theme.special_integers.empty()) return false;
-        if (!BeginSettingsGroup("$SkyPromptMCPThemeSpecialEffects", "theme.special")) return false;
+    std::string SpecialEffectLabel(const uint32_t a_id) {
+        using namespace SkyPrompt::AddOns::SpecialEffects;
+        switch (a_id) {
+            case kNone: return Translations::Get("$SkyPromptMCPThemeEffectNone");
+            case kVinyArcs: return Translations::Get("$SkyPromptMCPThemeEffectVinyArcs");
+            case kTextBackground: return Translations::Get("$SkyPromptMCPThemeEffectTextBackground");
+            default: return Translations::Format("$SkyPromptMCPThemeEffectUnknown", a_id);
+        }
+    }
 
+    bool RenderSpecialEffectSettings(Theme::SpecialEffect& a_effect, const std::string_view a_id) {
+        const bool background = a_effect.id == SkyPrompt::AddOns::SpecialEffects::kTextBackground;
+        constexpr std::array backgroundFloatLabels = {
+            "$SkyPromptMCPThemeBackgroundPaddingX", "$SkyPromptMCPThemeBackgroundPaddingY",
+            "$SkyPromptMCPThemeBackgroundRadius"
+        };
+        constexpr std::array backgroundFloatHelp = {
+            "$SkyPromptMCPThemeBackgroundPaddingHelp", "$SkyPromptMCPThemeBackgroundPaddingHelp",
+            "$SkyPromptMCPThemeBackgroundRadiusHelp"
+        };
         bool changed = false;
         constexpr float floatLimit = 500.0f;
-        for (size_t i = 0; i < theme.special_floats.size(); ++i) {
-            const auto label = SettingRow(Translations::Format("$SkyPromptMCPThemeSpecialFloat", i + 1),
-                                          std::format("theme.special.float.{}", i), "$SkyPromptMCPThemeSpecialFloatHelp");
-            changed |= SliderFloatCommitted(label.c_str(), &theme.special_floats[i], -floatLimit, floatLimit);
+        const auto floatCount = std::max(a_effect.floats.size(), background ? backgroundFloatLabels.size() : 0);
+        for (size_t i = 0; i < floatCount; ++i) {
+            const bool named = background && i < backgroundFloatLabels.size();
+            const auto label = SettingRow(named ? Translations::Get(backgroundFloatLabels[i])
+                                                : Translations::Format("$SkyPromptMCPThemeSpecialFloat", i + 1),
+                                          std::format("{}.float.{}", a_id, i),
+                                          named ? backgroundFloatHelp[i] : "$SkyPromptMCPThemeSpecialFloatHelp");
+            const float before = i < a_effect.floats.size() ? a_effect.floats[i] : 0.0f;
+            float value = before;
+            changed |= SliderFloatCommitted(label.c_str(), &value, -floatLimit, floatLimit);
+            if (value != before) {
+                if (i >= a_effect.floats.size()) a_effect.floats.resize(i + 1);
+                a_effect.floats[i] = value;
+            }
         }
         constexpr uint32_t integerStep = 1;
-        for (size_t i = 0; i < theme.special_integers.size(); ++i) {
-            auto& value = theme.special_integers[i];
-            const auto label = SettingRow(Translations::Format("$SkyPromptMCPThemeSpecialInteger", i + 1),
-                                          std::format("theme.special.integer.{}", i), "$SkyPromptMCPThemeSpecialIntegerHelp");
+        const auto integerCount = std::max(a_effect.integers.size(), background ? size_t{1} : size_t{0});
+        for (size_t i = 0; i < integerCount; ++i) {
+            const bool named = background && i == 0;
+            auto value = i < a_effect.integers.size() ? a_effect.integers[i] : IM_COL32(0, 0, 0, 128);
+            const auto label = SettingRow(named ? Translations::Get("$SkyPromptMCPThemeBackgroundColor")
+                                                : Translations::Format("$SkyPromptMCPThemeSpecialInteger", i + 1),
+                                          std::format("{}.integer.{}", a_id, i),
+                                          named ? "$SkyPromptMCPThemeBackgroundColorHelp"
+                                                : "$SkyPromptMCPThemeSpecialIntegerHelp");
             ImGuiMCP::SetNextItemWidth(ImGuiMCP::CalcItemWidth() - ImGuiMCP::GetFrameHeight() -
                                       ImGuiMCP::GetStyle()->ItemSpacing.x);
-            changed |= ImGuiMCP::InputScalar(label.c_str(), ImGuiMCP::ImGuiDataType_U32, &value, &integerStep);
+            bool edited = ImGuiMCP::InputScalar(label.c_str(), ImGuiMCP::ImGuiDataType_U32, &value, &integerStep);
             ImGuiMCP::SameLine();
             auto color = ImGuiMCP::ColorConvertU32ToFloat4(value);
-            const auto colorID = std::format("##theme.special.color.{}", i);
+            const auto colorID = std::format("##{}.color.{}", a_id, i);
             if (ImGuiMCP::ColorEdit4(colorID.c_str(), &color.x,
                                     ImGuiMCP::ImGuiColorEditFlags_NoInputs | ImGuiMCP::ImGuiColorEditFlags_AlphaBar)) {
                 value = ImGuiMCP::ColorConvertFloat4ToU32(color);
+                edited = true;
+            }
+            if (edited) {
+                if (i >= a_effect.integers.size()) a_effect.integers.resize(i + 1);
+                a_effect.integers[i] = value;
                 changed = true;
             }
         }
+        return changed;
+    }
+
+    bool ThemeEditor::RenderSpecialEffects() {
+        if (!BeginSettingsGroup("$SkyPromptMCPThemeSpecialEffects", "theme.special")) return false;
+        auto& effects = GetTheme().special_effects;
+        using namespace SkyPrompt::AddOns::SpecialEffects;
+        constexpr std::array<uint32_t, 2> supported = {kVinyArcs, kTextBackground};
+        const auto present = [&](const auto id) {
+            return std::ranges::find(effects, id, &Theme::SpecialEffect::id) != effects.end();
+        };
+        bool changed = false;
+        ImGuiMCP::BeginDisabled(std::ranges::all_of(supported, present));
+        if (SettingCombo("$SkyPromptMCPThemeAddEffect", "theme.effect.add",
+                         Translations::Get("$SkyPromptMCPThemeChooseEffect").c_str())) {
+            for (const auto id : supported) {
+                if (present(id)) continue;
+                if (LocalizedSelectableText(SpecialEffectLabel(id), std::format("theme.effect.add.{}", id), false)) {
+                    auto& effect = effects.emplace_back();
+                    effect.id = id;
+                    if (id == kVinyArcs) {
+                        effect.integers = {IM_COL32(255, 204, 0, 255), IM_COL32(200, 160, 0, 255),
+                                           IM_COL32(200, 160, 0, 255)};
+                        effect.floats = {0.0f, 0.0f};
+                    }
+                    changed = true;
+                }
+            }
+            ImGuiMCP::EndCombo();
+        }
+        ImGuiMCP::EndDisabled();
         ImGuiMCP::EndTable();
+        std::optional<size_t> removed;
+        for (size_t i = 0; i < effects.size(); ++i) {
+            const auto id = std::format("theme.effect.{}", i);
+            const auto label = Translations::WithID(SpecialEffectLabel(effects[i].id), id);
+            bool visible = true;
+            if (ImGuiMCP::CollapsingHeader(label.c_str(), &visible, ImGuiMCP::ImGuiTreeNodeFlags_DefaultOpen) &&
+                BeginSettingsTable(std::format("{}.fields", id).c_str())) {
+                changed |= RenderSpecialEffectSettings(effects[i], id);
+                ImGuiMCP::EndTable();
+            }
+            if (!visible) removed = i;
+        }
+        if (removed) {
+            effects.erase(effects.begin() + *removed);
+            changed = true;
+        }
         return changed;
     }
 
@@ -516,15 +599,7 @@ namespace {
         add_string("author", player_name ? player_name : "");
         add_string("version", "1.0.0");
         a_theme.UpdateSettings(document);
-        document.AddMember("special_effect", a_theme.special_effect, allocator);
         document.AddMember("hide_in_menu", a_theme.hide_in_menu, allocator);
-        Value strings(kArrayType), bools(kArrayType);
-        for (const auto& value : a_theme.special_strings) {
-            strings.PushBack(Value(value.c_str(), allocator), allocator);
-        }
-        for (const auto value : a_theme.special_bools) bools.PushBack(value != 0, allocator);
-        document.AddMember("special_strings", strings, allocator);
-        document.AddMember("special_bools", bools, allocator);
 
         const auto folder = std::filesystem::path(Theme::themes_folder);
         std::error_code error;
@@ -972,6 +1047,7 @@ void MCP::Settings::to_json() {
     theme.AddMember("font_shadow", Theme::default_theme.font_shadow, allocator);
     // theme:: file name for active icon, like font_name
     root.AddMember("Theme", theme, allocator);
+    Theme::default_theme.UpdateSpecialEffects(root, allocator);
 
     // version
 
@@ -1016,6 +1092,7 @@ void MCP::Settings::from_json() {
         return;
     }
     auto& mcp = doc["MCP"];
+    Theme::default_theme.LoadSpecialEffects(mcp);
 
     if (mcp.HasMember("fadeSpeed")) {
         Theme::default_theme.fadeSpeed = mcp["fadeSpeed"].GetFloat();
