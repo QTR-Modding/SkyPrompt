@@ -253,6 +253,12 @@ namespace {
     void ResetThemeAppearance(Theme::Theme& settings) {
         const Theme::Theme defaults;
 
+#ifndef NDEBUG
+        settings.n_max_buttons = defaults.n_max_buttons;
+#endif
+        settings.font_name = defaults.font_name;
+        settings.font_shadow = defaults.font_shadow;
+        settings.special_effects = defaults.special_effects;
         settings.fadeSpeed = defaults.fadeSpeed;
         settings.xPercent = defaults.xPercent;
         settings.yPercent = defaults.yPercent;
