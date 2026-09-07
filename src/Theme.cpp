@@ -129,8 +129,11 @@ void Theme::Theme::UpdateSettings(rapidjson::Document& a_document) const {
         if constexpr (std::is_convertible_v<decltype(a_value), std::string_view>) {
             const std::string_view text = a_value;
             value.SetString(text.data(), static_cast<rapidjson::SizeType>(text.size()), allocator);
-        } else {
+        } else if constexpr (std::is_arithmetic_v<std::remove_cvref_t<decltype(a_value)>>) {
             value.Set(a_value);
+        } else {
+            value.SetArray();
+            for (const auto item : a_value) value.PushBack(item, allocator);
         }
         if (const auto member = a_document.FindMember(a_key); member != a_document.MemberEnd()) {
             member->value = std::move(value);
@@ -154,6 +157,8 @@ void Theme::Theme::UpdateSettings(rapidjson::Document& a_document) const {
     set("prompt_alignment", toPromptAlignmentString(prompt_alignment));
     set("prompt_order", toPromptOrderString(prompt_order));
     set("prompt_pivot", toPromptPivotString(prompt_pivot));
+    if (!special_integers.empty()) set("special_integers", special_integers);
+    if (!special_floats.empty()) set("special_floats", special_floats);
 }
 
 bool Theme::WriteThemeFile(const std::filesystem::path& a_path, const rapidjson::Document& a_document) {

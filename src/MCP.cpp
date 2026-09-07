@@ -114,13 +114,6 @@ namespace {
         return ImGuiMCP::IsItemDeactivatedAfterEdit();
     }
 
-    bool SliderIntCommitted(const std::string_view a_key, const std::string_view a_id, int* a_value, const int a_min,
-                            const int a_max) {
-        const auto label = Translations::ImGuiLabel(a_key, a_id);
-        ImGuiMCP::SliderInt(label.c_str(), a_value, a_min, a_max);
-        return ImGuiMCP::IsItemDeactivatedAfterEdit();
-    }
-
     void LocalizedText(const std::string_view a_key) {
         const auto& text = Translations::Get(a_key);
         ImGuiMCP::TextUnformatted(text.c_str());
@@ -139,12 +132,14 @@ namespace {
             if (filename.empty()) MCP::Settings::to_json();
         }
 
-        void Render();
+        void RenderSelector();
+        bool RenderAppearance();
+        bool RenderSpecialEffects();
     };
 
     ThemeEditor theme_editor;
 
-    void ThemeEditor::Render() {
+    void ThemeEditor::RenderSelector() {
         const auto label = [](const std::string_view a_name, const Theme::Theme& a_theme) {
             return &a_theme == Theme::last_theme
                        ? Translations::Format("$SkyPromptMCPThemeActive", a_name)
@@ -199,7 +194,7 @@ namespace {
         MCP::Settings::current_OSP = Presets::OSP::NOSPs;
     }
 
-    void ResetSettingsPageToDefaults(Theme::Theme& settings) {
+    void ResetThemeAppearance(Theme::Theme& settings) {
         const Theme::Theme defaults;
 
         settings.fadeSpeed = defaults.fadeSpeed;
@@ -215,11 +210,182 @@ namespace {
         settings.linespacing = defaults.linespacing;
         settings.progress_speed = defaults.progress_speed;
 
-        if (&settings == &Theme::default_theme) {
-            MCP::Settings::lifetime = 5.0f;
-            MCP::Settings::shouldReloadLifetime.store(true);
-        }
         MCP::Settings::shouldReloadPromptSize.store(true);
+    }
+
+    bool ThemeEditor::RenderAppearance() {
+        bool settingsChanged = false;
+        auto& theme = GetTheme();
+        if (LocalizedButton("$SkyPromptMCPSettingsResetDefaults", "settings.resetDefaults")) {
+            ResetThemeAppearance(theme);
+            settingsChanged = true;
+        }
+#ifndef NDEBUG
+        constexpr int minimumPromptCount = 1;
+        const auto maxButtonsLabel = Translations::ImGuiLabel("$SkyPromptMCPControlsMaxButtons", "theme.maxButtons");
+        if (ImGuiMCP::InputInt(maxButtonsLabel.c_str(), &theme.n_max_buttons)) {
+            theme.n_max_buttons = std::max(theme.n_max_buttons, minimumPromptCount);
+            settingsChanged = true;
+        }
+#endif
+
+        SyncOSPPresetSelection(theme);
+        if (MCP::Settings::OSPPresetBox(theme)) {
+            settingsChanged = true;
+        }
+
+        // Slider for fade speed
+        if (SliderFloatCommitted("$SkyPromptMCPSettingsFadeSpeed", "settings.fadeSpeed", &theme.fadeSpeed,
+                                 0.01f, 0.1f)) {
+            settingsChanged = true;
+        }
+
+        // Slider for X Percent
+        if (SliderFloatCommitted("$SkyPromptMCPSettingsXPercent", "settings.xPercent", &theme.xPercent, 0.0f,
+                                 1.0f)) {
+            settingsChanged = true;
+        }
+
+        // Slider for Y Percent
+        if (SliderFloatCommitted("$SkyPromptMCPSettingsYPercent", "settings.yPercent", &theme.yPercent, 0.0f,
+                                 1.0f)) {
+            settingsChanged = true;
+        }
+
+        // Slider for Margin X
+        if (SliderFloatCommitted("$SkyPromptMCPSettingsMarginX", "settings.marginX", &theme.marginX,
+                                 -1000.0f, 1000.0f)) {
+            settingsChanged = true;
+        }
+
+        // Slider for Margin Y
+        if (SliderFloatCommitted("$SkyPromptMCPSettingsMarginY", "settings.marginY", &theme.marginY,
+                                 -1000.0f, 1000.0f)) {
+            settingsChanged = true;
+        }
+
+        // Slider for Prompt Size
+        if (SliderFloatCommitted("$SkyPromptMCPSettingsPromptSize", "settings.promptSize",
+                                 &theme.prompt_size, 15.0f, 100.0f)) {
+            MCP::Settings::shouldReloadPromptSize.store(true);
+            settingsChanged = true;
+        }
+
+        // Slider for Icon2Font Ratio
+        if (SliderFloatCommitted("$SkyPromptMCPSettingsIcon2FontRatio", "settings.icon2FontRatio",
+                                 &theme.icon2font_ratio, 0.5f, 2.0f)) {
+            MCP::Settings::shouldReloadPromptSize.store(true);
+            settingsChanged = true;
+        }
+
+        const auto prompt_order_before = theme.prompt_order;
+        const auto& prompt_order_preview = PromptOrderLabel(theme.prompt_order);
+        if (LocalizedBeginCombo("$SkyPromptMCPSettingsPromptOrder", "settings.promptOrder", prompt_order_preview.c_str())) {
+            for (const auto prompt_order : {Theme::kIconFirst, Theme::kTextFirst}) {
+                const bool selected = theme.prompt_order == prompt_order;
+                const auto id =
+                    prompt_order == Theme::kIconFirst ? "settings.promptOrder.iconFirst" : "settings.promptOrder.textFirst";
+                if (LocalizedSelectableText(PromptOrderLabel(prompt_order), id, selected)) {
+                    theme.prompt_order = prompt_order;
+                }
+                if (selected) {
+                    ImGuiMCP::SetItemDefaultFocus();
+                }
+            }
+            ImGuiMCP::EndCombo();
+        }
+        if (prompt_order_before != theme.prompt_order) {
+            settingsChanged = true;
+        }
+
+        const auto prompt_alignment_before = theme.prompt_alignment;
+        const auto& prompt_alignment_preview = PromptAlignmentLabel(theme.prompt_alignment);
+        if (LocalizedBeginCombo("$SkyPromptMCPSettingsPromptAlignment", "settings.promptAlignment",
+                                prompt_alignment_preview.c_str())) {
+            for (const auto prompt_alignment : {Theme::kVertical, Theme::kHorizontal, Theme::kRadial, Theme::kDiamond, Theme::kList}) {
+                const bool selected = theme.prompt_alignment == prompt_alignment;
+                const auto id = std::format("settings.promptAlignment.{}", static_cast<int>(prompt_alignment));
+                if (LocalizedSelectableText(PromptAlignmentLabel(prompt_alignment), id, selected)) {
+                    theme.prompt_alignment = prompt_alignment;
+                }
+                if (selected) {
+                    ImGuiMCP::SetItemDefaultFocus();
+                }
+            }
+            ImGuiMCP::EndCombo();
+        }
+        if (prompt_alignment_before != theme.prompt_alignment) {
+            settingsChanged = true;
+        }
+
+        const auto prompt_pivot_before = theme.prompt_pivot;
+        const auto& prompt_pivot_preview = PromptPivotLabel(theme.prompt_pivot);
+        if (LocalizedBeginCombo("$SkyPromptMCPSettingsPromptPivot", "settings.promptPivot",
+                                prompt_pivot_preview.c_str())) {
+            for (const auto prompt_pivot : {
+                     Theme::kTopLeft, Theme::kTopRight, Theme::kBottomLeft,
+                     Theme::kBottomRight, Theme::kCenter
+                 }) {
+                const bool selected = theme.prompt_pivot == prompt_pivot;
+                const auto id = std::format("settings.promptPivot.{}", static_cast<int>(prompt_pivot));
+                if (LocalizedSelectableText(PromptPivotLabel(prompt_pivot), id, selected)) {
+                    theme.prompt_pivot = prompt_pivot;
+                }
+                if (selected) {
+                    ImGuiMCP::SetItemDefaultFocus();
+                }
+            }
+            ImGuiMCP::EndCombo();
+        }
+        if (prompt_pivot_before != theme.prompt_pivot) {
+            settingsChanged = true;
+        }
+
+        // Slider for Line Spacing
+        if (SliderFloatCommitted("$SkyPromptMCPSettingsLineSpacing", "settings.lineSpacing",
+                                 &theme.linespacing, 0.0f, 1.0f)) {
+            settingsChanged = true;
+        }
+
+        // Slider for Progress Speed
+        if (SliderFloatCommitted("$SkyPromptMCPSettingsProgressSpeed", "settings.progressSpeed",
+                                 &theme.progress_speed, 0.0f, 1.0f)) {
+            settingsChanged = true;
+        }
+
+        return settingsChanged;
+    }
+
+    bool ThemeEditor::RenderSpecialEffects() {
+        auto& theme = GetTheme();
+        if (theme.special_floats.empty() && theme.special_integers.empty()) return false;
+        const auto header = Translations::ImGuiLabel("$SkyPromptMCPThemeSpecialEffects", "theme.special");
+        if (!ImGuiMCP::CollapsingHeader(header.c_str())) return false;
+
+        bool changed = false;
+        constexpr float floatLimit = 500.0f;
+        for (size_t i = 0; i < theme.special_floats.size(); ++i) {
+            const auto label = Translations::WithID(Translations::Format("$SkyPromptMCPThemeSpecialFloat", i + 1),
+                                                   std::format("theme.special.float.{}", i));
+            ImGuiMCP::SliderFloat(label.c_str(), &theme.special_floats[i], -floatLimit, floatLimit);
+            changed |= ImGuiMCP::IsItemDeactivatedAfterEdit();
+        }
+        constexpr uint32_t integerStep = 1;
+        for (size_t i = 0; i < theme.special_integers.size(); ++i) {
+            auto& value = theme.special_integers[i];
+            const auto label = Translations::WithID(Translations::Format("$SkyPromptMCPThemeSpecialInteger", i + 1),
+                                                   std::format("theme.special.integer.{}", i));
+            changed |= ImGuiMCP::InputScalar(label.c_str(), ImGuiMCP::ImGuiDataType_U32, &value, &integerStep);
+            ImGuiMCP::SameLine();
+            auto color = ImGuiMCP::ColorConvertU32ToFloat4(value);
+            const auto colorID = std::format("##theme.special.color.{}", i);
+            if (ImGuiMCP::ColorEdit4(colorID.c_str(), &color.x,
+                                    ImGuiMCP::ImGuiColorEditFlags_NoInputs | ImGuiMCP::ImGuiColorEditFlags_AlphaBar)) {
+                value = ImGuiMCP::ColorConvertFloat4ToU32(color);
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     using SectionLabels = std::array<std::string_view, 4>;
@@ -339,15 +505,11 @@ namespace {
         a_theme.UpdateSettings(document);
         document.AddMember("special_effect", a_theme.special_effect, allocator);
         document.AddMember("hide_in_menu", a_theme.hide_in_menu, allocator);
-        Value integers(kArrayType), floats(kArrayType), strings(kArrayType), bools(kArrayType);
-        for (const auto value : a_theme.special_integers) integers.PushBack(value, allocator);
-        for (const auto value : a_theme.special_floats) floats.PushBack(value, allocator);
+        Value strings(kArrayType), bools(kArrayType);
         for (const auto& value : a_theme.special_strings) {
             strings.PushBack(Value(value.c_str(), allocator), allocator);
         }
         for (const auto value : a_theme.special_bools) bools.PushBack(value != 0, allocator);
-        document.AddMember("special_integers", integers, allocator);
-        document.AddMember("special_floats", floats, allocator);
         document.AddMember("special_strings", strings, allocator);
         document.AddMember("special_bools", bools, allocator);
 
@@ -426,9 +588,6 @@ namespace {
 }
 
 void __stdcall MCP::RenderSettings() {
-    bool settingsChanged = false; // Flag to track changes
-
-    // Checkbox for enable/disable mod
     bool enabled = Settings::initialized.load();
     if (LocalizedCheckbox("$SkyPromptMCPSettingsEnableMod", "settings.enableMod", &enabled)) {
         Settings::initialized.store(enabled);
@@ -437,152 +596,13 @@ void __stdcall MCP::RenderSettings() {
     if (LocalizedButton("$SkyPromptMCPSettingsStartTutorial", "settings.startTutorial")) {
         Tutorial::Manager::Start();
     }
-    std::unique_lock lock(Theme::m_theme_);
-    theme_editor.Render();
-    auto& theme = theme_editor.GetTheme();
-    if (LocalizedButton("$SkyPromptMCPSettingsResetDefaults", "settings.resetDefaults")) {
-        ResetSettingsPageToDefaults(theme);
-        settingsChanged = true;
-    }
-    #ifndef NDEBUG
-    // Checkbox for debug mode
-    ImGuiMCP::SameLine();
+#ifndef NDEBUG
     LocalizedCheckbox("$SkyPromptMCPSettingsDrawDebug", "settings.drawDebug", &Settings::draw_debug);
-    #endif
-
-    SyncOSPPresetSelection(theme);
-    if (Settings::OSPPresetBox(theme)) {
-        settingsChanged = true;
-    }
-
-    // Slider for fade speed
-    if (SliderFloatCommitted("$SkyPromptMCPSettingsFadeSpeed", "settings.fadeSpeed", &theme.fadeSpeed,
-                             0.01f, 0.1f)) {
-        settingsChanged = true;
-    }
-
-    // Slider for X Percent
-    if (SliderFloatCommitted("$SkyPromptMCPSettingsXPercent", "settings.xPercent", &theme.xPercent, 0.0f,
-                             1.0f)) {
-        settingsChanged = true;
-    }
-
-    // Slider for Y Percent
-    if (SliderFloatCommitted("$SkyPromptMCPSettingsYPercent", "settings.yPercent", &theme.yPercent, 0.0f,
-                             1.0f)) {
-        settingsChanged = true;
-    }
-
-    // Slider for Margin X
-    if (SliderFloatCommitted("$SkyPromptMCPSettingsMarginX", "settings.marginX", &theme.marginX,
-                             -1000.0f, 1000.0f)) {
-        settingsChanged = true;
-    }
-
-    // Slider for Margin Y
-    if (SliderFloatCommitted("$SkyPromptMCPSettingsMarginY", "settings.marginY", &theme.marginY,
-                             -1000.0f, 1000.0f)) {
-        settingsChanged = true;
-    }
-
-    // Slider for Prompt Size
-    if (SliderFloatCommitted("$SkyPromptMCPSettingsPromptSize", "settings.promptSize",
-                             &theme.prompt_size, 15.0f, 100.0f)) {
-        Settings::shouldReloadPromptSize.store(true);
-        settingsChanged = true;
-    }
-
-    // Slider for Icon2Font Ratio
-    if (SliderFloatCommitted("$SkyPromptMCPSettingsIcon2FontRatio", "settings.icon2FontRatio",
-                             &theme.icon2font_ratio, 0.5f, 2.0f)) {
-        Settings::shouldReloadPromptSize.store(true);
-        settingsChanged = true;
-    }
-
-    const auto prompt_order_before = theme.prompt_order;
-    const auto& prompt_order_preview = PromptOrderLabel(theme.prompt_order);
-    if (LocalizedBeginCombo("$SkyPromptMCPSettingsPromptOrder", "settings.promptOrder", prompt_order_preview.c_str())) {
-        for (const auto prompt_order : {Theme::kIconFirst, Theme::kTextFirst}) {
-            const bool selected = theme.prompt_order == prompt_order;
-            const auto id =
-                prompt_order == Theme::kIconFirst ? "settings.promptOrder.iconFirst" : "settings.promptOrder.textFirst";
-            if (LocalizedSelectableText(PromptOrderLabel(prompt_order), id, selected)) {
-                theme.prompt_order = prompt_order;
-            }
-            if (selected) {
-                ImGuiMCP::SetItemDefaultFocus();
-            }
-        }
-        ImGuiMCP::EndCombo();
-    }
-    if (prompt_order_before != theme.prompt_order) {
-        settingsChanged = true;
-    }
-
-    const auto prompt_alignment_before = theme.prompt_alignment;
-    const auto& prompt_alignment_preview = PromptAlignmentLabel(theme.prompt_alignment);
-    if (LocalizedBeginCombo("$SkyPromptMCPSettingsPromptAlignment", "settings.promptAlignment",
-                            prompt_alignment_preview.c_str())) {
-        for (const auto prompt_alignment : {Theme::kVertical, Theme::kHorizontal, Theme::kRadial, Theme::kDiamond, Theme::kList}) {
-            const bool selected = theme.prompt_alignment == prompt_alignment;
-            const auto id = std::format("settings.promptAlignment.{}", static_cast<int>(prompt_alignment));
-            if (LocalizedSelectableText(PromptAlignmentLabel(prompt_alignment), id, selected)) {
-                theme.prompt_alignment = prompt_alignment;
-            }
-            if (selected) {
-                ImGuiMCP::SetItemDefaultFocus();
-            }
-        }
-        ImGuiMCP::EndCombo();
-    }
-    if (prompt_alignment_before != theme.prompt_alignment) {
-        settingsChanged = true;
-    }
-
-    const auto prompt_pivot_before = theme.prompt_pivot;
-    const auto& prompt_pivot_preview = PromptPivotLabel(theme.prompt_pivot);
-    if (LocalizedBeginCombo("$SkyPromptMCPSettingsPromptPivot", "settings.promptPivot",
-                            prompt_pivot_preview.c_str())) {
-        for (const auto prompt_pivot : {
-                 Theme::kTopLeft, Theme::kTopRight, Theme::kBottomLeft,
-                 Theme::kBottomRight, Theme::kCenter
-             }) {
-            const bool selected = theme.prompt_pivot == prompt_pivot;
-            const auto id = std::format("settings.promptPivot.{}", static_cast<int>(prompt_pivot));
-            if (LocalizedSelectableText(PromptPivotLabel(prompt_pivot), id, selected)) {
-                theme.prompt_pivot = prompt_pivot;
-            }
-            if (selected) {
-                ImGuiMCP::SetItemDefaultFocus();
-            }
-        }
-        ImGuiMCP::EndCombo();
-    }
-    if (prompt_pivot_before != theme.prompt_pivot) {
-        settingsChanged = true;
-    }
-
-    // Slider for Line Spacing
-    if (SliderFloatCommitted("$SkyPromptMCPSettingsLineSpacing", "settings.lineSpacing",
-                             &theme.linespacing, 0.0f, 1.0f)) {
-        settingsChanged = true;
-    }
-
-    // Slider for Progress Speed
-    if (SliderFloatCommitted("$SkyPromptMCPSettingsProgressSpeed", "settings.progressSpeed",
-                             &theme.progress_speed, 0.0f, 1.0f)) {
-        settingsChanged = true;
-    }
-
-    ImGuiMCP::Separator();
-    // Slider for Lifetime
+#endif
+    std::unique_lock lock(Theme::m_theme_);
     if (SliderFloatCommitted("$SkyPromptMCPSettingsLifetime", "settings.lifetime", &Settings::lifetime, 1.0f, 30.0f)) {
         Settings::shouldReloadLifetime.store(true);
         Settings::to_json();
-    }
-
-    if (settingsChanged) {
-        theme_editor.OnChanged();
     }
 }
 
@@ -808,14 +828,14 @@ namespace {
         }
     }
 
-    void RenderControl(std::map<Input::DEVICE, uint32_t>& a_controls, const std::string_view a_label,
+    void RenderControl(uint32_t& a_key, const std::string_view a_label,
                        const std::string_view a_id, const std::string_view a_help_key = {}) {
         ImGuiMCP::TextUnformatted(a_label.data(), a_label.data() + a_label.size());
         ImGuiMCP::SameLine();
         ImGuiMCP::SetCursorPosX(200.f);
         ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.30f);
         const auto combo_id = std::format("##{}", a_id);
-        ControlBox(combo_id.c_str(), MCP::current_device, a_controls.at(MCP::current_device));
+        ControlBox(combo_id.c_str(), MCP::current_device, a_key);
         if (!a_help_key.empty()) {
             ImGuiMCP::SameLine();
             HelpMarker(a_help_key);
@@ -836,15 +856,15 @@ bool MCP::Settings::CycleControls() {
     }
 
     if (current_device != Input::DEVICE::kUnknown) {
-        auto before = cycle_L;
-        RenderControl(cycle_L, Translations::Get("$SkyPromptMCPControlsCycleLeft"), "controls.cycleLeft");
-        if (before != cycle_L) {
+        auto before = cycle_L.at(current_device);
+        RenderControl(cycle_L.at(current_device), Translations::Get("$SkyPromptMCPControlsCycleLeft"), "controls.cycleLeft");
+        if (before != cycle_L.at(current_device)) {
             settingsChanged = true;
         }
 
-        before = cycle_R;
-        RenderControl(cycle_R, Translations::Get("$SkyPromptMCPControlsCycleRight"), "controls.cycleRight");
-        if (before != cycle_R) {
+        before = cycle_R.at(current_device);
+        RenderControl(cycle_R.at(current_device), Translations::Get("$SkyPromptMCPControlsCycleRight"), "controls.cycleRight");
+        if (before != cycle_R.at(current_device)) {
             settingsChanged = true;
         }
     }
@@ -1127,23 +1147,6 @@ void MCP::Settings::from_json() {
 
 void __stdcall MCP::RenderControls() {
     std::unique_lock lock(Theme::m_theme_);
-    theme_editor.Render();
-    auto& theme = theme_editor.GetTheme();
-
-    bool max_buttons_changed;
-    if (theme_editor.filename.empty()) {
-        max_buttons_changed = SliderIntCommitted("$SkyPromptMCPControlsMaxButtons", "controls.maxButtons",
-                                                  &theme.n_max_buttons, 1, 4);
-    } else {
-        const auto label = Translations::ImGuiLabel("$SkyPromptMCPControlsMaxButtons", "controls.maxButtons");
-        max_buttons_changed = ImGuiMCP::InputInt(label.c_str(), &theme.n_max_buttons);
-        theme.n_max_buttons = std::max(theme.n_max_buttons, 1);
-    }
-    if (max_buttons_changed) {
-        theme_editor.OnChanged();
-    }
-
-    ImGuiMCP::Separator();
     // Checkbox for each device
     bool settingsChanged = false;
     for (const auto& device : Settings::enabled_devices | std::views::keys) {
@@ -1165,16 +1168,10 @@ void __stdcall MCP::RenderControls() {
     DeviceBox("controls.deviceSelection");
 
     if (current_device != Input::DEVICE::kUnknown) {
-        for (auto i = 0; i < Theme::default_theme.n_max_buttons; i++) {
-            std::map<Input::DEVICE, uint32_t> curr_controls;
-            for (const auto& [device, key] : Settings::default_keys) {
-                curr_controls[device] = key.at(i);
-            }
-            RenderControl(curr_controls, Translations::Format("$SkyPromptMCPControlsButton", i + 1),
+        auto& keys = Settings::default_keys.at(current_device);
+        for (size_t i = 0; i < keys.size(); ++i) {
+            RenderControl(keys[i], Translations::Format("$SkyPromptMCPControlsButton", i + 1),
                           std::format("controls.button.{}", i + 1));
-            for (auto& [device, key] : Settings::default_keys) {
-                key.at(i) = curr_controls[device];
-            }
         }
     }
 
@@ -1197,11 +1194,13 @@ void __stdcall MCP::RenderTheme() {
     }
 
     std::unique_lock lock(Theme::m_theme_);
-    theme_editor.Render();
+    theme_editor.RenderSelector();
     auto& theme = theme_editor.GetTheme();
-    if (Settings::FontSettings(theme)) {
-        theme_editor.OnChanged();
-    }
+    bool changed = theme_editor.RenderAppearance();
+    changed |= Settings::FontSettings(theme);
+    changed |= theme_editor.RenderSpecialEffects();
+    if (changed) theme_editor.OnChanged();
+    ImGuiMCP::Separator();
     RenderThemeExport(theme);
 }
 
