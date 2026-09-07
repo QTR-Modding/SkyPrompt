@@ -25,7 +25,7 @@ Automatically imports:
 
 #### THEME SPECIAL EFFECTS
 
-See the [theme special effects guide](https://github.com/QTR-Modding/SkyPrompt/wiki/Theme-Special-Effects).
+See the [theme special effects guide](https://github.com/QTR-Modding/SkyPromptAPI/wiki/How-to-create-Themes%3F#special-visual-effects).
 
 #### TRANSLATIONS
 
