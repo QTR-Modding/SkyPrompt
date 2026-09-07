@@ -85,7 +85,46 @@ std::string_view Theme::toPromptPivotString(const PromptPivot pivot) {
     }
 }
 
-Theme::Theme::Theme(const ThemeBlock& block) {
+namespace {
+    constexpr const char* effect_keys[] = {
+        "special_effect", "special_integers", "special_strings", "special_floats", "special_bools"
+    };
+
+    Theme::SpecialEffect LoadSpecialEffect(const rapidjson::Value& a_value) {
+        Theme::SpecialEffect effect;
+        using Presets::Getters::JSON::Get;
+        Get(a_value, "special_effect", effect.id);
+        if (!Get(a_value, "special_integers", effect.integers)) effect.integers.clear();
+        if (!Get(a_value, "special_strings", effect.strings)) effect.strings.clear();
+        if (!Get(a_value, "special_floats", effect.floats)) effect.floats.clear();
+        std::vector<bool> bools;
+        if (Get(a_value, "special_bools", bools)) effect.bools.assign(bools.begin(), bools.end());
+        return effect;
+    }
+
+    rapidjson::Value SerializeSpecialEffect(const Theme::SpecialEffect& a_effect,
+                                           rapidjson::Document::AllocatorType& a_allocator) {
+        using namespace rapidjson;
+        Value result(kObjectType), integers(kArrayType), strings(kArrayType), floats(kArrayType), bools(kArrayType);
+        for (const auto value : a_effect.integers) integers.PushBack(value, a_allocator);
+        for (const auto& value : a_effect.strings) {
+            strings.PushBack(Value(value.data(), static_cast<SizeType>(value.size()), a_allocator), a_allocator);
+        }
+        for (const auto value : a_effect.floats) floats.PushBack(value, a_allocator);
+        for (const auto value : a_effect.bools) bools.PushBack(value != 0, a_allocator);
+        result.AddMember("special_effect", a_effect.id, a_allocator);
+        result.AddMember("special_integers", integers, a_allocator);
+        result.AddMember("special_strings", strings, a_allocator);
+        result.AddMember("special_floats", floats, a_allocator);
+        result.AddMember("special_bools", bools, a_allocator);
+        return result;
+    }
+}
+
+Theme::Theme::Theme(const rapidjson::Value& a_value) {
+    if (!a_value.IsObject()) return;
+    ThemeBlock block;
+    block.load(a_value);
     theme_name = block.theme_name.get();
     theme_description = block.theme_description.get();
     theme_author = block.theme_author.get();
@@ -110,16 +149,49 @@ Theme::Theme::Theme(const ThemeBlock& block) {
     prompt_order = toPromptOrder(block.prompt_order.get());
     prompt_pivot = toPromptPivot(block.prompt_pivot.get());
 
-    special_effect = block.special_effect.get();
-
-    special_integers = block.special_integers.get();
-    special_strings = block.special_strings.get();
-    special_floats = block.special_floats.get();
-    for (const auto& a_bool : block.special_bools.get()) {
-        special_bools.push_back(a_bool);
-    }
-
+    LoadSpecialEffects(a_value);
     hide_in_menu = block.hide_in_menu.get();
+}
+
+void Theme::Theme::LoadSpecialEffects(const rapidjson::Value& a_value) {
+    special_effects.clear();
+    if (!a_value.IsObject()) return;
+    if (const auto member = a_value.FindMember("special_effects"); member != a_value.MemberEnd()) {
+        if (member->value.IsArray()) {
+            for (const auto& value : member->value.GetArray()) {
+                if (value.IsObject()) special_effects.push_back(LoadSpecialEffect(value));
+            }
+        }
+        return;
+    }
+    for (const auto key : effect_keys) {
+        if (a_value.HasMember(key)) {
+            special_effects.push_back(LoadSpecialEffect(a_value));
+            break;
+        }
+    }
+}
+
+void Theme::Theme::UpdateSpecialEffects(rapidjson::Value& a_value,
+                                       rapidjson::Document::AllocatorType& a_allocator) const {
+    if (!a_value.IsObject()) return;
+    const bool array = special_effects.size() > 1 || a_value.HasMember("special_effects");
+    for (const auto key : effect_keys) a_value.RemoveMember(key);
+    rapidjson::Value effects(rapidjson::kArrayType);
+    for (const auto& effect : special_effects) {
+        auto value = SerializeSpecialEffect(effect, a_allocator);
+        if (array) {
+            effects.PushBack(value, a_allocator);
+        } else {
+            for (auto member = value.MemberBegin(); member != value.MemberEnd(); ++member) {
+                a_value.AddMember(member->name, member->value, a_allocator);
+            }
+        }
+    }
+    if (array) {
+        if (a_value.HasMember("special_effects")) a_value["special_effects"] = std::move(effects);
+        else a_value.AddMember("special_effects", effects, a_allocator);
+    }
 }
 
 void Theme::Theme::UpdateSettings(rapidjson::Document& a_document) const {
@@ -154,6 +226,7 @@ void Theme::Theme::UpdateSettings(rapidjson::Document& a_document) const {
     set("prompt_alignment", toPromptAlignmentString(prompt_alignment));
     set("prompt_order", toPromptOrderString(prompt_order));
     set("prompt_pivot", toPromptPivotString(prompt_pivot));
+    UpdateSpecialEffects(a_document, allocator);
 }
 
 bool Theme::WriteThemeFile(const std::filesystem::path& a_path, const rapidjson::Document& a_document) {
@@ -219,14 +292,12 @@ void Theme::Theme::ReLoad(std::string_view a_filename) {
         std::string json_str((std::istreambuf_iterator(ifs)), std::istreambuf_iterator<char>());
         ifs.close();
         doc.Parse(json_str.c_str());
-        if (doc.HasParseError()) {
+        if (doc.HasParseError() || !doc.IsObject()) {
             logger::error("JSON Parse Error at offset {}: {}", doc.GetErrorOffset(),
-                          rapidjson::GetParseError_En(doc.GetParseError()));
+                          doc.HasParseError() ? rapidjson::GetParseError_En(doc.GetParseError()) : "Expected an object");
             return;
         }
-        ThemeBlock data;
-        data.load(doc);
-        *this = Theme(data); // Update the theme with the new data
+        *this = Theme(doc); // Update the theme with the new data
 
         return;
     }
@@ -258,14 +329,13 @@ void Theme::LoadThemes() {
         std::string json_str((std::istreambuf_iterator(ifs)), std::istreambuf_iterator<char>());
         ifs.close();
         doc.Parse(json_str.c_str());
-        if (doc.HasParseError()) {
-            logger::error("JSON Parse Error at offset {}: {}", doc.GetErrorOffset(), rapidjson::GetParseError_En(doc.GetParseError()));
+        if (doc.HasParseError() || !doc.IsObject()) {
+            logger::error("JSON Parse Error at offset {}: {}", doc.GetErrorOffset(),
+                          doc.HasParseError() ? rapidjson::GetParseError_En(doc.GetParseError()) : "Expected an object");
             continue;
         }
 
-        ThemeBlock data;
-        data.load(doc);
-        Theme a_theme(data);
+        Theme a_theme(doc);
 
         if (auto& a_name = filename; !themes_loaded.contains(a_name)) {
             themes_loaded[a_name] = a_theme;

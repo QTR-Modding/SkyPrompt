@@ -7,14 +7,16 @@ namespace {
     using namespace ImGui::PromptLayouts;
 
     SkyPrompt::AddOns::SpecialEffects::SpecialsView
-    GetSpecialsView(const Theme::Theme& t) {
-        SkyPrompt::AddOns::SpecialEffects::SpecialsView v;
-        v.effectID = t.special_effect;
-        v.integers = std::span{t.special_integers};
-        v.strings = std::span{t.special_strings};
-        v.floats = std::span{t.special_floats};
-        v.bools = std::span{t.special_bools};
-        return v;
+    GetSpecialsView(const Theme::SpecialEffect& a_effect) {
+        return {a_effect.id, a_effect.integers, a_effect.strings, a_effect.floats, a_effect.bools};
+    }
+
+    void RenderTextEffects(ImDrawList* a_drawList, const ImVec2 a_min, const ImVec2 a_max,
+                           const float a_angle = 0.0f, const float a_alpha = 1.0f) {
+        for (const auto& effect : Theme::last_theme->special_effects) {
+            SkyPrompt::AddOns::RenderSpecialEffect(GetSpecialsView(effect), a_drawList,
+                                                   a_min, a_max, a_angle, a_alpha);
+        }
     }
 
     // Utility: scale a packed ImU32 color's alpha by factor in [0,1]
@@ -170,8 +172,7 @@ namespace {
                            const ImVec2 text_size, const ImU32 text_color, const char* text) {
         if (!draw_list || !font || !text || !*text) return;
 
-        SkyPrompt::AddOns::RenderSpecialEffect(GetSpecialsView(*Theme::last_theme), draw_list,
-                                               position, position + text_size);
+        RenderTextEffects(draw_list, position, position + text_size);
         const auto shadow_color = IM_COL32(0, 0, 0, 255 * Theme::last_theme->font_shadow);
         draw_list->AddText(font, font_size, position + ImVec2(2.5f, 2.5f), shadow_color, text);
         draw_list->AddText(font, font_size, position, text_color, text);
@@ -454,8 +455,7 @@ namespace {
                 2.5f * (rowX.y + rowY.y)
             };
 
-            SkyPrompt::AddOns::RenderSpecialEffect(GetSpecialsView(*Theme::last_theme), dl,
-                textCenter - row.textSize * 0.5f, textCenter + row.textSize * 0.5f, angle, ri.alpha);
+            RenderTextEffects(dl, textCenter - row.textSize * 0.5f, textCenter + row.textSize * 0.5f, angle, ri.alpha);
             AddTextRotated(dl, font, fs, textCenter + shadowOffset,
                            shadow, ri.text.c_str(), nullptr, angle, true);
             AddTextRotated(dl, font, fs, textCenter,
@@ -657,7 +657,6 @@ void ImGui::RenderSkyPrompt(const ImVec2& anchor) {
 
     const auto& curr_theme = Theme::last_theme;
     const auto prompt_alignment = curr_theme->prompt_alignment;
-    const auto special_effect = curr_theme->special_effect;
 
     // Decorations may extend beyond the auto-sized layout window.
     auto* drawList = GetWindowDrawList();
@@ -689,9 +688,9 @@ void ImGui::RenderSkyPrompt(const ImVec2& anchor) {
 
     drawList->PopClipRect();
 
-    if (special_effect > 0) {
+    for (const auto& effect : curr_theme->special_effects) {
         const auto a_size = GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
-        SkyPrompt::AddOns::RenderSpecialEffect(GetSpecialsView(*curr_theme), anchor, a_size,
+        SkyPrompt::AddOns::RenderSpecialEffect(GetSpecialsView(effect), anchor, a_size,
                                                Renderer::GetResolutionScale());
     }
 }
