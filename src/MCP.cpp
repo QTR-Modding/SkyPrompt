@@ -592,6 +592,10 @@ void __stdcall MCP::RenderSettings() {
     if (LocalizedCheckbox("$SkyPromptMCPSettingsEnableMod", "settings.enableMod", &enabled)) {
         Settings::initialized.store(enabled);
     }
+    ImGuiMCP::SameLine();
+    if (LocalizedButton("$SkyPromptMCPSettingsStartTutorial", "settings.startTutorial")) {
+        Tutorial::Manager::Start();
+    }
 #ifndef NDEBUG
     LocalizedCheckbox("$SkyPromptMCPSettingsDrawDebug", "settings.drawDebug", &Settings::draw_debug);
 #endif
@@ -603,12 +607,6 @@ void __stdcall MCP::RenderSettings() {
             Settings::to_json();
         }
         ImGuiMCP::EndTable();
-    }
-    ImGuiMCP::Spacing();
-    ImGuiMCP::Separator();
-    ImGuiMCP::Spacing();
-    if (LocalizedButton("$SkyPromptMCPSettingsStartTutorial", "settings.startTutorial")) {
-        Tutorial::Manager::Start();
     }
     ImGuiMCP::PopStyleVar(menuSpacingStyleCount);
 }
