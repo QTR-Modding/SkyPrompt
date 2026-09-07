@@ -465,18 +465,23 @@ namespace {
         }
         ImGuiMCP::EndDisabled();
         ImGuiMCP::EndTable();
+        ImGuiMCP::Indent(ImGuiMCP::GetFontSize());
         std::optional<size_t> removed;
         for (size_t i = 0; i < effects.size(); ++i) {
             const auto id = std::format("theme.effect.{}", i);
             const auto label = Translations::WithID(SpecialEffectLabel(effects[i].id), id);
             bool visible = true;
-            if (ImGuiMCP::CollapsingHeader(label.c_str(), &visible, ImGuiMCP::ImGuiTreeNodeFlags_DefaultOpen) &&
-                BeginSettingsTable(std::format("{}.fields", id).c_str())) {
-                changed |= RenderSpecialEffectSettings(effects[i], id);
-                ImGuiMCP::EndTable();
+            if (ImGuiMCP::CollapsingHeader(label.c_str(), &visible, ImGuiMCP::ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGuiMCP::Indent(ImGuiMCP::GetFontSize());
+                if (BeginSettingsTable(std::format("{}.fields", id).c_str())) {
+                    changed |= RenderSpecialEffectSettings(effects[i], id);
+                    ImGuiMCP::EndTable();
+                }
+                ImGuiMCP::Unindent(ImGuiMCP::GetFontSize());
             }
             if (!visible) removed = i;
         }
+        ImGuiMCP::Unindent(ImGuiMCP::GetFontSize());
         if (removed) {
             effects.erase(effects.begin() + *removed);
             changed = true;
