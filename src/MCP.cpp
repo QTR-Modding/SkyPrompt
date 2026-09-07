@@ -10,6 +10,7 @@
 #include "Translations.h"
 #include "Tutorial.h"
 #include "SkyPrompt/AddOns.hpp"
+#include "PromptEffects.h"
 
 namespace {
     void HelpMarker(const std::string_view a_key) {
@@ -376,6 +377,9 @@ namespace {
     }
 
     std::string SpecialEffectLabel(const uint32_t a_id) {
+        if (const auto* definition = ImGui::PromptEffects::GetDefinition(a_id)) {
+            return Translations::Get(definition->label);
+        }
         using namespace SkyPrompt::AddOns::SpecialEffects;
         switch (a_id) {
             case kNone: return Translations::Get("$SkyPromptMCPThemeEffectNone");
@@ -386,6 +390,7 @@ namespace {
     }
 
     bool RenderSpecialEffectSettings(Theme::SpecialEffect& a_effect, const std::string_view a_id) {
+        const auto* definition = ImGui::PromptEffects::GetDefinition(a_effect.id);
         const bool background = a_effect.id == SkyPrompt::AddOns::SpecialEffects::kTextBackground;
         constexpr std::array backgroundFloatLabels = {
             "$SkyPromptMCPThemeBackgroundPaddingX", "$SkyPromptMCPThemeBackgroundPaddingY",
@@ -397,35 +402,54 @@ namespace {
         };
         bool changed = false;
         constexpr float floatLimit = 500.0f;
-        const auto floatCount = std::max(a_effect.floats.size(), background ? backgroundFloatLabels.size() : 0);
+        const auto floatCount = std::max(a_effect.floats.size(), definition ? definition->floats.size()
+                                                                         : background ? backgroundFloatLabels.size() : 0);
         for (size_t i = 0; i < floatCount; ++i) {
+            const auto* parameter = definition && i < definition->floats.size() ? &definition->floats[i] : nullptr;
             const bool named = background && i < backgroundFloatLabels.size();
-            const auto label = SettingRow(named ? Translations::Get(backgroundFloatLabels[i])
+            const auto label = SettingRow(parameter ? Translations::Get(parameter->label)
+                                                   : named ? Translations::Get(backgroundFloatLabels[i])
                                                 : Translations::Format("$SkyPromptMCPThemeSpecialFloat", i + 1),
                                           std::format("{}.float.{}", a_id, i),
-                                          named ? backgroundFloatHelp[i] : "$SkyPromptMCPThemeSpecialFloatHelp");
-            const float before = i < a_effect.floats.size() ? a_effect.floats[i] : 0.0f;
+                                          parameter ? parameter->help
+                                                    : named ? backgroundFloatHelp[i] : "$SkyPromptMCPThemeSpecialFloatHelp");
+            const float before = i < a_effect.floats.size() ? a_effect.floats[i]
+                                                          : parameter ? parameter->default_value : 0.0f;
             float value = before;
-            changed |= SliderFloatCommitted(label.c_str(), &value, -floatLimit, floatLimit);
+            changed |= SliderFloatCommitted(label.c_str(), &value, parameter ? parameter->min : -floatLimit,
+                                                                  parameter ? parameter->max : floatLimit);
             if (value != before) {
-                if (i >= a_effect.floats.size()) a_effect.floats.resize(i + 1);
+                while (i >= a_effect.floats.size()) {
+                    const auto index = a_effect.floats.size();
+                    a_effect.floats.push_back(definition && index < definition->floats.size()
+                                                 ? definition->floats[index].default_value : 0.0f);
+                }
                 a_effect.floats[i] = value;
             }
         }
         constexpr uint32_t integerStep = 1;
-        const auto integerCount = std::max(a_effect.integers.size(), background ? size_t{1} : size_t{0});
+        const auto integerCount = std::max(a_effect.integers.size(), definition ? definition->colors.size()
+                                                                              : background ? size_t{1} : size_t{0});
         for (size_t i = 0; i < integerCount; ++i) {
+            const auto* parameter = definition && i < definition->colors.size() ? &definition->colors[i] : nullptr;
             const bool named = background && i == 0;
-            auto value = i < a_effect.integers.size() ? a_effect.integers[i] : IM_COL32(0, 0, 0, 128);
-            const auto label = SettingRow(named ? Translations::Get("$SkyPromptMCPThemeBackgroundColor")
+            auto value = i < a_effect.integers.size() ? a_effect.integers[i]
+                                                    : parameter ? parameter->default_value : IM_COL32(0, 0, 0, 128);
+            const auto label = SettingRow(parameter ? Translations::Get(parameter->label)
+                                                   : named ? Translations::Get("$SkyPromptMCPThemeBackgroundColor")
                                                 : Translations::Format("$SkyPromptMCPThemeSpecialInteger", i + 1),
                                           std::format("{}.integer.{}", a_id, i),
-                                          named ? "$SkyPromptMCPThemeBackgroundColorHelp"
+                                          parameter ? parameter->help : named ? "$SkyPromptMCPThemeBackgroundColorHelp"
                                                 : "$SkyPromptMCPThemeSpecialIntegerHelp");
-            ImGuiMCP::SetNextItemWidth(ImGuiMCP::CalcItemWidth() - ImGuiMCP::GetFrameHeight() -
-                                      ImGuiMCP::GetStyle()->ItemSpacing.x);
+            const auto& style = *ImGuiMCP::GetStyle();
+            const float width = ImGuiMCP::CalcItemWidth();
+            const float swatchWidth = ImGuiMCP::GetFrameHeight();
+            constexpr float stepButtonCount = 2.0f;
+            const float scalarMinWidth = swatchWidth + stepButtonCount * (swatchWidth + style.ItemInnerSpacing.x);
+            const bool inlineColor = width >= scalarMinWidth + swatchWidth + style.ItemSpacing.x;
+            ImGuiMCP::SetNextItemWidth(inlineColor ? width - swatchWidth - style.ItemSpacing.x : width);
             bool edited = ImGuiMCP::InputScalar(label.c_str(), ImGuiMCP::ImGuiDataType_U32, &value, &integerStep);
-            ImGuiMCP::SameLine();
+            if (inlineColor) ImGuiMCP::SameLine();
             auto color = ImGuiMCP::ColorConvertU32ToFloat4(value);
             const auto colorID = std::format("##{}.color.{}", a_id, i);
             if (ImGuiMCP::ColorEdit4(colorID.c_str(), &color.x,
@@ -434,9 +458,28 @@ namespace {
                 edited = true;
             }
             if (edited) {
-                if (i >= a_effect.integers.size()) a_effect.integers.resize(i + 1);
+                while (i >= a_effect.integers.size()) {
+                    const auto index = a_effect.integers.size();
+                    a_effect.integers.push_back(definition && index < definition->colors.size()
+                                                   ? definition->colors[index].default_value : 0);
+                }
                 a_effect.integers[i] = value;
                 changed = true;
+            }
+        }
+        if (definition) {
+            for (size_t i = 0; i < definition->bools.size(); ++i) {
+                const auto& parameter = definition->bools[i];
+                const auto label = SettingRow(Translations::Get(parameter.label), std::format("{}.bool.{}", a_id, i),
+                                              parameter.help);
+                bool value = i < a_effect.bools.size() ? a_effect.bools[i] != 0 : parameter.default_value;
+                if (ImGuiMCP::Checkbox(label.c_str(), &value)) {
+                    while (i >= a_effect.bools.size()) {
+                        a_effect.bools.push_back(definition->bools[a_effect.bools.size()].default_value);
+                    }
+                    a_effect.bools[i] = value;
+                    changed = true;
+                }
             }
         }
         return changed;
@@ -446,7 +489,10 @@ namespace {
         if (!BeginSettingsGroup("$SkyPromptMCPThemeSpecialEffects", "theme.special")) return false;
         auto& effects = GetTheme().special_effects;
         using namespace SkyPrompt::AddOns::SpecialEffects;
-        constexpr std::array<uint32_t, 2> supported = {kVinyArcs, kTextBackground};
+        constexpr std::array<uint32_t, 5> supported = {
+            kVinyArcs, kTextBackground, ImGui::PromptEffects::kProgressCircle,
+            ImGui::PromptEffects::kListIndicators, ImGui::PromptEffects::kActivationPop
+        };
         const auto present = [&](const auto id) {
             return std::ranges::find(effects, id, &Theme::SpecialEffect::id) != effects.end();
         };

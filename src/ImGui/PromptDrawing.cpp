@@ -1,4 +1,5 @@
 #include "PromptLayouts.h"
+#include "PromptEffects.h"
 #include "Renderer.h"
 #include "imgui_internal.h"
 #include "SkyPrompt/AddOns.hpp"
@@ -28,137 +29,101 @@ namespace {
     }
 
 
-    void DrawCircle(ImDrawList* drawList, const ImVec2 a_center, const float a_radius, const float progress,
-                    const float thickness,
-                    const std::optional<uint32_t> a_color = std::nullopt,
-                    const std::optional<float> start_angle = std::nullopt) {
-        const auto startColor = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 60);
-        const auto endColor = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 180);
+    void DrawCircle(ImDrawList* drawList, const ImVec2 center, const float radius, const float progress,
+                    const float thickness, const ImU32 color, const float start = 0.0f,
+                    const bool clockwise = true) {
+        if (thickness <= 0.0f) return;
+        constexpr int segments = 64;
+        const float startAngle = start - IM_PI * 0.5f;
+        const float endAngle = startAngle + (clockwise ? progress : -progress) * 2.0f * IM_PI;
+        drawList->PathArcTo(center, radius, startAngle, endAngle, segments);
+        drawList->PathStroke(color, false, thickness);
+    }
 
-        constexpr int numSegments = 64;
-        const float startAngle = start_angle.has_value() ? start_angle.value() - IM_PI / 2 : -IM_PI / 2;
-        // Start at the top
-        const float endAngle = startAngle + progress * 2.0f * IM_PI;
+    void DrawHoldMark(ImDrawList* drawList, const ImVec2 center, const float radius,
+                      const float size, const float angle, const ImU32 color) {
+        if (size <= 0.0f) return;
+        const float width = size * 0.5f;
+        const float height = size * 0.25f;
+        const float c = cosf(angle), s = sinf(angle);
+        const auto rotate = [&](const ImVec2 p) {
+            return center + ImVec2(p.x * c - p.y * s, p.x * s + p.y * c);
+        };
+        drawList->AddTriangleFilled(rotate({0.0f, -radius + height}),
+                                   rotate({-width * 0.5f, -radius - height}),
+                                   rotate({width * 0.5f, -radius - height}), color);
+    }
 
-        ImVec2 prevPoint = a_center + ImVec2(cosf(startAngle) * a_radius, sinf(startAngle) * a_radius);
-
-        if (startColor != endColor) {
-            for (int i = 1; i <= numSegments; ++i) {
-                const float t = i / static_cast<float>(numSegments);
-                const float angle = startAngle + t * (endAngle - startAngle);
-                ImVec2 newPoint = a_center + ImVec2(cosf(angle) * a_radius, sinf(angle) * a_radius);
-
-                // Interpolate color
-                const ImU32 color = IM_COL32(
-                    (1 - t) * (startColor >> IM_COL32_R_SHIFT & 0xFF) + t * (endColor >> IM_COL32_R_SHIFT & 0xFF),
-                    (1 - t) * (startColor >> IM_COL32_G_SHIFT & 0xFF) + t * (endColor >> IM_COL32_G_SHIFT & 0xFF),
-                    (1 - t) * (startColor >> IM_COL32_B_SHIFT & 0xFF) + t * (endColor >> IM_COL32_B_SHIFT & 0xFF),
-                    (1 - t) * (startColor >> IM_COL32_A_SHIFT & 0xFF) + t * (endColor >> IM_COL32_A_SHIFT & 0xFF)
-                    );
-
-                drawList->AddLine(prevPoint, newPoint, color, thickness);
-                prevPoint = newPoint;
+    void DrawSpecialCommandMarks(ImDrawList* drawList, const float progress, const float buttonState,
+                                 const ImVec2 center, const float radius, const float thickness,
+                                 const Theme::SpecialEffect* effect) {
+        using namespace ImGui::PromptEffects;
+        if (!MCP::Settings::SpecialCommands::visualize || thickness <= 0.0f ||
+            !Bool(effect, kProgressCircle, Progress::kShowSpecialCommands)) return;
+        const auto red = ImGui::PromptEffects::Color(effect, kProgressCircle, Progress::kRemoval);
+        if (buttonState < 3.0f) {
+            const float crossRadius = radius * 0.6f;
+            if (buttonState > 2.0f) {
+                drawList->AddLine(center + ImVec2(-crossRadius, -crossRadius),
+                                  center + ImVec2(crossRadius, crossRadius), red, thickness);
             }
+            if (buttonState > 1.0f) {
+                drawList->AddLine(center + ImVec2(crossRadius, -crossRadius),
+                                  center + ImVec2(-crossRadius, crossRadius), red, thickness);
+            }
+        } else if (progress > 0.0f) {
+            DrawCircle(drawList, center, radius, progress, thickness, red, 0.0f,
+                       Bool(effect, kProgressCircle, Progress::kClockwise));
         } else {
-            drawList->PathArcTo(a_center, a_radius, startAngle, endAngle, numSegments);
-            drawList->PathStroke(endColor, false, thickness);
+            DrawCircle(drawList, center, radius, 1.0f, thickness,
+                       ImGui::PromptEffects::Color(effect, kProgressCircle, Progress::kSkip));
         }
     }
 
-    void DrawTriangle(ImDrawList* drawList, const ImVec2 iconCenter, const float outer_radius, const float inner_radius,
-                      const std::optional<uint32_t> a_color = std::nullopt) {
-        const float triangle_width = inner_radius * 0.5f;
-        const float triangle_height = inner_radius * 0.25f;
+    void DrawPromptStateOverlay(ImDrawList* drawList, const float progress, const float buttonState,
+                                const ImVec2 center, float radius, float thickness,
+                                const float holdSize, const float angle = 0.0f) {
+        using namespace ImGui::PromptEffects;
+        const auto* effect = Find(kProgressCircle);
+        radius *= Float(effect, kProgressCircle, Progress::kRadius);
+        thickness *= Float(effect, kProgressCircle, Progress::kThickness);
+        if (radius <= 0.0f) return;
+        const auto firstVertex = drawList->VtxBuffer.Size;
+        DrawSpecialCommandMarks(drawList, progress, buttonState, center, radius, thickness, effect);
 
-        const auto p1 = ImVec2(iconCenter.x, iconCenter.y - outer_radius + triangle_height);
-        // Tip (bottom, closer to center)
-        const auto p2 = ImVec2(iconCenter.x - triangle_width * 0.5f, iconCenter.y - outer_radius - triangle_height);
-        // Top left
-        const auto p3 = ImVec2(iconCenter.x + triangle_width * 0.5f, iconCenter.y - outer_radius - triangle_height);
-        // Top right
-        const auto color = a_color.has_value() ? a_color.value() : IM_COL32(255, 255, 255, 200);
-        drawList->AddTriangleFilled(p1, p2, p3, color);
-    }
-
-    void DrawProgressMark(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float outer_radius,
-                          const float a_thickness) {
-        constexpr auto aColor = IM_COL32(255, 255, 255, 30);
-        DrawCircle(a_drawlist, iconCenter, outer_radius, 1.0, a_thickness, aColor);
-    }
-
-    void DrawHoldMark(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float outer_radius,
-                      const float inner_radius) {
-        constexpr auto aColor = IM_COL32(255, 255, 255, 180);
-        DrawTriangle(a_drawlist, iconCenter, outer_radius, inner_radius * 0.6f, aColor);
-    }
-
-    void DrawCross1(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float a_radius, const float a_thickness) {
-        constexpr auto a_red = IM_COL32(147, 39, 41, 180);
-        const ImVec2 topRight = iconCenter + ImVec2(a_radius, -a_radius);
-        const ImVec2 bottomLeft = iconCenter + ImVec2(-a_radius, a_radius);
-        a_drawlist->AddLine(topRight, bottomLeft, a_red, a_thickness);
-    }
-
-    void DrawCross2(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float a_radius, const float a_thickness) {
-        constexpr auto a_red = IM_COL32(147, 39, 41, 180);
-        const ImVec2 topLeft = iconCenter + ImVec2(-a_radius, -a_radius);
-        const ImVec2 bottomRight = iconCenter + ImVec2(a_radius, a_radius);
-        a_drawlist->AddLine(topLeft, bottomRight, a_red, a_thickness);
-    }
-
-    void DrawSkipPrompt(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float a_radius,
-                        const float a_thickness) {
-        constexpr auto a_yellow = IM_COL32(228, 185, 76, 100);
-        DrawCircle(a_drawlist, iconCenter, a_radius, 1.f, a_thickness, a_yellow);
-    }
-
-    void DrawDeleteAll(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float a_radius, const float a_thickness,
-                       const float progress) {
-        constexpr auto a_red = IM_COL32(147, 39, 41, 180);
-        DrawCircle(a_drawlist, iconCenter, a_radius, progress, a_thickness, a_red);
-    }
-
-    void DrawProgressCircle(ImDrawList* a_drawlist, const ImVec2 iconCenter, const float a_radius,
-                            const float a_thickness, const float progress, const float start_angle) {
-        const auto aColor = progress + ImGui::Renderer::progress_circle_offset >= 1.f
-                                ? IM_COL32(228, 185, 76, 180)
-                                : IM_COL32(255, 255, 255, 180);
-        DrawCircle(a_drawlist, iconCenter, a_radius, std::max(progress, 0.f), a_thickness, aColor,
-                   std::max(start_angle, 0.f));
-    }
-
-    template <class DrawHoldMarkFn>
-    void DrawPromptStateOverlay(ImDrawList* dl, const ImGui::RenderInfo& ri, const ImVec2 iconCenter,
-                                const float outerR, const float thickness,
-                                const DrawHoldMarkFn& drawHoldMark,
-                                const float angleOffsetRad = 0.0f) {
-        if (MCP::Settings::SpecialCommands::visualize) {
-            if (ri.button_state < 3.f) {
-                if (ri.button_state > 2.f) DrawCross2(dl, iconCenter, outerR * 0.6f, thickness);
-                if (ri.button_state > 1.f) DrawCross1(dl, iconCenter, outerR * 0.6f, thickness);
-            } else if (ri.progress > 0.f) {
-                DrawDeleteAll(dl, iconCenter, outerR, thickness, ri.progress);
-            } else {
-                DrawSkipPrompt(dl, iconCenter, outerR, thickness);
+        const bool singlePress = progress < 0.0f;
+        if (singlePress || buttonState > 0.0f) {
+            if (Bool(effect, kProgressCircle, Progress::kShowTrack)) {
+                DrawCircle(drawList, center, radius, 1.0f, thickness,
+                           ImGui::PromptEffects::Color(effect, kProgressCircle, Progress::kTrack));
+            }
+            if (!singlePress && Bool(effect, kProgressCircle, Progress::kShowHold)) {
+                DrawHoldMark(drawList, center, radius,
+                             holdSize * Float(effect, kProgressCircle, Progress::kHoldMarkerSize), angle,
+                             ImGui::PromptEffects::Color(effect, kProgressCircle, Progress::kHold));
+            }
+            if (buttonState < 3.0f && Bool(effect, kProgressCircle, Progress::kShowArc)) {
+                const float start = singlePress ? 360.0f * (1.0f + progress)
+                                               : ImGui::Renderer::progress_circle_offset_deg;
+                const float arc = std::max(singlePress ? -progress
+                                          : progress - ImGui::Renderer::progress_circle_offset, 0.0f);
+                const auto color = ImGui::PromptEffects::Color(effect, kProgressCircle,
+                    arc + ImGui::Renderer::progress_circle_offset >= 1.0f ? Progress::kCompleted : Progress::kArc);
+                DrawCircle(drawList, center, radius, arc, thickness, color,
+                           std::max(RE::deg_to_rad(start) + angle, 0.0f),
+                           Bool(effect, kProgressCircle, Progress::kClockwise));
             }
         }
 
-        const bool singlePress = (ri.progress < 0.f);
-        if (singlePress || ri.button_state > 0.f) {
-            DrawProgressMark(dl, iconCenter, outerR, thickness);
-            if (!singlePress) {
-                drawHoldMark();
-            }
-            if (ri.button_state < 3.f) {
-                const float startDeg = singlePress
-                                           ? 360.f * (1.f + ri.progress)
-                                           : ImGui::Renderer::progress_circle_offset_deg;
-                const float prog = singlePress
-                                       ? -ri.progress
-                                       : ri.progress - ImGui::Renderer::progress_circle_offset;
-                DrawProgressCircle(dl, iconCenter, outerR, thickness, std::max(prog, 0.f),
-                                   RE::deg_to_rad(startDeg) + angleOffsetRad);
-            }
+        const float rotation = RE::deg_to_rad(Float(effect, kProgressCircle, Progress::kRotation));
+        const ImVec2 offset{Float(effect, kProgressCircle, Progress::kOffsetX),
+                            Float(effect, kProgressCircle, Progress::kOffsetY)};
+        if (rotation == 0.0f && offset.x == 0.0f && offset.y == 0.0f) return;
+        const float c = cosf(rotation), s = sinf(rotation);
+        for (auto i = firstVertex; i < drawList->VtxBuffer.Size; ++i) {
+            auto& vertex = drawList->VtxBuffer[i];
+            const auto p = vertex.pos - center;
+            vertex.pos = center + offset + ImVec2(p.x * c - p.y * s, p.x * s + p.y * c);
         }
     }
 
@@ -197,51 +162,20 @@ namespace {
         const float iconRadius = iconSize.y * 0.5f;
         const float thickness = iconRadius / 6.f;
 
-        if (MCP::Settings::SpecialCommands::visualize) {
-            if (a_button_state < 3.f) {
-                if (a_button_state > 2.f) {
-                    DrawCross2(a_drawlist, iconCenter, a_circle_radius * 0.6f, thickness);
-                }
-                if (a_button_state > 1.f) {
-                    DrawCross1(a_drawlist, iconCenter, a_circle_radius * 0.6f, thickness);
-                }
-            } else if (a_progress > 0.f) {
-                DrawDeleteAll(a_drawlist, iconCenter, a_circle_radius, thickness, a_progress);
-            } else {
-                DrawSkipPrompt(a_drawlist, iconCenter, a_circle_radius, thickness);
-            }
-        }
-
-        if (const bool singlePressProgress = a_progress < 0.f; singlePressProgress || a_button_state > 0.f) {
-            DrawProgressMark(a_drawlist, iconCenter, a_circle_radius, thickness);
-            if (!singlePressProgress) {
-                DrawHoldMark(a_drawlist, iconCenter, a_circle_radius, iconRadius);
-            }
-            if (a_button_state < 3.f) {
-                const auto start_deg = singlePressProgress
-                                           ? 360.f * (1 + a_progress)
-                                           : ImGui::Renderer::progress_circle_offset_deg;
-                const auto a_progress_value = singlePressProgress
-                                                  ? -a_progress
-                                                  : a_progress - ImGui::Renderer::progress_circle_offset;
-                DrawProgressCircle(a_drawlist, iconCenter, a_circle_radius, thickness, a_progress_value,
-                                   RE::deg_to_rad(start_deg));
-            }
-        }
+        DrawPromptStateOverlay(a_drawlist, a_progress, a_button_state, iconCenter,
+                               a_circle_radius, thickness, iconRadius * 0.6f);
 
         return iconCenter;
     }
 
-    ImVec2 ButtonIconWithCircularProgress(const char* a_text, const uint32_t a_text_color,
-                                          const IconFont::IconTexture* a_texture, const float progress,
-                                          const float button_state, const float a_textFirstIconX) {
-        if (!a_texture || !a_texture->srView.Get()) {
+    void DrawVerticalPrompt(const ImGui::RenderInfo& info, const float a_textFirstIconX) {
+        if (!info.texture || !info.texture->srView.Get()) {
             logger::error("Button icon texture not loaded.");
-            return {};
+            return;
         }
 
         // Calculate sizes
-        const ImVec2 textSize = ImGui::CalcTextSize(a_text);
+        const ImVec2 textSize = ImGui::CalcTextSize(info.text.c_str());
 
         const auto a_iconsize = GetIconSize();
         const float circleDiameter = a_iconsize * 1.25f;
@@ -256,39 +190,42 @@ namespace {
         const float circle_radius = circleDiameter * 0.5f;
         const float textPad = circle_radius - radius + textOffset;
 
-        const auto textColor = a_text_color ? a_text_color : IM_COL32(255, 255, 255, 255);
+        const auto textColor = info.text_color ? info.text_color : IM_COL32(255, 255, 255, 255);
         const auto a_drawlist = ImGui::GetWindowDrawList();
         ImVec2 iconCenter;
+        ImVec2 textPosition;
         if (Theme::last_theme->prompt_order == Theme::kTextFirst) {
             ImGui::SetCursorPosX(a_textFirstIconX - ImGui::GetStyle().ItemSpacing.x - textPad - textSize.x);
             ImGui::SetCursorPosY(startY + textOffset);
+            textPosition = ImGui::GetCursorScreenPos();
             AddTextWithShadow(a_drawlist, ImGui::GetFont(), ImGui::GetFontSize(),
-                              ImGui::GetCursorScreenPos(), textSize, textColor, a_text);
+                              textPosition, textSize, textColor, info.text.c_str());
             ImGui::Dummy(textSize);
 
             ImGui::SameLine();
             ImGui::SetCursorPosX(a_textFirstIconX);
             iconCenter = DrawPromptIconWithCircularProgress(
-                a_texture, startY, iconOffset, a_drawlist, circle_radius, progress, button_state);
+                info.texture, startY, iconOffset, a_drawlist, circle_radius, info.progress, info.button_state);
 
             // Keep the same vertical advance baseline used by the icon-first path.
             ImGui::SetCursorPosY(startY + textOffset + textSize.y);
         } else {
             iconCenter = DrawPromptIconWithCircularProgress(
-                a_texture, startY, iconOffset, a_drawlist, circle_radius, progress, button_state);
+                info.texture, startY, iconOffset, a_drawlist, circle_radius, info.progress, info.button_state);
 
             ImGui::SameLine();
             ImGui::SetCursorPosY(startY + textOffset);
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + textPad);
 
+            textPosition = ImGui::GetCursorScreenPos();
             AddTextWithShadow(a_drawlist, ImGui::GetFont(), ImGui::GetFontSize(),
-                              ImGui::GetCursorScreenPos(), textSize, textColor, a_text);
+                              textPosition, textSize, textColor, info.text.c_str());
             ImGui::Dummy(textSize); // Moves cursor forward horizontally
         }
 
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset * Theme::last_theme->linespacing * 5);
 
-        return iconCenter;
+        MANAGER(ImGui::Renderer)->activationPop.Capture(info, iconCenter, textPosition + textSize * 0.5f, textSize);
     }
 
     void AddImageRotated(ImDrawList* dl, const ImTextureID tex,
@@ -343,25 +280,6 @@ namespace {
         }
     }
 
-    void DrawTriangleRotated(ImDrawList* dl, const ImVec2 center,
-                             const float outer_radius, const float inner_radius,
-                             const float angle, const ImU32 col) {
-        const float tri_w = inner_radius * 0.5f;
-        const float tri_h = inner_radius * 0.25f;
-
-        // local (unrotated) vertices – tip is “up” (toward -Y)
-        const auto p1 = ImVec2(0.0f, -outer_radius + tri_h); // tip (closer to center)
-        const auto p2 = ImVec2(-tri_w * 0.5f, -outer_radius - tri_h);
-        const auto p3 = ImVec2(+tri_w * 0.5f, -outer_radius - tri_h);
-
-        const float c = cosf(angle), s = sinf(angle);
-        auto rot = [&](const ImVec2 p) {
-            return ImVec2(center.x + p.x * c - p.y * s,
-                          center.y + p.x * s + p.y * c);
-        };
-
-        dl->AddTriangleFilled(rot(p1), rot(p2), rot(p3), col);
-    }
 
     void RenderPromptsRadialRotated(const ImVec2 anchor,
                                     const std::vector<ImGui::RenderInfo>& batch,
@@ -430,12 +348,8 @@ namespace {
             const auto firstOverlayVertex = dl->VtxBuffer.Size;
             {
                 const float thick = outerR / 6.f;
-                DrawPromptStateOverlay(dl, ri, iconCenter, outerR, thick,
-                                       [&]() {
-                                           constexpr ImU32 tri_col = IM_COL32(255, 255, 255, 180);
-                                           DrawTriangleRotated(dl, iconCenter, outerR, iconSz * 0.5f, angle, tri_col);
-                                       },
-                                       angle);
+                DrawPromptStateOverlay(dl, ri.progress, ri.button_state, iconCenter, outerR, thick,
+                                       iconSz * 0.5f, angle);
             }
             for (auto vertex = firstOverlayVertex; vertex < dl->VtxBuffer.Size; ++vertex) {
                 dl->VtxBuffer[vertex].col = MulAlpha(dl->VtxBuffer[vertex].col, ri.alpha);
@@ -460,6 +374,7 @@ namespace {
                            shadow, ri.text.c_str(), nullptr, angle, true);
             AddTextRotated(dl, font, fs, textCenter,
                            color, ri.text.c_str(), nullptr, angle, true);
+            MANAGER(ImGui::Renderer)->activationPop.Capture(ri, iconCenter, textCenter, row.textSize, angle);
         }
 
         dl->PopClipRect();
@@ -485,10 +400,8 @@ namespace {
         {
             const float outerRadius = circleDiameter * 0.5f;
             const float thickness = outerRadius / 6.0f;
-            DrawPromptStateOverlay(drawList, renderInfo, iconCenter, outerRadius, thickness,
-                                   [&]() {
-                                       DrawHoldMark(drawList, iconCenter, outerRadius, iconSize * 0.5f);
-                                   });
+            DrawPromptStateOverlay(drawList, renderInfo.progress, renderInfo.button_state,
+                                   iconCenter, outerRadius, thickness, iconSize * 0.5f * 0.6f);
         }
 
         const ImVec2 textPosition{
@@ -503,6 +416,9 @@ namespace {
         for (auto i = firstVertex; i < drawList->VtxBuffer.Size; ++i) {
             drawList->VtxBuffer[i].col = MulAlpha(drawList->VtxBuffer[i].col, renderInfo.alpha);
         }
+        MANAGER(ImGui::Renderer)->activationPop.Capture(renderInfo, iconCenter,
+            textPosition + ImVec2(dimensions.textWidth, dimensions.textHeight) * 0.5f,
+            {dimensions.textWidth, dimensions.textHeight});
     }
 
     void RenderPromptsVertical(const std::vector<ImGui::RenderInfo>& batch) {
@@ -514,12 +430,31 @@ namespace {
         auto* drawList = ImGui::GetWindowDrawList();
         for (const auto& renderInfo : batch) {
             const auto firstVertex = drawList->VtxBuffer.Size;
-            ButtonIconWithCircularProgress(renderInfo.text.c_str(), renderInfo.text_color,
-                                           renderInfo.texture, renderInfo.progress,
-                                           renderInfo.button_state, textFirstIconX);
+            DrawVerticalPrompt(renderInfo, textFirstIconX);
             for (auto vertex = firstVertex; vertex < drawList->VtxBuffer.Size; ++vertex) {
                 drawList->VtxBuffer[vertex].col = MulAlpha(drawList->VtxBuffer[vertex].col, renderInfo.alpha);
             }
+        }
+    }
+
+    void DrawListIndicators(ImDrawList* drawList, const std::vector<ImGui::RenderInfo>& batch,
+                            const VerticalPromptLayout& layout, const ImVec2 start) {
+        using namespace ImGui::PromptEffects;
+        const auto* effect = Find(kListIndicators);
+        const float scale = Float(effect, kListIndicators, ListIndicators::kSize);
+        if (!Bool(effect, kListIndicators, ListIndicators::kShow) || scale <= 0.0f) return;
+        const ImVec2 offset{Float(effect, kListIndicators, ListIndicators::kOffsetX),
+                            Float(effect, kListIndicators, ListIndicators::kOffsetY)};
+        if (batch.front().moreAbove) {
+            ImGui::RenderArrow(drawList, start + offset + ImVec2(layout.iconX, 0.0f),
+                MulAlpha(ImGui::PromptEffects::Color(effect, kListIndicators, ListIndicators::kUp), batch.front().alpha),
+                ImGuiDir_Up, scale);
+        }
+        if (batch.back().moreBelow) {
+            ImGui::RenderArrow(drawList,
+                start + offset + ImVec2(layout.iconX, layout.bounds.size.y - ImGui::GetFontSize() * scale),
+                MulAlpha(ImGui::PromptEffects::Color(effect, kListIndicators, ListIndicators::kDown), batch.back().alpha),
+                ImGuiDir_Down, scale);
         }
     }
 
@@ -538,8 +473,8 @@ namespace {
             if (info.selected) {
                 drawList->AddImage((ImTextureID)info.texture->srView.Get(),
                     center - ImVec2(iconSize, iconSize) * 0.5f, center + ImVec2(iconSize, iconSize) * 0.5f);
-                DrawPromptStateOverlay(drawList, info, center, radius, radius / 6.0f,
-                    [&]() { DrawHoldMark(drawList, center, radius, iconSize * 0.5f); });
+                DrawPromptStateOverlay(drawList, info.progress, info.button_state, center,
+                                       radius, radius / 6.0f, iconSize * 0.5f * 0.6f);
             }
             const float textPad = radius - iconSize * 0.5f + row.textOffset;
             const float textX = textFirst
@@ -551,15 +486,10 @@ namespace {
             for (auto vertex = firstVertex; vertex < drawList->VtxBuffer.Size; ++vertex) {
                 drawList->VtxBuffer[vertex].col = MulAlpha(drawList->VtxBuffer[vertex].col, info.alpha);
             }
+            MANAGER(ImGui::Renderer)->activationPop.Capture(info, center,
+                start + ImVec2(textX + row.textSize.x * 0.5f, row.centerY), row.textSize, 0.0f, info.selected);
         }
-        if (batch.front().moreAbove) {
-            ImGui::RenderArrow(drawList, start + ImVec2(layout.iconX, 0.0f),
-                MulAlpha(IM_COL32_WHITE, batch.front().alpha), ImGuiDir_Up);
-        }
-        if (batch.back().moreBelow) {
-            ImGui::RenderArrow(drawList, start + ImVec2(layout.iconX, layout.bounds.size.y - ImGui::GetFontSize()),
-                MulAlpha(IM_COL32_WHITE, batch.back().alpha), ImGuiDir_Down);
-        }
+        DrawListIndicators(drawList, batch, layout, start);
         ImGui::Dummy(layout.bounds.size);
     }
 

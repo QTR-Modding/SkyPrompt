@@ -17,6 +17,8 @@ set(sources ${sources}
     src/ImGui/IconFont.cpp
     src/ImGui/PromptDrawing.cpp
     src/ImGui/PromptLayouts.cpp
+    src/ImGui/PromptEffects.cpp
+    src/ImGui/ActivationPop.cpp
     include/PapyrusAPI/Bindings.cpp
     include/PapyrusAPI/Sinks.cpp
 )

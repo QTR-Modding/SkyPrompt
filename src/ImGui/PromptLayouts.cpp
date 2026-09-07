@@ -1,8 +1,17 @@
 #include "PromptLayouts.h"
+#include "PromptEffects.h"
 #include "Theme.h"
 #include "imgui_internal.h"
 
 namespace ImGui::PromptLayouts {
+    float List::GetIndicatorPadding() {
+        using namespace PromptEffects;
+        const auto* effect = Find(kListIndicators);
+        const float scale = Float(effect, kListIndicators, ListIndicators::kSize);
+        if (!Bool(effect, kListIndicators, ListIndicators::kShow) || scale <= 0.0f) return 0.0f;
+        return ImGui::GetFontSize() * scale + Float(effect, kListIndicators, ListIndicators::kSpacing);
+    }
+
     float GetIconSize() {
         const auto a_fontsize = ImGui::GetIO().FontDefault->FontSize;
         return a_fontsize * Theme::last_theme->icon2font_ratio;
@@ -23,7 +32,7 @@ namespace ImGui::PromptLayouts {
         layout.rows.reserve(batch.size());
         float maxPrefixWidth = 0.0f;
         float maxTextExtent = 0.0f;
-        const float scrollPadding = Theme::last_theme->prompt_alignment == Theme::kList ? ImGui::GetFontSize() : 0.0f;
+        const float scrollPadding = Theme::last_theme->prompt_alignment == Theme::kList ? List::GetIndicatorPadding() : 0.0f;
         float rowStart = scrollPadding;
         float maxBottom = 0.0f;
         for (const auto& renderInfo : batch) {
@@ -231,7 +240,7 @@ ImVec2 ImGui::GetSkyPromptContentOrigin(const ImVec2& anchor) {
     const auto promptAlignment = Theme::last_theme->prompt_alignment;
     const float lineSpacingPx = GetFontSize() * Theme::last_theme->linespacing;
     if (promptAlignment != Theme::kList) {
-        std::ranges::sort(renderBatch, {}, &RenderInfo::row);
+        std::ranges::sort(renderBatch, {}, [](const RenderInfo& info) { return info.interaction.event; });
     }
 
     if (promptAlignment == Theme::kDiamond) {

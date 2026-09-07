@@ -76,6 +76,7 @@ void DrawHook::thunk(std::uint32_t a_timer) {
     func(a_timer);
 
     if (!MCP::Settings::initialized.load()) {
+        MANAGER(ImGui::Renderer)->activationPop.Clear();
         return;
     }
 
@@ -180,6 +181,7 @@ bool InputHook::ProcessInput(RE::InputEvent* event) {
                 if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
                     submanager->buttonState.isPressing = button_event->IsPressed();
                     if (button_event->IsDown()) {
+                        submanager->buttonState.acceptedThisPress = false;
                         submanager->buttonState.pressCount++;
                         submanager->buttonState.lastPressTime = now;
                         submanager->SendEvent(submanager->GetCurrentInteraction(),

@@ -23,11 +23,13 @@ void ImGui::Renderer::RenderPrompts() {
     manager->CleanUpQueue();
 
     if (MCP::Settings::shouldReloadLifetime.exchange(false)) {
+        manager->activationPop.Clear();
         manager->ResetQueue();
         return;
     }
 
     if (MCP::Settings::shouldReloadPromptSize.exchange(false)) {
+        manager->activationPop.Clear();
         Styles::GetSingleton()->RefreshStyle();
         return;
     }
@@ -35,11 +37,14 @@ void ImGui::Renderer::RenderPrompts() {
     if (manager->IsPaused()) {
         manager->Start();
     }
-    if (!manager->HasTask()) {
-        return;
+    if (manager->HasTask()) {
+        manager->ShowQueue();
     }
-
-    manager->ShowQueue();
+    if (Manager::IsGameFrozen() && !Tutorial::showing_tutorial.load()) {
+        manager->activationPop.Clear();
+    } else {
+        manager->activationPop.Draw();
+    }
 }
 
 
@@ -167,7 +172,7 @@ void ButtonQueue::Show(float progress, const InteractionButton* button2show, con
 
     if (buttonIcon->srView.Get()) {
         ImGui::renderBatch.emplace_back(a_text.c_str(), current_button->mutables.text_color, buttonIcon, progress,
-                                        button_state, alpha, current_button->interaction.event);
+                                        button_state, alpha, current_button->interaction);
     } else {
         logger::error("Button icon texture not loaded for key {}", buttonKey);
         icon_manager->unavailable_keys.insert(buttonKey);
@@ -980,6 +985,7 @@ bool SubManager::UpdateProgressCircle(const bool isPressing) {
 
     if (!isPressing) {
         std::unique_lock lock(progress_mutex_);
+        buttonState.acceptedThisPress = false;
         if (progress_circle > Theme::last_theme->progress_speed) {
             buttonState.pressCount = 0;
         }
@@ -1017,6 +1023,10 @@ bool SubManager::UpdateProgressCircle(const bool isPressing) {
             buttonState.pressCount = 0;
             ClearQueue(SkyPromptAPI::kDeclined);
         } else {
+            if (!buttonState.acceptedThisPress) {
+                Manager::GetSingleton()->activationPop.Trigger(interaction);
+                buttonState.acceptedThisPress = true;
+            }
             if (a_type == SkyPromptAPI::kHold) {
                 Stop();
                 RemoveCurrentPrompt();
@@ -1209,6 +1219,7 @@ void Manager::Start() {
 
 void Manager::Stop() {
     isPaused.store(true);
+    activationPop.Clear();
     std::unique_lock lock(mutex_);
     for (const auto& a_manager : managers) {
         a_manager->Stop();
