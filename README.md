@@ -108,9 +108,16 @@ to zero also removes their reserved space. This effect applies only to List.
 | 1 | End scale | 1.25 | 1-3 |
 | 2 | Starting opacity | 0.6 | 0-1 |
 
-There are no color or toggle parameters. The copy includes the icon, text, and
-text shadow, not the progress circle or text background. It can finish after
-the original prompt disappears.
+`special_bools`: icon only, default `false`. Enable it to animate only the button
+icon, growing from its center:
+
+```json
+{ "special_effect": 5, "special_bools": [true] }
+```
+
+By default, the copy includes the icon, text, and text shadow, not the progress
+circle or text background. It can finish after the original prompt disappears.
+There are no color parameters.
 
 To contribute a host effect, choose an unused stable ID without colliding with
 SkyPromptAddOn; do not reuse or renumber existing IDs. Add its named indexes,

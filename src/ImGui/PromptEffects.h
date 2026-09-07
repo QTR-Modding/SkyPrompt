@@ -20,6 +20,7 @@ namespace ImGui::PromptEffects {
     }
     namespace Pop {
         enum FloatIndex : size_t { kDuration, kEndScale, kOpacity };
+        enum BoolIndex : size_t { kIconOnly };
     }
 
     struct FloatParameter {

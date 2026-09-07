@@ -20,7 +20,8 @@ namespace ImGui {
         }
         auto& visual = *found;
         visual.interaction = info.interaction;
-        visual.text = info.text;
+        if (Bool(effect, kActivationPop, Pop::kIconOnly)) visual.text.clear();
+        else visual.text = info.text;
         auto* texture = showIcon && info.texture ? info.texture->srView.Get() : nullptr;
         if (visual.texture.Get() != texture) visual.texture = texture;
         visual.iconCenter = iconCenter;
@@ -68,23 +69,26 @@ namespace ImGui {
                                    visual.iconCenter, c, s, visual.iconCenter);
         }
 
-        const auto firstTextVertex = drawList->VtxBuffer.Size;
-        const auto position = visual.textCenter - visual.textSize * 0.5f;
-        constexpr ImVec2 shadowOffset{2.5f, 2.5f};
-        drawList->AddText(font, visual.fontSize, position + shadowOffset,
-                          color(IM_COL32(0, 0, 0, 255 * visual.shadow)), visual.text.c_str());
-        drawList->AddText(font, visual.fontSize, position, color(visual.color), visual.text.c_str());
-        ShadeVertsTransformPos(drawList, firstTextVertex, drawList->VtxBuffer.Size,
-                               visual.textCenter, c, s, visual.textCenter);
+        ImVec2 center = visual.iconCenter;
+        if (!visual.text.empty()) {
+            const auto firstTextVertex = drawList->VtxBuffer.Size;
+            const auto position = visual.textCenter - visual.textSize * 0.5f;
+            constexpr ImVec2 shadowOffset{2.5f, 2.5f};
+            drawList->AddText(font, visual.fontSize, position + shadowOffset,
+                              color(IM_COL32(0, 0, 0, 255 * visual.shadow)), visual.text.c_str());
+            drawList->AddText(font, visual.fontSize, position, color(visual.color), visual.text.c_str());
+            ShadeVertsTransformPos(drawList, firstTextVertex, drawList->VtxBuffer.Size,
+                                   visual.textCenter, c, s, visual.textCenter);
 
-        ImVec2 center = visual.textCenter;
-        if (visual.texture) {
-            const auto offset = visual.iconCenter - visual.textCenter;
-            const ImVec2 localIcon{offset.x * c + offset.y * s, -offset.x * s + offset.y * c};
-            const auto minimum = ImMin(visual.textSize * -0.5f, localIcon - iconHalfSize);
-            const auto maximum = ImMax(visual.textSize * 0.5f, localIcon + iconHalfSize);
-            const auto localCenter = (minimum + maximum) * 0.5f;
-            center += ImVec2(localCenter.x * c - localCenter.y * s, localCenter.x * s + localCenter.y * c);
+            center = visual.textCenter;
+            if (visual.texture) {
+                const auto offset = visual.iconCenter - visual.textCenter;
+                const ImVec2 localIcon{offset.x * c + offset.y * s, -offset.x * s + offset.y * c};
+                const auto minimum = ImMin(visual.textSize * -0.5f, localIcon - iconHalfSize);
+                const auto maximum = ImMax(visual.textSize * 0.5f, localIcon + iconHalfSize);
+                const auto localCenter = (minimum + maximum) * 0.5f;
+                center += ImVec2(localCenter.x * c - localCenter.y * s, localCenter.x * s + localCenter.y * c);
+            }
         }
         const float scale = 1.0f + (visual.endScale - 1.0f) * progress;
         ShadeVertsTransformPos(drawList, firstVertex, drawList->VtxBuffer.Size, center, scale, 0.0f, center);

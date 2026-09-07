@@ -44,9 +44,12 @@ namespace ImGui::PromptEffects {
             {"$SkyPromptMCPEffectPopScale", "$SkyPromptMCPEffectPopScaleHelp", 1.25f, 1.0f, 3.0f},
             {"$SkyPromptMCPEffectPopOpacity", "$SkyPromptMCPEffectPopOpacityHelp", 0.6f, 0.0f, 1.0f}
         };
+        constexpr BoolParameter popBools[] = {
+            {"$SkyPromptMCPEffectPopIconOnly", "$SkyPromptMCPEffectPopIconOnlyHelp", false}
+        };
         constexpr Definition progress{kProgressCircle, "$SkyPromptMCPThemeEffectProgressCircle", progressFloats, progressColors, progressBools};
         constexpr Definition list{kListIndicators, "$SkyPromptMCPThemeEffectListIndicators", listFloats, listColors, listBools};
-        constexpr Definition pop{kActivationPop, "$SkyPromptMCPThemeEffectActivationPop", popFloats, {}, {}};
+        constexpr Definition pop{kActivationPop, "$SkyPromptMCPThemeEffectActivationPop", popFloats, {}, popBools};
     }
 
     const Definition* GetDefinition(const uint32_t a_id) {

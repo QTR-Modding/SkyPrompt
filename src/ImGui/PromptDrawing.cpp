@@ -109,9 +109,10 @@ namespace {
                                           : progress - ImGui::Renderer::progress_circle_offset, 0.0f);
                 const auto color = ImGui::PromptEffects::Color(effect, kProgressCircle,
                     arc + ImGui::Renderer::progress_circle_offset >= 1.0f ? Progress::kCompleted : Progress::kArc);
+                const bool clockwise = Bool(effect, kProgressCircle, Progress::kClockwise);
+                const float startAngle = RE::deg_to_rad(start);
                 DrawCircle(drawList, center, radius, arc, thickness, color,
-                           std::max(RE::deg_to_rad(start) + angle, 0.0f),
-                           Bool(effect, kProgressCircle, Progress::kClockwise));
+                           angle + (clockwise ? startAngle : -startAngle), clockwise);
             }
         }
 
