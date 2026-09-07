@@ -50,7 +50,8 @@ namespace Theme {
         kRadial,
         kHorizontal,
         kVertical,
-        kDiamond
+        kDiamond,
+        kList
     };
 
     PromptAlignment toPromptAlignment(const std::string& alignment);
@@ -111,10 +112,14 @@ namespace Theme {
         explicit Theme(const ThemeBlock& block);
 
         void ReLoad(std::string_view a_filename);
+        void UpdateSettings(rapidjson::Document& a_document) const;
+        bool Save(const std::filesystem::path& a_path) const;
     };
 
     inline auto default_theme = Theme();
+    inline constexpr std::string_view themes_folder = R"(Data\SKSE\Plugins\SkyPrompt\themes)";
 
+    bool WriteThemeFile(const std::filesystem::path& a_path, const rapidjson::Document& a_document);
     void LoadThemes();
     void ReLoadDefaultTheme();
 

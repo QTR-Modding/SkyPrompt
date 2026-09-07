@@ -1,6 +1,6 @@
 #pragma once
 #include "Input.h"
-#include "rapidjson/document.h"
+#include "Theme.h"
 
 namespace MCP {
     inline std::atomic_bool refreshStyle{false};
@@ -47,8 +47,8 @@ namespace MCP {
         // Settings::Theme
         inline std::set<std::string> font_names;
 
-        bool OSPPresetBox();
-        bool FontSettings();
+        bool OSPPresetBox(Theme::Theme& a_theme);
+        bool FontSettings(Theme::Theme& a_theme);
         void LoadDefaultPromptKeys();
         bool CycleControls();
 

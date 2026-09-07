@@ -31,6 +31,8 @@ void EndImGuiWindow();
 
 void TranslateEmbedded(std::string& a_text);
 
+uint32_t GetControlKey(std::string_view a_controlName);
+
 namespace WorldObjects {
     inline RE::bhkRigidBody* GetRigidBody(const RE::TESObjectREFR* refr) {
         const auto object3D = refr->Get3D();
