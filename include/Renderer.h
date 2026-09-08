@@ -154,6 +154,8 @@ namespace ImGui::Renderer {
 
     class Manager : public REX::Singleton<Manager> {
         bool RemoveEmptyRows(std::vector<std::unique_ptr<SubManager>>& rows);
+        void RestorePromptOrder(SkyPromptAPI::ClientID pageID, SkyPromptAPI::ClientID clientID,
+                                std::span<const SkyPromptAPI::Prompt> prompts);
 
         std::shared_mutex events_to_send_mutex;
         std::map<std::pair<SkyPromptAPI::ClientID, const SkyPromptAPI::PromptSink*>,

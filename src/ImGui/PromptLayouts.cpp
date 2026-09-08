@@ -304,6 +304,13 @@ namespace ImGui::PromptLayouts {
         if (index < firstVisible) --firstVisible;
     }
 
+    void List::OnRowRestored(const size_t from, const size_t to) {
+        if (selection == from) selection = to;
+        else if (to <= selection && selection < from) ++selection;
+        if (firstVisible == from) firstVisible = to;
+        else if (to < firstVisible && firstVisible < from) ++firstVisible;
+    }
+
     void List::ClampSelection(const size_t promptCount) {
         selection = promptCount == 0 ? 0 : std::min(selection, promptCount - 1);
         firstVisible = std::min(firstVisible, selection);

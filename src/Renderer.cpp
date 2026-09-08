@@ -746,12 +746,14 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
         }
     }
 
-    for (const auto prompts = a_prompt_sink->GetPrompts();
-         const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color, progress] : prompts) {
+    const auto prompts = a_prompt_sink->GetPrompts();
+    bool success = true;
+    for (const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color, progress] : prompts) {
         auto a_txt = std::string(text);
         if (a_txt.empty()) {
             logger::warn("Empty prompt text");
-            return false;
+            success = false;
+            break;
         }
 
         TranslateEmbedded(a_txt);
@@ -771,22 +773,58 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
             Add2Q(compatibleID, interaction, {.text = a_txt, .text_color = text_color, .progress = progress},
                   a_type, a_refid,
                   temp_button_keys, !refresh)) {
-            if (!GetManagerList(compatibleID)) {
-                logger::error("Failed to get manager list");
-                return false;
-            }
             submanager->AddSink(interaction, a_prompt_sink);
         } else {
             logger::warn("Failed to add interaction to the queue");
-            return false;
+            success = false;
+            break;
         }
     }
 
-    if (!refresh) {
+    if (refresh) {
+        RestorePromptOrder(compatibleID, a_clientID, prompts);
+    } else if (success) {
         SwitchToClientManager(compatibleID);
     }
 
-    return !refresh;
+    return success && !refresh;
+}
+
+void Manager::RestorePromptOrder(const SkyPromptAPI::ClientID pageID, const SkyPromptAPI::ClientID clientID,
+                                 const std::span<const SkyPromptAPI::Prompt> prompts) {
+    const auto rows = GetManagerList(pageID);
+    std::unique_lock lock(mutex_);
+    if (!rows || rows->size() < 2) return;
+
+    bool moved = false;
+    auto before = rows->end();
+    for (size_t index = prompts.size(); index > 0;) {
+        const auto& prompt = prompts[--index];
+        // A row follows the first appearance of its event, not each stacked action.
+        if (std::ranges::any_of(prompts.first(index), [&](const auto& earlier) {
+            return earlier.eventID == prompt.eventID;
+        })) continue;
+
+        const auto event = InteractionID::Pack(clientID, prompt.eventID);
+        const auto row = std::ranges::find_if(*rows, [event](const auto& candidate) {
+            const auto interactions = candidate->GetInteractions();
+            return !interactions.empty() && interactions.front().event == event;
+        });
+        if (row == rows->end()) continue;
+
+        if (row > before) {
+            if (rows == &managers) list.OnRowRestored(row - rows->begin(), before - rows->begin());
+            std::rotate(before, row, std::next(row));
+            moved = true;
+        } else {
+            before = row;
+        }
+    }
+    if (moved) {
+        int index = 0;
+        for (const auto& row : *rows) row->SetDefaultKeyIndex(index++);
+        if (rows == &managers) list.ClampSelection(rows->size());
+    }
 }
 
 bool Manager::IsInQueue(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink,
