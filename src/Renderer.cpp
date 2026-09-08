@@ -13,8 +13,8 @@
 using namespace ImGui::Renderer;
 
 float ImGui::Renderer::GetResolutionScale() {
-    static auto height = RE::BSGraphics::Renderer::GetScreenSize().height;
-    return DisplayTweaks::borderlessUpscale ? DisplayTweaks::resolutionScale : static_cast<float>(height) / 1080.0f;
+    const auto height = ImGui::GetIO().DisplaySize.y;
+    return DisplayTweaks::borderlessUpscale ? DisplayTweaks::resolutionScale : height / 1080.0f;
 }
 
 void ImGui::Renderer::RenderPrompts() {
@@ -1246,7 +1246,7 @@ void Manager::ShowQueue() {
     }
 
     // Get the screen size
-    const auto [width, height] = RE::BSGraphics::Renderer::GetScreenSize();
+    const auto [width, height] = ImGui::GetIO().DisplaySize;
 
     // Calculate position
     const auto resScale = GetResolutionScale();

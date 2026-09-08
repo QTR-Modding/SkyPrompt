@@ -5,6 +5,7 @@
 #include "Service.h"
 #include "Tutorial.h"
 #include "Styles.h"
+#include "VR.h"
 #include "imgui_impl_dx11.h"
 #include "imgui_impl_win32.h"
 
@@ -77,12 +78,11 @@ void DrawHook::thunk(std::uint32_t a_timer) {
 
     if (!MCP::Settings::initialized.load()) {
         MANAGER(ImGui::Renderer)->activationPop.Clear();
+        VR::Render(CreateD3DAndSwapChain::context, false);
         return;
     }
 
-    Styles::GetSingleton()->OnStyleRefresh();
-
-    ImGui_ImplDX11_NewFrame();
+    const auto previousDisplaySize = GetIO().DisplaySize;
     ImGui_ImplWin32_NewFrame();
     {
         // trick imgui into rendering at game's real resolution (ie. if upscaled with Display Tweaks)
@@ -92,13 +92,16 @@ void DrawHook::thunk(std::uint32_t a_timer) {
         io.DisplaySize.x = static_cast<float>(screenSize.width);
         io.DisplaySize.y = static_cast<float>(screenSize.height);
     }
+    VR::PrepareFrame(previousDisplaySize);
+    Styles::GetSingleton()->OnStyleRefresh();
+    ImGui_ImplDX11_NewFrame();
     NewFrame();
     {
         RenderPrompts();
     }
     EndFrame();
     Render();
-    ImGui_ImplDX11_RenderDrawData(GetDrawData());
+    VR::Render(CreateD3DAndSwapChain::context, true);
 }
 
 
