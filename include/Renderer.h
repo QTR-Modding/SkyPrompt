@@ -147,7 +147,11 @@ namespace ImGui::Renderer {
         void SendEvent(const Interaction& a_interaction, SkyPromptAPI::PromptEventType event_type,
                        std::pair<float, float> delta = {0.f, 0.f}, float progress_override = 0.f);
 
-        ImVec2 GetAttachedObjectPos() const;
+        struct AttachedPosition {
+            ImVec2 screen;
+            std::optional<VR::WorldAnchor> world;
+        };
+        AttachedPosition GetAttachedObjectPos() const;
         RE::TESObjectREFR* GetAttachedObject() const;
 
         void Update(const Interaction& a_interaction, const ButtonMutables& a_mutables) const;

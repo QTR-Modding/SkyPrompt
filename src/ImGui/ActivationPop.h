@@ -1,5 +1,6 @@
 #pragma once
 #include "IconsFonts.h"
+#include "VR.h"
 
 namespace ImGui {
     class ActivationPop {
@@ -20,6 +21,7 @@ namespace ImGui {
             float opacity;
             ImU32 color;
             int frame;
+            std::optional<VR::WorldAnchor> worldAnchor;
         };
 
         struct Copy {

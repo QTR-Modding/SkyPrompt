@@ -37,6 +37,7 @@ namespace ImGui {
         visual.opacity = opacity;
         visual.color = info.text_color ? info.text_color : IM_COL32_WHITE;
         visual.frame = GetFrameCount();
+        visual.worldAnchor = VR::GetCurrentWorldAnchor();
         enabled.store(true);
     }
 
@@ -103,7 +104,9 @@ namespace ImGui {
             return std::chrono::duration<float>(now - copy.start).count() >= copy.visual.duration;
         });
         for (const auto& copy : copies) {
+            if (copy.visual.worldAnchor) VR::BeginWorldPrompt(*copy.visual.worldAnchor);
             DrawCopy(copy.visual, std::chrono::duration<float>(now - copy.start).count() / copy.visual.duration);
+            if (copy.visual.worldAnchor) VR::EndWorldPrompt();
         }
         if (visible.empty() && copies.empty()) enabled.store(false);
     }
