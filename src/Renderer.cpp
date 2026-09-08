@@ -777,7 +777,7 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
         } else {
             logger::warn("Failed to add interaction to the queue");
             success = false;
-            break;
+            if (!refresh) break;
         }
     }
 
@@ -1435,5 +1435,7 @@ void Manager::SendEvents() {
             lock.lock();
         }
     }
-    events_to_send_.clear();
+    std::erase_if(events_to_send_, [](const auto& entry) {
+        return !entry.first.second || entry.second.empty();
+    });
 }
