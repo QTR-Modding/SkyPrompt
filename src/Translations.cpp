@@ -246,6 +246,8 @@ namespace {
         {"$SkyPromptMCPDeviceVR", "VR"},
         {"$SkyPromptMCPDeviceUnknown", "Unknown"},
         {"$SkyPromptMCPControlsCycleControls", "Cycle Controls"},
+        {"$SkyPromptMCPControlsCycleControlsHelp",
+         "Lets you switch between prompts from different mods. When disabled, a new mod's prompts replace the previous set."},
         {"$SkyPromptMCPControlsCycleLeft", "Cycle L"},
         {"$SkyPromptMCPControlsCycleRight", "Cycle R"},
         {"$SkyPromptMCPControlsMaxButtons", "Max Buttons"},

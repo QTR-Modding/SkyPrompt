@@ -1006,6 +1006,8 @@ bool MCP::Settings::CycleControls() {
         cycle_controls.store(temp);
         settingsChanged = true;
     }
+    ImGuiMCP::SameLine();
+    HelpMarker("$SkyPromptMCPControlsCycleControlsHelp");
     if (!cycle_controls) {
         return settingsChanged;
     }
