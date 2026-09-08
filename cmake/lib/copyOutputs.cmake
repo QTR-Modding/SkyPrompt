@@ -35,6 +35,10 @@ function(copyOutputs TARGET_FOLDER)
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${TRANSLATIONS_FOLDER}"
         COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/Interface/Translations" "${TRANSLATIONS_FOLDER}"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${LICENSE_FILE}" "${TARGET_FOLDER}/LICENSES.txt"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+            "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
+            "${TARGET_FOLDER}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${TARGET_FOLDER}/licenses/ImGuiVRHelper"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
             "${imguivrhelper_SOURCE_DIR}/api/COPYING"

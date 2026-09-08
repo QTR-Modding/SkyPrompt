@@ -9,6 +9,14 @@ third-party licenses.
 This source code is provided for educational and personal use only.
 You may view, study, and build this code for your own private use.
 
+Notwithstanding the restrictions below, you may modify the LGPL-covered portions
+of SkyPrompt and use and modify the corresponding SkyPrompt application code as
+needed to recombine or relink it with modified versions of those LGPL components
+for your own use. You may reverse-engineer SkyPrompt to debug modifications to
+those components. This permission does not grant redistribution rights for
+SkyPrompt-owned code or assets, or place them under the GPL or LGPL. Rights in
+third-party material remain governed by its own license.
+
 You are NOT allowed to:
 - Reupload this code or any part of it to other websites or repositories.
 - Modify and redistribute this code without explicit permission.

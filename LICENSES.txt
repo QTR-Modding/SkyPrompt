@@ -534,6 +534,10 @@ The client API and its use are covered by the GNU Lesser General Public License,
 version 3 or later. The full GPL and LGPL texts are in licenses/ImGuiVRHelper.
 Source: https://github.com/alandtse/imgui-vr-helper/tree/90a94252e433cd46c6bd8c2fa2c47bdbd3497fc6/api
 
+See README.md for building SkyPrompt with a modified client SDK. SkyPrompt-owned
+code remains under LICENSE, including its permission to rebuild and debug with
+modified LGPL components.
+
 ## 20) nlohmann/json
 
 MIT License
