@@ -193,20 +193,15 @@ const InteractionButton* ButtonQueue::AddButton(const InteractionButton& a_butto
 }
 
 bool ButtonQueue::RemoveButton(const Interaction& a_interaction) {
-    if (current_button && current_button->interaction == a_interaction) {
-        buttons.erase(*current_button);
+    const auto it = std::ranges::find_if(buttons,
+                                       [&](const auto& button) { return button.interaction == a_interaction; });
+    if (it == buttons.end()) {
+        return false;
     }
-    // otherwise we need to find it in the Q.
-    else {
-        const auto it = std::ranges::find_if(buttons,
-                                             [&](const auto& btn) { return btn.interaction == a_interaction; });
-        if (it == buttons.end()) {
-            return false;
-        }
-        buttons.erase(it);
+    if (current_button == &*it) {
+        current_button = buttons.size() > 1 ? Next() : nullptr;
     }
-    current_button = nullptr;
-    Reset();
+    buttons.erase(it);
     return true;
 }
 
@@ -223,75 +218,6 @@ const InteractionButton* ButtonQueue::Next() const {
         return &*buttons.begin();
     }
     return nullptr;
-}
-
-void Manager::ReArrange() {
-    std::vector<InteractionButton> interactions;
-    std::map<Interaction, std::vector<const SkyPromptAPI::PromptSink*>> sinks;
-    SkyPromptAPI::ClientID a_clientID;
-
-    {
-        std::shared_lock lock(mutex_);
-        a_clientID = last_clientID;
-        for (const auto& a_manager : managers) {
-            interactions.append_range(a_manager->GetButtons());
-
-            for (const auto& [interaction, a_sinks] : a_manager->GetSinks()) {
-                if (const auto it = sinks.find(interaction); it != sinks.end()) {
-                    it->second.insert(it->second.end(), a_sinks.begin(), a_sinks.end());
-                } else {
-                    sinks[interaction] = a_sinks;
-                }
-            }
-        }
-    }
-
-    if (Theme::last_theme->prompt_alignment != Theme::kList) {
-        std::ranges::stable_sort(interactions, {}, [](const auto& button) { return button.interaction.event; });
-    }
-
-    {
-        std::unique_lock lock(mutex_);
-        managers.clear();
-    }
-
-    // distribute the interactions to the managers
-    for (const auto& interaction_button : interactions) {
-        const auto a_ref = interaction_button.attached_object.get().get();
-        const auto a_refid = a_ref ? a_ref->GetFormID() : 0;
-        if (!Add2Q(a_clientID, interaction_button.interaction, interaction_button.mutables, interaction_button.type,
-                   a_refid, interaction_button.keys, true)) {
-            logger::error("Failed to add interaction to the queue");
-        }
-    }
-
-    // distribute the sinks to the managers
-    {
-        std::unique_lock lock(mutex_);
-        for (const auto& a_manager : managers) {
-            for (const auto& [interaction, a_sinks] : sinks) {
-                if (a_manager->IsInQueue(interaction)) {
-                    for (const auto& a_sink : a_sinks) {
-                        a_manager->AddSink(interaction, a_sink);
-                    }
-                }
-            }
-        }
-    }
-}
-
-bool Manager::IsInQueue(const Interaction& a_interaction) const {
-    std::shared_lock lock(mutex_);
-    for (const auto& a_manager : managers) {
-        if (a_manager->HasQueue()) {
-            for (const auto& interaction : a_manager->GetInteractions()) {
-                if (interaction == a_interaction) {
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
 }
 
 const std::vector<std::unique_ptr<SubManager>>* Manager::GetManagerList(const SkyPromptAPI::ClientID a_clientID) const {
@@ -380,7 +306,8 @@ void SubManager::SendEvent(const Interaction& a_interaction, const SkyPromptAPI:
                     if (std::abs(progress_override) > 0.f) {
                         a_prompt.progress = progress_override;
                     }
-                    Manager::GetSingleton()->AddEventToSend(a_sink, a_prompt, event_type, delta);
+                    Manager::GetSingleton()->AddEventToSend(InteractionID::Client(a_interaction.event), a_sink,
+                                                           a_prompt, event_type, delta);
                 }
             }
         }
@@ -512,26 +439,30 @@ RE::TESObjectREFR* SubManager::GetAttachedObject() const {
     return nullptr;
 }
 
-void SubManager::Update(const SkyPromptAPI::ClientID a_client_id, const SkyPromptAPI::PromptSink* a_prompt_sink) const {
-    using Update = ButtonMutables;
-    std::map<Interaction, Update> updates;
-    for (const auto prompts = a_prompt_sink->GetPrompts(); const auto& prompt : prompts) {
-        auto a_text = std::string(prompt.text);
-        if (a_text.empty()) {
-            logger::warn("Empty prompt text for interaction {}", prompt.eventID);
-            continue;
-        }
-        TranslateEmbedded(a_text);
-        const auto a_interaction = Manager::MakeInteraction(a_client_id, prompt.eventID, prompt.actionID);
-        updates[a_interaction] = Update(a_text, prompt.text_color, prompt.progress);
-    }
-    if (updates.empty()) {
-        return;
-    }
+void SubManager::Update(const Interaction& a_interaction, const ButtonMutables& a_mutables) const {
     std::unique_lock lock(q_mutex_);
     for (const auto& a_button : interactQueue.buttons) {
-        if (updates.contains(a_button.interaction)) {
-            a_button.mutables = updates.at(a_button.interaction);
+        if (a_button.interaction == a_interaction) {
+            a_button.mutables = a_mutables;
+            return;
+        }
+    }
+}
+
+void SubManager::RestoreMutables(const Interaction& a_interaction) {
+    auto& owners = sinks.at(a_interaction);
+    for (size_t index = owners.size(); index > 0;) {
+        const auto owner = owners[--index];
+        for (const auto prompts = owner->GetPrompts(); const auto& prompt : prompts) {
+            if (prompt.eventID != InteractionID::Local(a_interaction.event) ||
+                prompt.actionID != InteractionID::Local(a_interaction.action) || prompt.text.empty()) {
+                continue;
+            }
+            auto text = std::string(prompt.text);
+            TranslateEmbedded(text);
+            Update(a_interaction, {text, prompt.text_color, prompt.progress});
+            std::rotate(owners.begin() + index, owners.begin() + index + 1, owners.end());
+            return;
         }
     }
 }
@@ -562,7 +493,7 @@ void SubManager::ButtonStateActions() {
         if (const auto now = std::chrono::steady_clock::now(); !buttonState.isPressing) {
             if (now - buttonState.lastPressTime > maxIntervalBetweenPresses) {
                 if (buttonState.pressCount == 2) {
-                    RemoveCurrentPrompt();
+                    RemoveFromQ(a_interaction);
                     SendEvent(a_interaction, SkyPromptAPI::PromptEventType::kDeclined);
                 } else if (buttonState.pressCount == 3) {
                     NextPrompt();
@@ -597,40 +528,58 @@ void SubManager::Add2Q(const InteractionButton& iButton, const bool show) {
 
 bool SubManager::RemoveFromQ(const Interaction& a_interaction) {
     std::unique_lock lock(q_mutex_);
-    return interactQueue.RemoveButton(a_interaction);
+    const auto current = interactQueue.current_button;
+    const bool removingCurrent = current && current->interaction == a_interaction;
+    if (!interactQueue.RemoveButton(a_interaction)) {
+        return false;
+    }
+    if (removingCurrent) {
+        ResetButtonState();
+    }
+    return true;
 }
 
-void SubManager::RemoveFromQ(const SkyPromptAPI::PromptSink* a_prompt_sink) {
+bool SubManager::RemoveFromQ(const SkyPromptAPI::ClientID a_clientID,
+                            const SkyPromptAPI::PromptSink* a_prompt_sink,
+                            const std::optional<Interaction>& a_interaction) {
+    bool removed = false;
     std::unique_lock lock(sink_mutex_);
     for (auto it = sinks.begin(); it != sinks.end();) {
-        auto a_interaction = it->first;
-        if (std::erase(it->second, a_prompt_sink)) {
-            RemoveFromQ(a_interaction);
+        const bool restore = !it->second.empty() && it->second.back() == a_prompt_sink;
+        if (InteractionID::Client(it->first.event) != a_clientID ||
+            (a_interaction && it->first != *a_interaction) || !std::erase(it->second, a_prompt_sink)) {
+            ++it;
+            continue;
         }
-
+        removed = true;
         if (it->second.empty()) {
+            RemoveFromQ(it->first);
             it = sinks.erase(it);
         } else {
+            if (restore) RestoreMutables(it->first);
             ++it;
         }
     }
+    return removed;
 }
 
-void SubManager::RemoveCurrentPrompt() {
-    if (std::shared_lock lock(q_mutex_); interactQueue.current_button) {
-        lock.unlock();
-        {
-            std::unique_lock lock2(q_mutex_);
-            interactQueue.Reset();
-            const auto* next_button = interactQueue.size() > 1 ? interactQueue.Next() : nullptr;
-            interactQueue.RemoveButton(interactQueue.current_button->interaction);
-            interactQueue.current_button = next_button;
-        }
-        {
-            std::unique_lock lock2(progress_mutex_);
-            progress_circle = 0.0f;
-        }
+void SubManager::SetDefaultKeyIndex(const int index) {
+    std::unique_lock lock(q_mutex_);
+    const auto current = interactQueue.current_button;
+    const auto oldKey = current ? current->GetKey() : 0;
+    for (const auto& button : interactQueue.buttons) {
+        button.default_key_index = index;
     }
+    if (current && current->GetKey() != oldKey) {
+        ResetButtonState();
+    }
+}
+
+void SubManager::ResetButtonState() {
+    std::unique_lock lock(progress_mutex_);
+    progress_circle = 0.0f;
+    buttonState.Reset();
+    blockProgress.store(false);
 }
 
 void SubManager::ResetQueue() {
@@ -638,11 +587,7 @@ void SubManager::ResetQueue() {
         std::unique_lock lock(q_mutex_);
         interactQueue.Reset();
     }
-    {
-        std::unique_lock lock(progress_mutex_);
-        progress_circle = 0.0f;
-        buttonState.Reset();
-    }
+    ResetButtonState();
 }
 
 void SubManager::ShowQueue() {
@@ -683,6 +628,7 @@ SubManager* Manager::Add2Q(
     for (const auto& a_manager : *manager_list) {
         if (std::ranges::any_of(a_manager->GetInteractions(),
                                 [&](const auto& i) { return i == a_interaction; })) {
+            a_manager->Update(a_interaction, a_mutables);
             return a_manager.get();
         }
     }
@@ -789,6 +735,7 @@ bool Manager::CycleClient(const bool a_left) {
 }
 
 bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID) {
+    const bool refresh = IsInQueue(a_clientID, a_prompt_sink, true);
     auto compatibleID = FindCompatibleClientID(a_clientID);
 
     if (compatibleID == 0) {
@@ -819,12 +766,14 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
         }
     }
 
-    for (const auto prompts = a_prompt_sink->GetPrompts();
-         const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color, progress] : prompts) {
+    const auto prompts = a_prompt_sink->GetPrompts();
+    bool success = true;
+    for (const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color, progress] : prompts) {
         auto a_txt = std::string(text);
         if (a_txt.empty()) {
             logger::warn("Empty prompt text");
-            return false;
+            success = false;
+            break;
         }
 
         TranslateEmbedded(a_txt);
@@ -843,21 +792,59 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
         if (const auto submanager =
             Add2Q(compatibleID, interaction, {.text = a_txt, .text_color = text_color, .progress = progress},
                   a_type, a_refid,
-                  temp_button_keys, true)) {
-            if (!GetManagerList(compatibleID)) {
-                logger::error("Failed to get manager list");
-                return false;
-            }
+                  temp_button_keys, !refresh)) {
             submanager->AddSink(interaction, a_prompt_sink);
         } else {
             logger::warn("Failed to add interaction to the queue");
-            return false;
+            success = false;
+            if (!refresh) break;
         }
     }
 
-    SwitchToClientManager(compatibleID);
+    if (refresh) {
+        RestorePromptOrder(compatibleID, a_clientID, prompts);
+    } else if (success) {
+        SwitchToClientManager(compatibleID);
+    }
 
-    return true;
+    return success && !refresh;
+}
+
+void Manager::RestorePromptOrder(const SkyPromptAPI::ClientID pageID, const SkyPromptAPI::ClientID clientID,
+                                 const std::span<const SkyPromptAPI::Prompt> prompts) {
+    const auto rows = GetManagerList(pageID);
+    std::unique_lock lock(mutex_);
+    if (!rows || rows->size() < 2) return;
+
+    bool moved = false;
+    auto before = rows->end();
+    for (size_t index = prompts.size(); index > 0;) {
+        const auto& prompt = prompts[--index];
+        // A row follows the first appearance of its event, not each stacked action.
+        if (std::ranges::any_of(prompts.first(index), [&](const auto& earlier) {
+            return earlier.eventID == prompt.eventID;
+        })) continue;
+
+        const auto event = InteractionID::Pack(clientID, prompt.eventID);
+        const auto row = std::ranges::find_if(*rows, [event](const auto& candidate) {
+            const auto interactions = candidate->GetInteractions();
+            return !interactions.empty() && interactions.front().event == event;
+        });
+        if (row == rows->end()) continue;
+
+        if (row > before) {
+            if (rows == &managers) list.OnRowRestored(row - rows->begin(), before - rows->begin());
+            std::rotate(before, row, std::next(row));
+            moved = true;
+        } else {
+            before = row;
+        }
+    }
+    if (moved) {
+        int index = 0;
+        for (const auto& row : *rows) row->SetDefaultKeyIndex(index++);
+        if (rows == &managers) list.ClampSelection(rows->size());
+    }
 }
 
 bool Manager::IsInQueue(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink,
@@ -880,7 +867,6 @@ bool Manager::IsInQueue(const SkyPromptAPI::ClientID a_clientID, const SkyPrompt
         if (a_manager->IsInQueue(a_prompt_sink)) {
             result = true;
             if (wake_up) {
-                a_manager->Update(a_clientID, a_prompt_sink);
                 a_manager->WakeUpQueue();
             } else {
                 return result;
@@ -890,30 +876,38 @@ bool Manager::IsInQueue(const SkyPromptAPI::ClientID a_clientID, const SkyPrompt
     return result;
 }
 
-void Manager::RemoveFromQ(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink) {
+bool Manager::RemoveFromQ(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink,
+                         const std::optional<Interaction>& a_interaction) {
     const auto compatibleID = FindCompatibleClientID(a_clientID);
-    if (compatibleID == 0) {
-        return;
-    }
-
-    const auto manager_list = GetManagerList(compatibleID);
-
-    if (!manager_list) {
-        return;
-    }
-
-    {
+    bool removed = false;
+    if (const auto manager_list = compatibleID != 0 ? GetManagerList(compatibleID) : nullptr) {
         std::unique_lock lock(mutex_);
         for (const auto& a_manager : *manager_list) {
-            a_manager->RemoveFromQ(a_prompt_sink);
+            removed |= a_manager->RemoveFromQ(a_clientID, a_prompt_sink, a_interaction);
+        }
+        if (manager_list != &managers) {
+            RemoveEmptyRows(*manager_list);
         }
     }
     {
         std::unique_lock lock(events_to_send_mutex);
-        events_to_send_.erase(a_prompt_sink);
+        const auto it = events_to_send_.find({a_clientID, a_prompt_sink});
+        if (it != events_to_send_.end()) {
+            if (a_interaction) {
+                std::erase_if(it->second, [&](const auto& event) {
+                    return MakeInteraction(a_clientID, event.prompt.eventID, event.prompt.actionID) == *a_interaction;
+                });
+            }
+            if (!a_interaction || it->second.empty()) {
+                events_to_send_.erase(it);
+            }
+        }
     }
 
-    CleanUpQueue();
+    if (removed) {
+        CleanUpQueue();
+    }
+    return removed;
 }
 
 bool Manager::HasTask() const {
@@ -1028,8 +1022,7 @@ bool SubManager::UpdateProgressCircle(const bool isPressing) {
                 buttonState.acceptedThisPress = true;
             }
             if (a_type == SkyPromptAPI::kHold) {
-                Stop();
-                RemoveCurrentPrompt();
+                RemoveFromQ(interaction);
             }
             const auto curr_button = GetCurrentButton();
             SendEvent(interaction, SkyPromptAPI::PromptEventType::kAccepted, {0.f, 0.f},
@@ -1115,15 +1108,6 @@ Interaction SubManager::GetCurrentInteraction() const {
     return {};
 }
 
-std::vector<InteractionButton> SubManager::GetButtons() const {
-    std::shared_lock lock(q_mutex_);
-    std::vector<InteractionButton> buttons;
-    for (const auto& a_button : interactQueue.buttons) {
-        buttons.push_back(a_button);
-    }
-    return buttons;
-}
-
 const InteractionButton* SubManager::GetCurrentButton() const {
     std::shared_lock lock(q_mutex_);
     if (interactQueue.current_button) {
@@ -1133,33 +1117,18 @@ const InteractionButton* SubManager::GetCurrentButton() const {
 }
 
 void SubManager::AddSink(const Interaction& a_interaction, const SkyPromptAPI::PromptSink* a_sink) {
-    {
-        std::shared_lock lock(sink_mutex_);
-        // if the sink is already in the queue, return
-        if (const auto it = sinks.find(a_interaction); it != sinks.end()) {
-            if (std::ranges::find(it->second, a_sink) != it->second.end()) {
-                return;
-            }
-        }
-    }
     std::unique_lock lock(sink_mutex_);
-    sinks[a_interaction].push_back(a_sink);
+    auto& owners = sinks[a_interaction];
+    // The latest submitter supplies the displayed mutable values.
+    if (!owners.empty() && owners.back() == a_sink) return;
+    std::erase(owners, a_sink);
+    owners.push_back(a_sink);
 }
 
 bool SubManager::IsInQueue(const SkyPromptAPI::PromptSink* a_sink) const {
     std::shared_lock lock(sink_mutex_);
     for (const auto& sinks_ : sinks | std::views::values) {
         if (auto it = std::ranges::find(sinks_, a_sink); it != sinks_.end()) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool SubManager::IsInQueue(const Interaction& a_interaction) const {
-    std::shared_lock lock(q_mutex_);
-    for (const auto& a_button : interactQueue.buttons) {
-        if (a_button.interaction == a_interaction) {
             return true;
         }
     }
@@ -1227,34 +1196,38 @@ void Manager::Stop() {
 }
 
 void Manager::CleanUpQueue() {
-    std::vector<size_t> to_remove;
+    std::unique_lock lock(mutex_);
+    for (const auto& manager : managers) {
+        manager->CleanUpQueue();
+    }
+    if (RemoveEmptyRows(managers) && managers.empty()) {
+        lock.unlock();
+        CycleClient(false);
+    }
+}
 
-    {
-        std::shared_lock lock(mutex_);
-        for (size_t i = 0; i < managers.size(); ++i) {
-            managers[i]->CleanUpQueue();
-            if (!managers[i]->HasQueue()) {
-                to_remove.push_back(i);
+bool Manager::RemoveEmptyRows(std::vector<std::unique_ptr<SubManager>>& rows) {
+    bool removed = false;
+    for (size_t index = rows.size(); index > 0;) {
+        --index;
+        if (!rows[index]->HasQueue()) {
+            rows.erase(rows.begin() + index);
+            if (&rows == &managers) {
+                list.OnRowRemoved(index);
             }
+            removed = true;
         }
     }
-    if (!to_remove.empty()) {
-        {
-            std::unique_lock lock(mutex_);
-            std::sort(to_remove.rbegin(), to_remove.rend());
-            for (const size_t idx : to_remove) {
-                managers.erase(managers.begin() + idx);
-                list.OnRowRemoved(idx);
-            }
-            list.ClampSelection(managers.size());
+    if (removed) {
+        int index = 0;
+        for (const auto& row : rows) {
+            row->SetDefaultKeyIndex(index++);
         }
-        if (std::shared_lock lock(mutex_); managers.empty()) {
-            lock.unlock();
-            CycleClient(false);
-            return;
+        if (&rows == &managers) {
+            list.ClampSelection(rows.size());
         }
-        ReArrange();
     }
+    return removed;
 }
 
 void Manager::ShowPromptRow(const size_t index, const bool isList, const size_t visibleCount) {
@@ -1448,45 +1421,36 @@ void Manager::ForEachManager(const std::function<void(std::unique_ptr<SubManager
     }
 }
 
-void Manager::AddEventToSend(const SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::Prompt& a_prompt,
+void Manager::AddEventToSend(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_sink,
+                             const SkyPromptAPI::Prompt& a_prompt,
                              const SkyPromptAPI::PromptEventType event_type, const std::
                              pair<float, float> a_delta) {
     std::unique_lock lock(events_to_send_mutex);
-    if (const auto it = events_to_send_.find(a_sink); it != events_to_send_.end()) {
-        it->second.push_back({.prompt = a_prompt, .type = event_type, .delta = a_delta});
-    } else {
-        events_to_send_[a_sink] = {{.prompt = a_prompt, .type = event_type, .delta = a_delta}};
-    }
+    events_to_send_[{a_clientID, a_sink}].push_back({.prompt = a_prompt, .type = event_type, .delta = a_delta});
 }
 
 void Manager::SendEvents() {
-    std::vector<const SkyPromptAPI::PromptSink*> sinks_to_notify;
-
-    std::shared_lock lock(events_to_send_mutex);
-
-    for (const auto& sink : events_to_send_ | std::views::keys) {
-        if (sink) {
-            sinks_to_notify.push_back(sink);
+    std::unique_lock lock(events_to_send_mutex);
+    const auto sinks_to_notify = events_to_send_ | std::views::keys | std::ranges::to<std::vector>();
+    for (const auto& key : sinks_to_notify) {
+        auto it = events_to_send_.find(key);
+        if (!key.second || it == events_to_send_.end()) {
+            continue;
         }
-    }
-
-    for (const auto sink : sinks_to_notify) {
-        std::vector<SkyPromptAPI::PromptEvent> events;
-        if (auto it = events_to_send_.find(sink); it != events_to_send_.end()) {
-            events = it->second;
-        }
-        for (const auto& event : events) {
-            if (!sink || !events_to_send_.contains(sink)) {
+        // Callbacks may remove pending prompts or enqueue more events. Keep this batch bounded.
+        for (auto remaining = it->second.size(); remaining > 0; --remaining) {
+            it = events_to_send_.find(key);
+            if (it == events_to_send_.end() || it->second.empty()) {
                 break;
             }
+            const auto event = it->second.front();
+            it->second.pop_front();
             lock.unlock();
-            sink->ProcessEvent(event);
+            key.second->ProcessEvent(event);
             lock.lock();
         }
     }
-
-    lock.unlock();
-
-    std::unique_lock lock2(events_to_send_mutex);
-    events_to_send_.clear();
+    std::erase_if(events_to_send_, [](const auto& entry) {
+        return !entry.first.second || entry.second.empty();
+    });
 }

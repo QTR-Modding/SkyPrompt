@@ -75,6 +75,7 @@ namespace ImGui::PromptLayouts {
         void MoveSelection(Navigation navigation, size_t promptCount);
         void Reset();
         void OnRowRemoved(size_t index);
+        void OnRowRestored(size_t from, size_t to);
         void ClampSelection(size_t promptCount);
         void UpdateViewport(size_t promptCount, size_t visibleCount);
         bool PrepareRow(RenderInfo& row, size_t index, size_t promptCount, size_t visibleCount) const;

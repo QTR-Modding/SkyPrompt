@@ -30,7 +30,7 @@ struct InteractionButton {
     SkyPromptAPI::PromptType type = SkyPromptAPI::PromptType::kSinglePress;
     RE::ObjectRefHandle attached_object;
     std::map<Input::DEVICE, uint32_t> keys;
-    int default_key_index = 0;
+    mutable int default_key_index = 0;
 
     [[nodiscard]] uint32_t GetKey() const;
 
@@ -108,6 +108,8 @@ namespace ImGui::Renderer {
         mutable std::atomic<bool> wakeup_queued_{false};
 
         void ButtonStateActions();
+        void ResetButtonState();
+        void RestoreMutables(const Interaction& a_interaction);
         void Show(const InteractionButton* button2show);
 
     public:
@@ -118,8 +120,9 @@ namespace ImGui::Renderer {
 
         void Add2Q(const InteractionButton& iButton, bool show = true);
         bool RemoveFromQ(const Interaction& a_interaction);
-        void RemoveFromQ(const SkyPromptAPI::PromptSink* a_prompt_sink);
-        void RemoveCurrentPrompt();
+        bool RemoveFromQ(SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink,
+                         const std::optional<Interaction>& a_interaction = std::nullopt);
+        void SetDefaultKeyIndex(int index);
         void ResetQueue();
         void ShowQueue();
         void WakeUpQueue();
@@ -138,27 +141,26 @@ namespace ImGui::Renderer {
 
         std::vector<Interaction> GetInteractions() const;
         Interaction GetCurrentInteraction() const;
-        std::vector<InteractionButton> GetButtons() const;
         const InteractionButton* GetCurrentButton() const;
         void AddSink(const Interaction& a_interaction, const SkyPromptAPI::PromptSink* a_sink);
-        std::map<Interaction, std::vector<const SkyPromptAPI::PromptSink*>> GetSinks() const { return sinks; }
         bool IsInQueue(const SkyPromptAPI::PromptSink* a_sink) const;
-        bool IsInQueue(const Interaction& a_interaction) const;
         void SendEvent(const Interaction& a_interaction, SkyPromptAPI::PromptEventType event_type,
                        std::pair<float, float> delta = {0.f, 0.f}, float progress_override = 0.f);
 
         ImVec2 GetAttachedObjectPos() const;
         RE::TESObjectREFR* GetAttachedObject() const;
 
-        void Update(SkyPromptAPI::ClientID a_client_id, const SkyPromptAPI::PromptSink* a_prompt_sink) const;
+        void Update(const Interaction& a_interaction, const ButtonMutables& a_mutables) const;
     };
 
     class Manager : public REX::Singleton<Manager> {
-        void ReArrange();
-        bool IsInQueue(const Interaction& a_interaction) const;
+        bool RemoveEmptyRows(std::vector<std::unique_ptr<SubManager>>& rows);
+        void RestorePromptOrder(SkyPromptAPI::ClientID pageID, SkyPromptAPI::ClientID clientID,
+                                std::span<const SkyPromptAPI::Prompt> prompts);
 
         std::shared_mutex events_to_send_mutex;
-        std::map<const SkyPromptAPI::PromptSink*, std::vector<SkyPromptAPI::PromptEvent>> events_to_send_;
+        std::map<std::pair<SkyPromptAPI::ClientID, const SkyPromptAPI::PromptSink*>,
+                 std::deque<SkyPromptAPI::PromptEvent>> events_to_send_;
         SubManager* Add2Q(SkyPromptAPI::ClientID a_clientID, const Interaction& a_interaction,
                           const ButtonMutables& a_mutables,
                           SkyPromptAPI::PromptType a_type, RefID a_refid,
@@ -194,7 +196,8 @@ namespace ImGui::Renderer {
         bool Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID);
         bool IsInQueue(SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink,
                        bool wake_up = false);
-        void RemoveFromQ(SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink);
+        bool RemoveFromQ(SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink,
+                         const std::optional<Interaction>& a_interaction = std::nullopt);
         [[nodiscard]] bool HasTask() const;
         void Start();
         void Stop();
@@ -209,7 +212,8 @@ namespace ImGui::Renderer {
         std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> GetPromptButtons() const;
 
         void ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func);
-        void AddEventToSend(const SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::Prompt& a_prompt,
+        void AddEventToSend(SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_sink,
+                            const SkyPromptAPI::Prompt& a_prompt,
                             SkyPromptAPI::PromptEventType event_type,
                             std::pair<float, float> a_delta);
         void SendEvents();
