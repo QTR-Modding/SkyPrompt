@@ -116,10 +116,10 @@ namespace {
         switch (a_device) {
             case Input::DEVICE::kKeyboardMouse:
                 return Translations::Get("$SkyPromptMCPDeviceKeyboardMouse");
-            case Input::DEVICE::kGamepadDirectX:
-                return Translations::Get("$SkyPromptMCPDeviceGamepadXbox");
-            case Input::DEVICE::kGamepadOrbis:
-                return Translations::Get("$SkyPromptMCPDeviceGamepadPS4");
+            case Input::DEVICE::kGamepad:
+                return Translations::Get("$SkyPromptMCPDeviceGamepad");
+            case Input::DEVICE::kVR:
+                return Translations::Get("$SkyPromptMCPDeviceVR");
             default:
                 return Translations::Get("$SkyPromptMCPDeviceUnknown");
         }
@@ -800,27 +800,8 @@ void MCP::Register() {
 }
 
 bool MCP::Settings::IsEnabled(const Input::DEVICE a_device) {
-    if (enabled_devices.contains(a_device)) {
-        if (REL::Module::IsVR() && a_device == Input::kGamepadDirectX) {
-            return enabled_devices.at(a_device);
-        }
-        if (const auto gamepad_type = RE::ControlMap::GetSingleton()->GetGamePadType();
-            gamepad_type == RE::PC_GAMEPAD_TYPE::kOrbis) {
-            if (a_device == Input::DEVICE::kGamepadDirectX) {
-                return false;
-            }
-        } else if (gamepad_type == RE::PC_GAMEPAD_TYPE::kDirectX) {
-            if (a_device == Input::DEVICE::kGamepadOrbis) {
-                return false;
-            }
-        } else if (gamepad_type == RE::PC_GAMEPAD_TYPE::kTotal) {
-            if (a_device == Input::DEVICE::kGamepadDirectX || a_device == Input::DEVICE::kGamepadOrbis) {
-                return false;
-            }
-        }
-        return enabled_devices.at(a_device);
-    }
-    return false;
+    const auto it = enabled_devices.find(a_device);
+    return it != enabled_devices.end() && it->second;
 }
 
 bool MCP::Settings::OSPPresetBox(Theme::Theme& a_theme) {
@@ -894,29 +875,25 @@ bool MCP::Settings::FontSettings(Theme::Theme& a_theme) {
 }
 
 void MCP::Settings::LoadDefaultPromptKeys() {
+    using namespace SKSE::InputMap;
+
     default_keys = {{Input::DEVICE::kKeyboardMouse,
                      {Input::Manager::Convert(KEY::kNum1, RE::INPUT_DEVICE::kKeyboard),
                       Input::Manager::Convert(KEY::kNum2, RE::INPUT_DEVICE::kKeyboard),
                       Input::Manager::Convert(KEY::kNum3, RE::INPUT_DEVICE::kKeyboard),
                       Input::Manager::Convert(KEY::kNum4, RE::INPUT_DEVICE::kKeyboard)}},
-                    {Input::DEVICE::kGamepadDirectX,
-                     {Input::Manager::Convert(GAMEPAD_DIRECTX::kB, RE::INPUT_DEVICE::kGamepad),
-                      Input::Manager::Convert(GAMEPAD_DIRECTX::kX, RE::INPUT_DEVICE::kGamepad),
-                      Input::Manager::Convert(GAMEPAD_DIRECTX::kY, RE::INPUT_DEVICE::kGamepad),
-                      Input::Manager::Convert(GAMEPAD_DIRECTX::kA, RE::INPUT_DEVICE::kGamepad)}},
-                    {Input::DEVICE::kGamepadOrbis,
-                     {Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_B, RE::INPUT_DEVICE::kGamepad),
-                      Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_X, RE::INPUT_DEVICE::kGamepad),
-                      Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_Y, RE::INPUT_DEVICE::kGamepad),
-                      Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_A, RE::INPUT_DEVICE::kGamepad)}}};
+                    {Input::DEVICE::kGamepad,
+                     {kGamepadButtonOffset_B, kGamepadButtonOffset_X,
+                      kGamepadButtonOffset_Y, kGamepadButtonOffset_A}}};
+    default_keys[Input::DEVICE::kVR] = default_keys.at(Input::DEVICE::kGamepad);
     cycle_L = {
         {Input::DEVICE::kKeyboardMouse, Input::Manager::Convert(KEY::kLeft, RE::INPUT_DEVICE::kKeyboard)},
-        {Input::DEVICE::kGamepadDirectX, Input::Manager::Convert(GAMEPAD_DIRECTX::kLeft, RE::INPUT_DEVICE::kGamepad)},
-        {Input::DEVICE::kGamepadOrbis, Input::Manager::Convert(GAMEPAD_ORBIS::kLeft, RE::INPUT_DEVICE::kGamepad)}};
+        {Input::DEVICE::kGamepad, kGamepadButtonOffset_DPAD_LEFT},
+        {Input::DEVICE::kVR, kGamepadButtonOffset_DPAD_LEFT}};
     cycle_R = {
         {Input::DEVICE::kKeyboardMouse, Input::Manager::Convert(KEY::kRight, RE::INPUT_DEVICE::kKeyboard)},
-        {Input::DEVICE::kGamepadDirectX, Input::Manager::Convert(GAMEPAD_DIRECTX::kRight, RE::INPUT_DEVICE::kGamepad)},
-        {Input::DEVICE::kGamepadOrbis, Input::Manager::Convert(GAMEPAD_ORBIS::kRight, RE::INPUT_DEVICE::kGamepad)}};
+        {Input::DEVICE::kGamepad, kGamepadButtonOffset_DPAD_RIGHT},
+        {Input::DEVICE::kVR, kGamepadButtonOffset_DPAD_RIGHT}};
 }
 
 namespace {
@@ -1136,6 +1113,35 @@ void MCP::Settings::to_json() {
     file.close();
 }
 
+namespace {
+    template <class T>
+    void LoadDeviceSettings(const rapidjson::Value& a_settings, const char* a_name,
+                            std::map<Input::DEVICE, T>& a_values) {
+        const auto section = a_settings.FindMember(a_name);
+        if (section == a_settings.MemberEnd() || !section->value.IsObject()) return;
+        const auto& settings = section->value;
+        for (auto& [device, value] : a_values) {
+            auto member = settings.FindMember(Input::device_to_string(device).c_str());
+            if (member == settings.MemberEnd()) {
+                if (device == Input::kGamepad) {
+                    const auto controlMap = RE::ControlMap::GetSingleton();
+                    const bool orbis = controlMap && controlMap->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis;
+                    member = settings.FindMember(orbis ? "Gamepad (PS4)" : "Gamepad (Xbox)");
+                    if (member == settings.MemberEnd()) {
+                        member = settings.FindMember(orbis ? "Gamepad (Xbox)" : "Gamepad (PS4)");
+                    }
+                } else if (device == Input::kVR && REL::Module::IsVR()) {
+                    member = settings.FindMember("Gamepad (Xbox)");
+                }
+            }
+            T loaded{};
+            if (member != settings.MemberEnd() && Presets::Getters::JSON::Get(member->value, loaded)) {
+                value = std::move(loaded);
+            }
+        }
+    }
+}
+
 void MCP::Settings::from_json() {
     std::ifstream file(json_folder);
     std::string str((std::istreambuf_iterator(file)), std::istreambuf_iterator<char>());
@@ -1152,6 +1158,7 @@ void MCP::Settings::from_json() {
         return;
     }
     auto& mcp = doc["MCP"];
+    LoadDefaultPromptKeys();
     Theme::default_theme.LoadSpecialEffects(mcp);
 
     if (mcp.HasMember("fadeSpeed")) {
@@ -1194,78 +1201,21 @@ void MCP::Settings::from_json() {
         lifetime = mcp["lifetime"].GetFloat();
     }
 
-    // enabled devices
-    if (mcp.HasMember("enabled_devices")) {
-        auto& enabled_devices_ = mcp["enabled_devices"];
-        for (auto it = enabled_devices_.MemberBegin(); it != enabled_devices_.MemberEnd(); ++it) {
-            const auto device = Input::from_string_to_device(it->name.GetString());
-            if (device == Input::DEVICE::kUnknown) {
-                logger::error("Unknown device in settings.json");
-                continue;
-            }
-            const auto enabled = it->value.GetBool();
-            if (enabled_devices.contains(device)) {
-                enabled_devices.at(device) = enabled;
-            }
-        }
-    }
+    LoadDeviceSettings(mcp, "enabled_devices", enabled_devices);
 
     // n_max_buttons
     if (mcp.HasMember("n_max_buttons")) {
         Theme::default_theme.n_max_buttons = mcp["n_max_buttons"].GetInt();
     }
 
-    // prompt keys
-    if (mcp.HasMember("keys")) {
-        auto& prompt_keys_json = mcp["keys"];
-        for (auto it = prompt_keys_json.MemberBegin(); it != prompt_keys_json.MemberEnd(); ++it) {
-            const auto device = Input::from_string_to_device(it->name.GetString());
-            if (device == Input::DEVICE::kUnknown) {
-                logger::error("Unknown device in settings.json");
-                continue;
-            }
-            if (it->value.IsArray()) {
-                std::vector<uint32_t> keys;
-                for (auto& key : it->value.GetArray()) {
-                    keys.push_back(key.GetUint());
-                }
-                if (default_keys.contains(device)) {
-                    default_keys.at(device) = keys;
-                } else {
-                    default_keys[device] = keys;
-                }
-            }
-        }
-    } else {
-        logger::error("Failed to find keys in settings.json");
-    }
+    LoadDeviceSettings(mcp, "keys", default_keys);
 
     if (mcp.HasMember("cycle_controls")) {
         cycle_controls = mcp["cycle_controls"].GetBool();
     }
 
-    if (mcp.HasMember("cycle_L")) {
-        auto& cycle_L_json = mcp["cycle_L"];
-        for (auto it = cycle_L_json.MemberBegin(); it != cycle_L_json.MemberEnd(); ++it) {
-            const auto device = Input::from_string_to_device(it->name.GetString());
-            if (device == Input::DEVICE::kUnknown) {
-                logger::error("Unknown device in settings.json");
-                continue;
-            }
-            cycle_L[device] = it->value.GetUint();
-        }
-    }
-    if (mcp.HasMember("cycle_R")) {
-        auto& cycle_R_json = mcp["cycle_R"];
-        for (auto it = cycle_R_json.MemberBegin(); it != cycle_R_json.MemberEnd(); ++it) {
-            const auto device = Input::from_string_to_device(it->name.GetString());
-            if (device == Input::DEVICE::kUnknown) {
-                logger::error("Unknown device in settings.json");
-                continue;
-            }
-            cycle_R[device] = it->value.GetUint();
-        }
-    }
+    LoadDeviceSettings(mcp, "cycle_L", cycle_L);
+    LoadDeviceSettings(mcp, "cycle_R", cycle_R);
 
     // special commands
     if (mcp.HasMember("special_commands")) {

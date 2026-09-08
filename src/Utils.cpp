@@ -152,7 +152,7 @@ void TranslateEmbedded(std::string& a_text) {
 
 uint32_t GetControlKey(const std::string_view a_controlName) {
     const auto controlMap = RE::ControlMap::GetSingleton();
-    if (REL::Module::IsVR() && MANAGER(Input)->GetInputDevice() == Input::kGamepadDirectX) {
+    if (MANAGER(Input)->GetInputDevice() == Input::kVR) {
         const auto devices = RE::BSInputDeviceManager::GetSingleton();
         for (const auto controller : {devices->GetVRControllerRight(), devices->GetVRControllerLeft()}) {
             if (!controller) continue;

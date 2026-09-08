@@ -5,13 +5,12 @@ namespace Input {
     enum DEVICE {
         kUnknown = 0,
         kKeyboardMouse,
-        kGamepadDirectX, // xbox
-        kGamepadOrbis, // ps4
+        kGamepad,
+        kVR,
         kTotal
     };
 
     std::string device_to_string(DEVICE a_device);
-    DEVICE from_string_to_device(const std::string& a_device);
     DEVICE from_RE_device(RE::INPUT_DEVICE a_device);
 
     class Manager final :
@@ -33,6 +32,6 @@ namespace Input {
         std::uint32_t screenshotMouse{0};
         std::uint32_t screenshotGamepad{0};
 
-        DEVICE inputDevice{REL::Module::IsVR() ? kGamepadDirectX : kKeyboardMouse};
+        DEVICE inputDevice{REL::Module::IsVR() ? kVR : kKeyboardMouse};
     };
 }

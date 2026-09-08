@@ -32,8 +32,8 @@ namespace MCP {
 
         inline std::map<Input::DEVICE, bool> enabled_devices = {
             {Input::DEVICE::kKeyboardMouse, true},
-            {Input::DEVICE::kGamepadDirectX, true},
-            {Input::DEVICE::kGamepadOrbis, true}
+            {Input::DEVICE::kGamepad, true},
+            {Input::DEVICE::kVR, true}
         };
 
         bool IsEnabled(Input::DEVICE a_device);

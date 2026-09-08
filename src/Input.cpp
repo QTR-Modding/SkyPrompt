@@ -366,7 +366,7 @@ namespace Input {
             }
             return GamepadMaskToKeycode(button_key);
         }
-        if (from_RE_device(a_device) == kGamepadDirectX) {
+        if (from_RE_device(a_device) == kVR) {
             return VRButtonToKeycode(button_key, a_device);
         }
         return 0;
@@ -390,11 +390,19 @@ namespace Input {
                     keys.push_back(key);
                 }
                 break;
-            case kGamepadDirectX:
-            case kGamepadOrbis:
+            case kGamepad:
                 for (uint32_t key = kMacro_GamepadOffset; key < kMaxMacros; ++key) {
                     keys.push_back(key);
                 }
+                break;
+            case kVR:
+                keys = {kGamepadButtonOffset_DPAD_UP, kGamepadButtonOffset_DPAD_DOWN,
+                        kGamepadButtonOffset_DPAD_LEFT, kGamepadButtonOffset_DPAD_RIGHT,
+                        kGamepadButtonOffset_LEFT_THUMB, kGamepadButtonOffset_RIGHT_THUMB,
+                        kGamepadButtonOffset_LEFT_SHOULDER, kGamepadButtonOffset_RIGHT_SHOULDER,
+                        kGamepadButtonOffset_A, kGamepadButtonOffset_B,
+                        kGamepadButtonOffset_X, kGamepadButtonOffset_Y,
+                        kGamepadButtonOffset_LT, kGamepadButtonOffset_RT};
                 break;
             default:
                 break;
@@ -406,26 +414,13 @@ namespace Input {
         switch (a_device) {
             case kKeyboardMouse:
                 return "Keyboard & Mouse";
-            case kGamepadDirectX:
-                return "Gamepad (Xbox)";
-            case kGamepadOrbis:
-                return "Gamepad (PS4)";
+            case kGamepad:
+                return "Gamepad";
+            case kVR:
+                return "VR";
             default:
                 return "Unknown";
         }
-    }
-
-    DEVICE from_string_to_device(const std::string& a_device) {
-        if (a_device == "Keyboard & Mouse") {
-            return kKeyboardMouse;
-        }
-        if (a_device == "Gamepad (Xbox)") {
-            return kGamepadDirectX;
-        }
-        if (a_device == "Gamepad (PS4)") {
-            return kGamepadOrbis;
-        }
-        return kUnknown;
     }
 
     DEVICE from_RE_device(const RE::INPUT_DEVICE a_device) {
@@ -434,19 +429,15 @@ namespace Input {
                 return kKeyboardMouse;
             case RE::INPUT_DEVICE::kMouse:
                 return kKeyboardMouse;
-            case RE::INPUT_DEVICE::kGamepad: {
-                if (RE::ControlMap::GetSingleton()->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis) {
-                    return kGamepadOrbis;
-                }
-                return kGamepadDirectX;
-            }
+            case RE::INPUT_DEVICE::kGamepad:
+                return kGamepad;
             case RE::INPUT_DEVICE::kVivePrimary:
             case RE::INPUT_DEVICE::kViveSecondary:
             case RE::INPUT_DEVICE::kOculusPrimary:
             case RE::INPUT_DEVICE::kOculusSecondary:
             case RE::INPUT_DEVICE::kWMRPrimary:
             case RE::INPUT_DEVICE::kWMRSecondary:
-                return REL::Module::IsVR() ? kGamepadDirectX : kUnknown;
+                return REL::Module::IsVR() ? kVR : kUnknown;
             default:
                 return kUnknown;
         }

@@ -164,6 +164,7 @@ bool InputHook::ProcessInput(RE::InputEvent* event) {
     const auto render_manager = MANAGER(ImGui::Renderer);
     if (render_manager->IsPaused()) return block;
     if (render_manager->IsHidden()) return block;
+    if (!MCP::Settings::IsEnabled(Input::from_RE_device(event->GetDevice()))) return block;
 
     const auto input_manager = MANAGER(Input);
     input_manager->UpdateInputDevice(event);
@@ -199,7 +200,7 @@ bool InputHook::ProcessInput(RE::InputEvent* event) {
             }
         }
 
-        if (!block && button_event->IsDown()) {
+        if (!block && key != 0 && button_event->IsDown()) {
             const auto device = input_manager->GetInputDevice();
             const bool is_L = key == MCP::Settings::cycle_L[device];
             const bool is_R = key == MCP::Settings::cycle_R[device];
