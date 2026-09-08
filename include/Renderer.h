@@ -109,6 +109,7 @@ namespace ImGui::Renderer {
 
         void ButtonStateActions();
         void ResetButtonState();
+        void RestoreMutables(const Interaction& a_interaction);
         void Show(const InteractionButton* button2show);
 
     public:
