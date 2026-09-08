@@ -33,12 +33,16 @@ void ProcessRemovePrompt(const SkyPromptAPI::PromptSink* a_sink, const SkyPrompt
         return;
     }
 
-    const auto manager = MANAGER(ImGui::Renderer);
-    if (!manager->IsInQueue(a_clientID, a_sink)) {
-        return;
-    }
+    MANAGER(ImGui::Renderer)->RemoveFromQ(a_clientID, a_sink);
+}
 
-    manager->RemoveFromQ(a_clientID, a_sink);
+bool ProcessRemovePromptByID(const SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID,
+                            const SkyPromptAPI::EventID a_eventID, const SkyPromptAPI::ActionID a_actionID) {
+    if (!a_sink || a_clientID == 0) {
+        return false;
+    }
+    return MANAGER(ImGui::Renderer)->RemoveFromQ(
+        a_clientID, a_sink, ImGui::Renderer::Manager::MakeInteraction(a_clientID, a_eventID, a_actionID));
 }
 
 SkyPromptAPI::ClientID ProcessRequestClientID(int a_major, int a_minor) {
