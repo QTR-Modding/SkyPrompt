@@ -158,16 +158,67 @@ void InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::Inp
     }
 }
 
+std::optional<bool> InputHook::ProcessVRNavigation(RE::InputEvent* event, const bool available) {
+    using Direction = Input::VRNavigation::Direction;
+    const auto input = MANAGER(Input);
+    auto& navigation = input->vrNavigation;
+    const auto modifier = MCP::Settings::vr_navigation_modifier;
+    if (!available || modifier != navigation.modifier) navigation.direction = Direction::kNone;
+
+    if (const auto button = event->AsButtonEvent()) {
+        const auto key = input->Convert(button->GetIDCode(), button->GetDevice());
+        if (navigation.modifier != 0 && key == navigation.modifier) {
+            const bool block = navigation.blocksInput;
+            if (button->IsUp()) navigation = {};
+            return block;
+        }
+        if (available && navigation.modifier == 0 && modifier != 0 && key == modifier && button->IsDown()) {
+            const auto prompts = MANAGER(ImGui::Renderer)->GetPromptButtons();
+            // A prompt's activation binding takes priority over the navigation modifier.
+            if (std::ranges::any_of(prompts, [key](const auto& prompt) { return prompt.second == key; })) {
+                return std::nullopt;
+            }
+            navigation.modifier = key;
+            navigation.blocksInput = std::ranges::any_of(prompts, [](const auto& prompt) {
+                return PromptTypeFlags::GetBlocksInput(prompt.first);
+            });
+            return navigation.blocksInput;
+        }
+        return std::nullopt;
+    }
+
+    if (!available || navigation.modifier == 0 || modifier != navigation.modifier) return std::nullopt;
+    const auto stick = event->AsThumbstickEvent();
+    if (!stick) return std::nullopt;
+    const auto left = RE::BSInputDeviceManager::GetSingleton()->GetVRControllerLeft();
+    if (!left || event->GetDevice() != left->BSInputDevice::GetRuntimeData().device) return std::nullopt;
+
+    const auto direction = navigation.Step(stick->xValue, stick->yValue);
+    const auto renderer = MANAGER(ImGui::Renderer);
+    if (direction == Direction::kUp || direction == Direction::kDown) {
+        renderer->ProcessListNavigation(direction == Direction::kUp
+            ? PromptLayouts::List::Navigation::kPrevious : PromptLayouts::List::Navigation::kNext);
+    } else if ((direction == Direction::kLeft || direction == Direction::kRight) && MCP::Settings::cycle_controls) {
+        renderer->CycleClient(direction == Direction::kLeft);
+    }
+    // Forward a neutral movement event so Skyrim clears any previously held direction.
+    if (navigation.blocksInput) stick->xValue = stick->yValue = 0.0f;
+    return false;
+}
+
 bool InputHook::ProcessInput(RE::InputEvent* event) {
     bool block = false;
 
     const auto render_manager = MANAGER(ImGui::Renderer);
-    if (render_manager->IsPaused()) return block;
-    if (render_manager->IsHidden()) return block;
-    if (!MCP::Settings::IsEnabled(Input::from_RE_device(event->GetDevice()))) return block;
-
+    const auto eventDevice = Input::from_RE_device(event->GetDevice());
+    const bool available = !render_manager->IsPaused() && !render_manager->IsHidden() &&
+                           MCP::Settings::IsEnabled(eventDevice);
     const auto input_manager = MANAGER(Input);
-    input_manager->UpdateInputDevice(event);
+    if (available) input_manager->UpdateInputDevice(event);
+    if (eventDevice == Input::kVR) {
+        if (const auto handled = ProcessVRNavigation(event, available)) return *handled;
+    }
+    if (!available) return block;
 
     if (const auto handled = render_manager->ProcessListInput(event)) {
         return *handled;

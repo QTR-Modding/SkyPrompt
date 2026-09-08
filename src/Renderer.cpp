@@ -1358,6 +1358,11 @@ std::optional<bool> Manager::ProcessListInput(RE::InputEvent* event) {
     const auto button = event->AsButtonEvent();
     if (!button) return std::nullopt;
     const auto navigation = list.GetNavigation(*button, GetControlKey(RE::UserEvents::GetSingleton()->activate));
+    return ProcessListNavigation(navigation);
+}
+
+std::optional<bool> Manager::ProcessListNavigation(const PromptLayouts::List::Navigation navigation) {
+    if (Theme::last_theme->prompt_alignment != Theme::kList) return std::nullopt;
     if (navigation == PromptLayouts::List::Navigation::kUnhandled) return std::nullopt;
 
     std::unique_lock lock(mutex_);

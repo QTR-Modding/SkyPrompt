@@ -897,18 +897,42 @@ void MCP::Settings::LoadDefaultPromptKeys() {
 }
 
 namespace {
-    void ControlBox(const char* label, const Input::DEVICE selected_device, uint32_t& selected_key) {
-        // dropdown with keys for selected device
-        const auto converted_key = selected_key;
-        if (ImGuiMCP::BeginCombo(label, SKSE::InputMap::GetKeyName(converted_key).c_str())) {
-            for (const auto& key_code : Input::Manager::GetKeys(selected_device)) {
-                const auto converted_keycode = key_code;
-                const auto key_name = SKSE::InputMap::GetKeyName(converted_keycode);
+    std::string ControlKeyName(const Input::DEVICE a_device, const uint32_t a_key) {
+        if (a_device == Input::kVR) {
+            using namespace SKSE::InputMap;
+            switch (a_key) {
+                case 0: return Translations::Get("$SkyPromptMCPControlsNone");
+                case kGamepadButtonOffset_DPAD_UP: return Translations::Get("$SkyPromptMCPVRUp");
+                case kGamepadButtonOffset_DPAD_DOWN: return Translations::Get("$SkyPromptMCPVRDown");
+                case kGamepadButtonOffset_DPAD_LEFT: return Translations::Get("$SkyPromptMCPVRLeft");
+                case kGamepadButtonOffset_DPAD_RIGHT: return Translations::Get("$SkyPromptMCPVRRight");
+                case kGamepadButtonOffset_LEFT_THUMB: return Translations::Get("$SkyPromptMCPVRLeftStickClick");
+                case kGamepadButtonOffset_RIGHT_THUMB: return Translations::Get("$SkyPromptMCPVRRightStickClick");
+                case kGamepadButtonOffset_LEFT_SHOULDER: return Translations::Get("$SkyPromptMCPVRLeftGrip");
+                case kGamepadButtonOffset_RIGHT_SHOULDER: return Translations::Get("$SkyPromptMCPVRRightGrip");
+                case kGamepadButtonOffset_A: return "A";
+                case kGamepadButtonOffset_B: return "B";
+                case kGamepadButtonOffset_X: return "X";
+                case kGamepadButtonOffset_Y: return "Y";
+                case kGamepadButtonOffset_LT: return Translations::Get("$SkyPromptMCPVRLeftTrigger");
+                case kGamepadButtonOffset_RT: return Translations::Get("$SkyPromptMCPVRRightTrigger");
+                default: break;
+            }
+        }
+        return SKSE::InputMap::GetKeyName(a_key);
+    }
+
+    void ControlBox(const char* label, const Input::DEVICE selected_device, uint32_t& selected_key,
+                    std::vector<uint32_t> a_keys = {}) {
+        if (ImGuiMCP::BeginCombo(label, ControlKeyName(selected_device, selected_key).c_str())) {
+            if (a_keys.empty()) a_keys = Input::Manager::GetKeys(selected_device);
+            for (const auto key_code : a_keys) {
+                const auto key_name = ControlKeyName(selected_device, key_code);
                 if (key_name.empty()) {
                     continue;
                 }
-                const bool isSelected = converted_key == converted_keycode;
-                const auto key_label = Translations::WithID(key_name, std::format("key.{}", converted_keycode));
+                const bool isSelected = selected_key == key_code;
+                const auto key_label = Translations::WithID(key_name, std::format("key.{}", key_code));
                 if (ImGuiMCP::Selectable(key_label.c_str(), isSelected)) {
                     if (!isSelected) {
                         selected_key = key_code;
@@ -956,6 +980,21 @@ namespace {
     void RenderControl(uint32_t& a_key, const std::string_view a_label, const std::string_view a_id) {
         const auto label = SettingRow(a_label, a_id);
         ControlBox(label.c_str(), MCP::current_device, a_key);
+    }
+
+    bool RenderNavigationModifier() {
+        const auto label = SettingRow(Translations::Get("$SkyPromptMCPControlsNavigationModifier"),
+                                      "controls.vrNavigationModifier", "$SkyPromptMCPControlsNavigationModifierHelp");
+        auto keys = Input::Manager::GetKeys(Input::kVR);
+        std::erase_if(keys, [](const uint32_t a_key) {
+            return a_key >= SKSE::InputMap::kGamepadButtonOffset_DPAD_UP &&
+                   a_key <= SKSE::InputMap::kGamepadButtonOffset_DPAD_RIGHT;
+        });
+        keys.insert(keys.begin(), 0);
+        auto& modifier = MCP::Settings::vr_navigation_modifier;
+        const auto before = modifier;
+        ControlBox(label.c_str(), Input::kVR, modifier, std::move(keys));
+        return before != modifier;
     }
 };
 
@@ -1056,6 +1095,7 @@ void MCP::Settings::to_json() {
         prompt_keys_json.AddMember(device_json, device_keys, allocator);
     }
     root.AddMember("keys", prompt_keys_json, allocator);
+    root.AddMember("vr_navigation_modifier", vr_navigation_modifier, allocator);
 
     // cycle enabled (std::atomic cycle_controls)
     Value a_cycle_controls(kObjectType);
@@ -1209,6 +1249,7 @@ void MCP::Settings::from_json() {
     }
 
     LoadDeviceSettings(mcp, "keys", default_keys);
+    Presets::Getters::JSON::Get(mcp, "vr_navigation_modifier", vr_navigation_modifier);
 
     if (mcp.HasMember("cycle_controls")) {
         cycle_controls = mcp["cycle_controls"].GetBool();
@@ -1267,6 +1308,9 @@ void __stdcall MCP::RenderControls() {
             for (size_t i = 0; i < keys.size(); ++i) {
                 RenderControl(keys[i], Translations::Format("$SkyPromptMCPControlsButton", i + 1),
                               std::format("controls.button.{}", i + 1));
+            }
+            if (current_device == Input::kVR && RenderNavigationModifier()) {
+                settingsChanged = true;
             }
         }
         ImGuiMCP::EndTable();

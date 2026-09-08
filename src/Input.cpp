@@ -326,6 +326,29 @@ namespace {
 };
 
 namespace Input {
+    VRNavigation::Direction VRNavigation::Step(const float x, const float y) {
+        constexpr float deadzone = 0.5f;
+        Direction next = Direction::kNone;
+        if (std::max(std::abs(x), std::abs(y)) >= deadzone) {
+            next = std::abs(y) >= std::abs(x)
+                ? (y > 0.0f ? Direction::kUp : Direction::kDown)
+                : (x > 0.0f ? Direction::kRight : Direction::kLeft);
+        }
+        const auto now = std::chrono::steady_clock::now();
+        if (next != direction) {
+            direction = next;
+            nextRepeat = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                std::chrono::duration<float>(ImGui::PromptLayouts::List::repeatDelay));
+            return next;
+        }
+        if ((next == Direction::kUp || next == Direction::kDown) && now >= nextRepeat) {
+            nextRepeat = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                std::chrono::duration<float>(ImGui::PromptLayouts::List::repeatRate));
+            return next;
+        }
+        return Direction::kNone;
+    }
+
     DEVICE Manager::GetInputDevice() const {
         return inputDevice;
     }
