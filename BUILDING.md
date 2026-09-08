@@ -9,6 +9,12 @@ Install Visual Studio's C++ tools (MSVC with C++23 support, Windows SDK, CMake a
 Ninja), Git, and [vcpkg](https://github.com/microsoft/vcpkg). Run these commands
 from a Visual Studio Developer PowerShell configured for x64.
 
+Set `VCPKG_ROOT` to your vcpkg folder:
+
+```powershell
+$env:VCPKG_ROOT = 'C:/src/vcpkg'
+```
+
 Clone [CommonLibVR-MIT](https://github.com/QTR-Modding/CommonLibVR-MIT) and select
 the revision used by this version of SkyPrompt:
 
@@ -17,7 +23,6 @@ git clone --recursive https://github.com/QTR-Modding/CommonLibVR-MIT.git C:/src/
 git -C C:/src/CommonLibVR-MIT checkout 4190ec291f99c64b765c0647e25cf8a3a3d9a550
 git -C C:/src/CommonLibVR-MIT submodule update --init --recursive
 $env:COMMONLIB_SSE_FOLDER = 'C:/src/CommonLibVR-MIT'
-$env:VCPKG_ROOT = 'C:/src/vcpkg'
 ```
 
 Adjust those paths to your clones. In the SkyPrompt source directory, run:
