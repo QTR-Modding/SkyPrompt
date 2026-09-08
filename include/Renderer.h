@@ -149,7 +149,7 @@ namespace ImGui::Renderer {
         ImVec2 GetAttachedObjectPos() const;
         RE::TESObjectREFR* GetAttachedObject() const;
 
-        void Update(SkyPromptAPI::ClientID a_client_id, const SkyPromptAPI::PromptSink* a_prompt_sink) const;
+        void Update(const Interaction& a_interaction, const ButtonMutables& a_mutables) const;
     };
 
     class Manager : public REX::Singleton<Manager> {

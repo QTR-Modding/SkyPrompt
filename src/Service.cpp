@@ -10,18 +10,13 @@ bool ProcessSendPrompt(const SkyPromptAPI::PromptSink* a_sink, const SkyPromptAP
         return false;
     }
 
-    const auto manager = MANAGER(ImGui::Renderer);
-    if (manager->IsInQueue(a_clientID, a_sink, true)) {
-        return false;
-    }
-
     for (const auto new_prompts = a_sink->GetPrompts(); auto& prompt : new_prompts) {
         if (prompt.text.empty()) {
             logger::warn("Empty prompt text");
             return false;
         }
     }
-    return manager->Add2Q(a_sink, a_clientID);
+    return MANAGER(ImGui::Renderer)->Add2Q(a_sink, a_clientID);
 }
 
 void ProcessRemovePrompt(const SkyPromptAPI::PromptSink* a_sink, const SkyPromptAPI::ClientID a_clientID) {

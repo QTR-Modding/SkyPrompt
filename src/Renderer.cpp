@@ -439,26 +439,12 @@ RE::TESObjectREFR* SubManager::GetAttachedObject() const {
     return nullptr;
 }
 
-void SubManager::Update(const SkyPromptAPI::ClientID a_client_id, const SkyPromptAPI::PromptSink* a_prompt_sink) const {
-    using Update = ButtonMutables;
-    std::map<Interaction, Update> updates;
-    for (const auto prompts = a_prompt_sink->GetPrompts(); const auto& prompt : prompts) {
-        auto a_text = std::string(prompt.text);
-        if (a_text.empty()) {
-            logger::warn("Empty prompt text for interaction {}", prompt.eventID);
-            continue;
-        }
-        TranslateEmbedded(a_text);
-        const auto a_interaction = Manager::MakeInteraction(a_client_id, prompt.eventID, prompt.actionID);
-        updates[a_interaction] = Update(a_text, prompt.text_color, prompt.progress);
-    }
-    if (updates.empty()) {
-        return;
-    }
+void SubManager::Update(const Interaction& a_interaction, const ButtonMutables& a_mutables) const {
     std::unique_lock lock(q_mutex_);
     for (const auto& a_button : interactQueue.buttons) {
-        if (updates.contains(a_button.interaction)) {
-            a_button.mutables = updates.at(a_button.interaction);
+        if (a_button.interaction == a_interaction) {
+            a_button.mutables = a_mutables;
+            return;
         }
     }
 }
@@ -622,6 +608,7 @@ SubManager* Manager::Add2Q(
     for (const auto& a_manager : *manager_list) {
         if (std::ranges::any_of(a_manager->GetInteractions(),
                                 [&](const auto& i) { return i == a_interaction; })) {
+            a_manager->Update(a_interaction, a_mutables);
             return a_manager.get();
         }
     }
@@ -728,6 +715,7 @@ bool Manager::CycleClient(const bool a_left) {
 }
 
 bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID) {
+    const bool refresh = IsInQueue(a_clientID, a_prompt_sink, true);
     auto compatibleID = FindCompatibleClientID(a_clientID);
 
     if (compatibleID == 0) {
@@ -782,7 +770,7 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
         if (const auto submanager =
             Add2Q(compatibleID, interaction, {.text = a_txt, .text_color = text_color, .progress = progress},
                   a_type, a_refid,
-                  temp_button_keys, true)) {
+                  temp_button_keys, !refresh)) {
             if (!GetManagerList(compatibleID)) {
                 logger::error("Failed to get manager list");
                 return false;
@@ -794,9 +782,11 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
         }
     }
 
-    SwitchToClientManager(compatibleID);
+    if (!refresh) {
+        SwitchToClientManager(compatibleID);
+    }
 
-    return true;
+    return !refresh;
 }
 
 bool Manager::IsInQueue(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink,
@@ -819,7 +809,6 @@ bool Manager::IsInQueue(const SkyPromptAPI::ClientID a_clientID, const SkyPrompt
         if (a_manager->IsInQueue(a_prompt_sink)) {
             result = true;
             if (wake_up) {
-                a_manager->Update(a_clientID, a_prompt_sink);
                 a_manager->WakeUpQueue();
             } else {
                 return result;
