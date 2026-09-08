@@ -801,6 +801,9 @@ void MCP::Register() {
 
 bool MCP::Settings::IsEnabled(const Input::DEVICE a_device) {
     if (enabled_devices.contains(a_device)) {
+        if (REL::Module::IsVR() && a_device == Input::kGamepadDirectX) {
+            return enabled_devices.at(a_device);
+        }
         if (const auto gamepad_type = RE::ControlMap::GetSingleton()->GetGamePadType();
             gamepad_type == RE::PC_GAMEPAD_TYPE::kOrbis) {
             if (a_device == Input::DEVICE::kGamepadDirectX) {

@@ -33,6 +33,6 @@ namespace Input {
         std::uint32_t screenshotMouse{0};
         std::uint32_t screenshotGamepad{0};
 
-        DEVICE inputDevice{kKeyboardMouse};
+        DEVICE inputDevice{REL::Module::IsVR() ? kGamepadDirectX : kKeyboardMouse};
     };
 }
