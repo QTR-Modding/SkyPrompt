@@ -4,6 +4,29 @@
 #include <imgui.h>
 
 namespace {
+    uint32_t VRButtonToKeycode(const uint32_t key, const RE::INPUT_DEVICE device) {
+        using Keys = RE::BSOpenVRControllerDevice::Keys;
+        using namespace SKSE::InputMap;
+        const bool left = device == RE::INPUT_DEVICE::kViveSecondary ||
+                          device == RE::INPUT_DEVICE::kOculusSecondary ||
+                          device == RE::INPUT_DEVICE::kWMRSecondary;
+        switch (key) {
+            case Keys::kXA:
+                return left ? kGamepadButtonOffset_X : kGamepadButtonOffset_A;
+            case Keys::kBY:
+                return left ? kGamepadButtonOffset_Y : kGamepadButtonOffset_B;
+            case Keys::kTrigger:
+                return left ? kGamepadButtonOffset_LT : kGamepadButtonOffset_RT;
+            case Keys::kGrip:
+            case Keys::kGripAlt:
+                return left ? kGamepadButtonOffset_LEFT_SHOULDER : kGamepadButtonOffset_RIGHT_SHOULDER;
+            case Keys::kJoystickTrigger:
+                return left ? kGamepadButtonOffset_LEFT_THUMB : kGamepadButtonOffset_RIGHT_THUMB;
+            default:
+                return 0;
+        }
+    }
+
     ImGuiKey ToImGuiKey(const KEY a_key) {
         switch (a_key) {
             case KEY::kTab:
@@ -303,6 +326,29 @@ namespace {
 };
 
 namespace Input {
+    VRNavigation::Direction VRNavigation::Step(const float x, const float y) {
+        constexpr float deadzone = 0.5f;
+        Direction next = Direction::kNone;
+        if (std::max(std::abs(x), std::abs(y)) >= deadzone) {
+            next = std::abs(y) >= std::abs(x)
+                ? (y > 0.0f ? Direction::kUp : Direction::kDown)
+                : (x > 0.0f ? Direction::kRight : Direction::kLeft);
+        }
+        const auto now = std::chrono::steady_clock::now();
+        if (next != direction) {
+            direction = next;
+            nextRepeat = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                std::chrono::duration<float>(ImGui::PromptLayouts::List::repeatDelay));
+            return next;
+        }
+        if ((next == Direction::kUp || next == Direction::kDown) && now >= nextRepeat) {
+            nextRepeat = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                std::chrono::duration<float>(ImGui::PromptLayouts::List::repeatRate));
+            return next;
+        }
+        return Direction::kNone;
+    }
+
     DEVICE Manager::GetInputDevice() const {
         return inputDevice;
     }
@@ -310,51 +356,12 @@ namespace Input {
     void Manager::UpdateInputDevice(RE::InputEvent* event) {
         if (!event) return;
         if (const auto buttonEvent = event->AsButtonEvent()) {
-            if (buttonEvent->IsUp()) {
-                return;
-            }
-
-            switch (const auto device = event->GetDevice()) {
-                case RE::INPUT_DEVICE::kKeyboard:
-                    if (MCP::Settings::IsEnabled(kKeyboardMouse)) {
-                        inputDevice = kKeyboardMouse;
-                    }
-                    break;
-                case RE::INPUT_DEVICE::kMouse: {
-                    if (MCP::Settings::IsEnabled(kKeyboardMouse)) {
-                        inputDevice = kKeyboardMouse;
-                    }
-                }
-                break;
-                case RE::INPUT_DEVICE::kGamepad: {
-                    if (RE::ControlMap::GetSingleton()->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis) {
-                        if (MCP::Settings::IsEnabled(kGamepadOrbis)) {
-                            inputDevice = kGamepadOrbis;
-                        }
-                    } else {
-                        if (MCP::Settings::IsEnabled(kGamepadDirectX)) {
-                            inputDevice = kGamepadDirectX;
-                        }
-                    }
-                }
-                break;
-                default:
-                    break;
-            }
-        } else if (event->AsThumbstickEvent()) {
-            if (RE::ControlMap::GetSingleton()->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis) {
-                if (MCP::Settings::IsEnabled(kGamepadOrbis)) {
-                    inputDevice = kGamepadOrbis;
-                }
-            } else {
-                if (MCP::Settings::IsEnabled(kGamepadDirectX)) {
-                    inputDevice = kGamepadDirectX;
-                }
-            }
-        } else if (event->AsMouseMoveEvent()) {
-            if (MCP::Settings::IsEnabled(kKeyboardMouse)) {
-                inputDevice = kKeyboardMouse;
-            }
+            if (buttonEvent->IsUp()) return;
+        } else if (!event->AsThumbstickEvent() && !event->AsMouseMoveEvent()) {
+            return;
+        }
+        if (const auto device = from_RE_device(event->GetDevice()); MCP::Settings::IsEnabled(device)) {
+            inputDevice = device;
         }
     }
 
@@ -382,6 +389,9 @@ namespace Input {
             }
             return GamepadMaskToKeycode(button_key);
         }
+        if (from_RE_device(a_device) == kVR) {
+            return VRButtonToKeycode(button_key, a_device);
+        }
         return 0;
     }
 
@@ -403,11 +413,17 @@ namespace Input {
                     keys.push_back(key);
                 }
                 break;
-            case kGamepadDirectX:
-            case kGamepadOrbis:
+            case kGamepad:
                 for (uint32_t key = kMacro_GamepadOffset; key < kMaxMacros; ++key) {
                     keys.push_back(key);
                 }
+                break;
+            case kVR:
+                keys = {kGamepadButtonOffset_LEFT_THUMB, kGamepadButtonOffset_RIGHT_THUMB,
+                        kGamepadButtonOffset_LEFT_SHOULDER, kGamepadButtonOffset_RIGHT_SHOULDER,
+                        kGamepadButtonOffset_A, kGamepadButtonOffset_B,
+                        kGamepadButtonOffset_X, kGamepadButtonOffset_Y,
+                        kGamepadButtonOffset_LT, kGamepadButtonOffset_RT};
                 break;
             default:
                 break;
@@ -419,26 +435,13 @@ namespace Input {
         switch (a_device) {
             case kKeyboardMouse:
                 return "Keyboard & Mouse";
-            case kGamepadDirectX:
-                return "Gamepad (Xbox)";
-            case kGamepadOrbis:
-                return "Gamepad (PS4)";
+            case kGamepad:
+                return "Gamepad";
+            case kVR:
+                return "VR";
             default:
                 return "Unknown";
         }
-    }
-
-    DEVICE from_string_to_device(const std::string& a_device) {
-        if (a_device == "Keyboard & Mouse") {
-            return kKeyboardMouse;
-        }
-        if (a_device == "Gamepad (Xbox)") {
-            return kGamepadDirectX;
-        }
-        if (a_device == "Gamepad (PS4)") {
-            return kGamepadOrbis;
-        }
-        return kUnknown;
     }
 
     DEVICE from_RE_device(const RE::INPUT_DEVICE a_device) {
@@ -447,12 +450,15 @@ namespace Input {
                 return kKeyboardMouse;
             case RE::INPUT_DEVICE::kMouse:
                 return kKeyboardMouse;
-            case RE::INPUT_DEVICE::kGamepad: {
-                if (RE::ControlMap::GetSingleton()->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis) {
-                    return kGamepadOrbis;
-                }
-                return kGamepadDirectX;
-            }
+            case RE::INPUT_DEVICE::kGamepad:
+                return kGamepad;
+            case RE::INPUT_DEVICE::kVivePrimary:
+            case RE::INPUT_DEVICE::kViveSecondary:
+            case RE::INPUT_DEVICE::kOculusPrimary:
+            case RE::INPUT_DEVICE::kOculusSecondary:
+            case RE::INPUT_DEVICE::kWMRPrimary:
+            case RE::INPUT_DEVICE::kWMRSecondary:
+                return REL::Module::IsVR() ? kVR : kUnknown;
             default:
                 return kUnknown;
         }

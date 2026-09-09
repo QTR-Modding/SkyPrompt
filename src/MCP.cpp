@@ -116,10 +116,10 @@ namespace {
         switch (a_device) {
             case Input::DEVICE::kKeyboardMouse:
                 return Translations::Get("$SkyPromptMCPDeviceKeyboardMouse");
-            case Input::DEVICE::kGamepadDirectX:
-                return Translations::Get("$SkyPromptMCPDeviceGamepadXbox");
-            case Input::DEVICE::kGamepadOrbis:
-                return Translations::Get("$SkyPromptMCPDeviceGamepadPS4");
+            case Input::DEVICE::kGamepad:
+                return Translations::Get("$SkyPromptMCPDeviceGamepad");
+            case Input::DEVICE::kVR:
+                return Translations::Get("$SkyPromptMCPDeviceVR");
             default:
                 return Translations::Get("$SkyPromptMCPDeviceUnknown");
         }
@@ -800,24 +800,8 @@ void MCP::Register() {
 }
 
 bool MCP::Settings::IsEnabled(const Input::DEVICE a_device) {
-    if (enabled_devices.contains(a_device)) {
-        if (const auto gamepad_type = RE::ControlMap::GetSingleton()->GetGamePadType();
-            gamepad_type == RE::PC_GAMEPAD_TYPE::kOrbis) {
-            if (a_device == Input::DEVICE::kGamepadDirectX) {
-                return false;
-            }
-        } else if (gamepad_type == RE::PC_GAMEPAD_TYPE::kDirectX) {
-            if (a_device == Input::DEVICE::kGamepadOrbis) {
-                return false;
-            }
-        } else if (gamepad_type == RE::PC_GAMEPAD_TYPE::kTotal) {
-            if (a_device == Input::DEVICE::kGamepadDirectX || a_device == Input::DEVICE::kGamepadOrbis) {
-                return false;
-            }
-        }
-        return enabled_devices.at(a_device);
-    }
-    return false;
+    const auto it = enabled_devices.find(a_device);
+    return it != enabled_devices.end() && it->second;
 }
 
 bool MCP::Settings::OSPPresetBox(Theme::Theme& a_theme) {
@@ -891,44 +875,72 @@ bool MCP::Settings::FontSettings(Theme::Theme& a_theme) {
 }
 
 void MCP::Settings::LoadDefaultPromptKeys() {
+    using namespace SKSE::InputMap;
+
     default_keys = {{Input::DEVICE::kKeyboardMouse,
                      {Input::Manager::Convert(KEY::kNum1, RE::INPUT_DEVICE::kKeyboard),
                       Input::Manager::Convert(KEY::kNum2, RE::INPUT_DEVICE::kKeyboard),
                       Input::Manager::Convert(KEY::kNum3, RE::INPUT_DEVICE::kKeyboard),
                       Input::Manager::Convert(KEY::kNum4, RE::INPUT_DEVICE::kKeyboard)}},
-                    {Input::DEVICE::kGamepadDirectX,
-                     {Input::Manager::Convert(GAMEPAD_DIRECTX::kB, RE::INPUT_DEVICE::kGamepad),
-                      Input::Manager::Convert(GAMEPAD_DIRECTX::kX, RE::INPUT_DEVICE::kGamepad),
-                      Input::Manager::Convert(GAMEPAD_DIRECTX::kY, RE::INPUT_DEVICE::kGamepad),
-                      Input::Manager::Convert(GAMEPAD_DIRECTX::kA, RE::INPUT_DEVICE::kGamepad)}},
-                    {Input::DEVICE::kGamepadOrbis,
-                     {Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_B, RE::INPUT_DEVICE::kGamepad),
-                      Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_X, RE::INPUT_DEVICE::kGamepad),
-                      Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_Y, RE::INPUT_DEVICE::kGamepad),
-                      Input::Manager::Convert(GAMEPAD_ORBIS::kPS3_A, RE::INPUT_DEVICE::kGamepad)}}};
+                    {Input::DEVICE::kGamepad,
+                     {kGamepadButtonOffset_B, kGamepadButtonOffset_X,
+                      kGamepadButtonOffset_Y, kGamepadButtonOffset_A}}};
+    default_keys[Input::DEVICE::kVR] = default_keys.at(Input::DEVICE::kGamepad);
+    if (REL::Module::IsVR()) {
+        const auto vr = RE::BSOpenVR::GetSingleton();
+        if (!vr || vr->GetHMDDeviceType() != RE::BSVRInterface::HMDDeviceType::kOculus) {
+            default_keys.at(Input::kVR) = {kGamepadButtonOffset_RT, kGamepadButtonOffset_LT,
+                                         kGamepadButtonOffset_RIGHT_THUMB, kGamepadButtonOffset_LEFT_THUMB};
+        }
+    }
     cycle_L = {
         {Input::DEVICE::kKeyboardMouse, Input::Manager::Convert(KEY::kLeft, RE::INPUT_DEVICE::kKeyboard)},
-        {Input::DEVICE::kGamepadDirectX, Input::Manager::Convert(GAMEPAD_DIRECTX::kLeft, RE::INPUT_DEVICE::kGamepad)},
-        {Input::DEVICE::kGamepadOrbis, Input::Manager::Convert(GAMEPAD_ORBIS::kLeft, RE::INPUT_DEVICE::kGamepad)}};
+        {Input::DEVICE::kGamepad, kGamepadButtonOffset_DPAD_LEFT},
+        {Input::DEVICE::kVR, 0}};
     cycle_R = {
         {Input::DEVICE::kKeyboardMouse, Input::Manager::Convert(KEY::kRight, RE::INPUT_DEVICE::kKeyboard)},
-        {Input::DEVICE::kGamepadDirectX, Input::Manager::Convert(GAMEPAD_DIRECTX::kRight, RE::INPUT_DEVICE::kGamepad)},
-        {Input::DEVICE::kGamepadOrbis, Input::Manager::Convert(GAMEPAD_ORBIS::kRight, RE::INPUT_DEVICE::kGamepad)}};
+        {Input::DEVICE::kGamepad, kGamepadButtonOffset_DPAD_RIGHT},
+        {Input::DEVICE::kVR, 0}};
 }
 
 namespace {
-    void ControlBox(const char* label, const Input::DEVICE selected_device, uint32_t& selected_key) {
-        // dropdown with keys for selected device
-        const auto converted_key = selected_key;
-        if (ImGuiMCP::BeginCombo(label, SKSE::InputMap::GetKeyName(converted_key).c_str())) {
-            for (const auto& key_code : Input::Manager::GetKeys(selected_device)) {
-                const auto converted_keycode = key_code;
-                const auto key_name = SKSE::InputMap::GetKeyName(converted_keycode);
+    std::string ControlKeyName(const Input::DEVICE a_device, const uint32_t a_key) {
+        if (a_device == Input::kVR) {
+            using namespace SKSE::InputMap;
+            switch (a_key) {
+                case 0: return Translations::Get("$SkyPromptMCPControlsNone");
+                case kGamepadButtonOffset_DPAD_UP: return Translations::Get("$SkyPromptMCPVRUp");
+                case kGamepadButtonOffset_DPAD_DOWN: return Translations::Get("$SkyPromptMCPVRDown");
+                case kGamepadButtonOffset_DPAD_LEFT: return Translations::Get("$SkyPromptMCPVRLeft");
+                case kGamepadButtonOffset_DPAD_RIGHT: return Translations::Get("$SkyPromptMCPVRRight");
+                case kGamepadButtonOffset_LEFT_THUMB: return Translations::Get("$SkyPromptMCPVRLeftStickClick");
+                case kGamepadButtonOffset_RIGHT_THUMB: return Translations::Get("$SkyPromptMCPVRRightStickClick");
+                case kGamepadButtonOffset_LEFT_SHOULDER: return Translations::Get("$SkyPromptMCPVRLeftGrip");
+                case kGamepadButtonOffset_RIGHT_SHOULDER: return Translations::Get("$SkyPromptMCPVRRightGrip");
+                case kGamepadButtonOffset_A: return "A";
+                case kGamepadButtonOffset_B: return "B";
+                case kGamepadButtonOffset_X: return "X";
+                case kGamepadButtonOffset_Y: return "Y";
+                case kGamepadButtonOffset_LT: return Translations::Get("$SkyPromptMCPVRLeftTrigger");
+                case kGamepadButtonOffset_RT: return Translations::Get("$SkyPromptMCPVRRightTrigger");
+                default: break;
+            }
+        }
+        return SKSE::InputMap::GetKeyName(a_key);
+    }
+
+    void ControlBox(const char* label, const Input::DEVICE selected_device, uint32_t& selected_key,
+                    const bool a_allowNone = false) {
+        if (ImGuiMCP::BeginCombo(label, ControlKeyName(selected_device, selected_key).c_str())) {
+            auto keys = Input::Manager::GetKeys(selected_device);
+            if (a_allowNone) keys.insert(keys.begin(), 0);
+            for (const auto key_code : keys) {
+                const auto key_name = ControlKeyName(selected_device, key_code);
                 if (key_name.empty()) {
                     continue;
                 }
-                const bool isSelected = converted_key == converted_keycode;
-                const auto key_label = Translations::WithID(key_name, std::format("key.{}", converted_keycode));
+                const bool isSelected = selected_key == key_code;
+                const auto key_label = Translations::WithID(key_name, std::format("key.{}", key_code));
                 if (ImGuiMCP::Selectable(key_label.c_str(), isSelected)) {
                     if (!isSelected) {
                         selected_key = key_code;
@@ -973,9 +985,19 @@ namespace {
         }
     }
 
-    void RenderControl(uint32_t& a_key, const std::string_view a_label, const std::string_view a_id) {
+    void RenderControl(uint32_t& a_key, const std::string_view a_label, const std::string_view a_id,
+                       const bool a_allowNone = false) {
         const auto label = SettingRow(a_label, a_id);
-        ControlBox(label.c_str(), MCP::current_device, a_key);
+        ControlBox(label.c_str(), MCP::current_device, a_key, a_allowNone);
+    }
+
+    bool RenderNavigationModifier() {
+        const auto label = SettingRow(Translations::Get("$SkyPromptMCPControlsNavigationModifier"),
+                                      "controls.vrNavigationModifier", "$SkyPromptMCPControlsNavigationModifierHelp");
+        auto& modifier = MCP::Settings::vr_navigation_modifier;
+        const auto before = modifier;
+        ControlBox(label.c_str(), Input::kVR, modifier, true);
+        return before != modifier;
     }
 };
 
@@ -987,19 +1009,23 @@ bool MCP::Settings::CycleControls() {
         cycle_controls.store(temp);
         settingsChanged = true;
     }
+    ImGuiMCP::SameLine();
+    HelpMarker("$SkyPromptMCPControlsCycleControlsHelp");
     if (!cycle_controls) {
         return settingsChanged;
     }
 
     if (current_device != Input::DEVICE::kUnknown && BeginSettingsTable("controls.cycle")) {
         auto before = cycle_L.at(current_device);
-        RenderControl(cycle_L.at(current_device), Translations::Get("$SkyPromptMCPControlsCycleLeft"), "controls.cycleLeft");
+        RenderControl(cycle_L.at(current_device), Translations::Get("$SkyPromptMCPControlsCycleLeft"), "controls.cycleLeft",
+                      current_device == Input::kVR);
         if (before != cycle_L.at(current_device)) {
             settingsChanged = true;
         }
 
         before = cycle_R.at(current_device);
-        RenderControl(cycle_R.at(current_device), Translations::Get("$SkyPromptMCPControlsCycleRight"), "controls.cycleRight");
+        RenderControl(cycle_R.at(current_device), Translations::Get("$SkyPromptMCPControlsCycleRight"), "controls.cycleRight",
+                      current_device == Input::kVR);
         if (before != cycle_R.at(current_device)) {
             settingsChanged = true;
         }
@@ -1076,6 +1102,7 @@ void MCP::Settings::to_json() {
         prompt_keys_json.AddMember(device_json, device_keys, allocator);
     }
     root.AddMember("keys", prompt_keys_json, allocator);
+    root.AddMember("vr_navigation_modifier", vr_navigation_modifier, allocator);
 
     // cycle enabled (std::atomic cycle_controls)
     Value a_cycle_controls(kObjectType);
@@ -1133,6 +1160,49 @@ void MCP::Settings::to_json() {
     file.close();
 }
 
+namespace {
+    void ValidateVRBindings() {
+        using namespace MCP::Settings;
+        const auto keys = Input::Manager::GetKeys(Input::kVR);
+        for (auto& key : default_keys.at(Input::kVR)) {
+            if (!std::ranges::contains(keys, key) && key != SkyPromptAPI::kThumbstickMoveL &&
+                key != SkyPromptAPI::kThumbstickMoveR && key != SkyPromptAPI::kSkyrim) {
+                key = 0;
+            }
+        }
+        for (const auto key : {&vr_navigation_modifier, &cycle_L.at(Input::kVR), &cycle_R.at(Input::kVR)}) {
+            if (!std::ranges::contains(keys, *key)) *key = 0;
+        }
+    }
+
+    template <class T>
+    void LoadDeviceSettings(const rapidjson::Value& a_settings, const char* a_name,
+                            std::map<Input::DEVICE, T>& a_values, const bool a_migrateVR = true) {
+        const auto section = a_settings.FindMember(a_name);
+        if (section == a_settings.MemberEnd() || !section->value.IsObject()) return;
+        const auto& settings = section->value;
+        for (auto& [device, value] : a_values) {
+            auto member = settings.FindMember(Input::device_to_string(device).c_str());
+            if (member == settings.MemberEnd()) {
+                if (device == Input::kGamepad) {
+                    const auto controlMap = RE::ControlMap::GetSingleton();
+                    const bool orbis = controlMap && controlMap->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis;
+                    member = settings.FindMember(orbis ? "Gamepad (PS4)" : "Gamepad (Xbox)");
+                    if (member == settings.MemberEnd()) {
+                        member = settings.FindMember(orbis ? "Gamepad (Xbox)" : "Gamepad (PS4)");
+                    }
+                } else if (a_migrateVR && device == Input::kVR && REL::Module::IsVR()) {
+                    member = settings.FindMember("Gamepad (Xbox)");
+                }
+            }
+            T loaded{};
+            if (member != settings.MemberEnd() && Presets::Getters::JSON::Get(member->value, loaded)) {
+                value = std::move(loaded);
+            }
+        }
+    }
+}
+
 void MCP::Settings::from_json() {
     std::ifstream file(json_folder);
     std::string str((std::istreambuf_iterator(file)), std::istreambuf_iterator<char>());
@@ -1149,6 +1219,7 @@ void MCP::Settings::from_json() {
         return;
     }
     auto& mcp = doc["MCP"];
+    LoadDefaultPromptKeys();
     Theme::default_theme.LoadSpecialEffects(mcp);
 
     if (mcp.HasMember("fadeSpeed")) {
@@ -1191,78 +1262,25 @@ void MCP::Settings::from_json() {
         lifetime = mcp["lifetime"].GetFloat();
     }
 
-    // enabled devices
-    if (mcp.HasMember("enabled_devices")) {
-        auto& enabled_devices_ = mcp["enabled_devices"];
-        for (auto it = enabled_devices_.MemberBegin(); it != enabled_devices_.MemberEnd(); ++it) {
-            const auto device = Input::from_string_to_device(it->name.GetString());
-            if (device == Input::DEVICE::kUnknown) {
-                logger::error("Unknown device in settings.json");
-                continue;
-            }
-            const auto enabled = it->value.GetBool();
-            if (enabled_devices.contains(device)) {
-                enabled_devices.at(device) = enabled;
-            }
-        }
-    }
+    LoadDeviceSettings(mcp, "enabled_devices", enabled_devices);
 
     // n_max_buttons
     if (mcp.HasMember("n_max_buttons")) {
         Theme::default_theme.n_max_buttons = mcp["n_max_buttons"].GetInt();
     }
 
-    // prompt keys
-    if (mcp.HasMember("keys")) {
-        auto& prompt_keys_json = mcp["keys"];
-        for (auto it = prompt_keys_json.MemberBegin(); it != prompt_keys_json.MemberEnd(); ++it) {
-            const auto device = Input::from_string_to_device(it->name.GetString());
-            if (device == Input::DEVICE::kUnknown) {
-                logger::error("Unknown device in settings.json");
-                continue;
-            }
-            if (it->value.IsArray()) {
-                std::vector<uint32_t> keys;
-                for (auto& key : it->value.GetArray()) {
-                    keys.push_back(key.GetUint());
-                }
-                if (default_keys.contains(device)) {
-                    default_keys.at(device) = keys;
-                } else {
-                    default_keys[device] = keys;
-                }
-            }
-        }
-    } else {
-        logger::error("Failed to find keys in settings.json");
-    }
+    const auto vr = REL::Module::IsVR() ? RE::BSOpenVR::GetSingleton() : nullptr;
+    LoadDeviceSettings(mcp, "keys", default_keys,
+                       vr && vr->GetHMDDeviceType() == RE::BSVRInterface::HMDDeviceType::kOculus);
+    Presets::Getters::JSON::Get(mcp, "vr_navigation_modifier", vr_navigation_modifier);
 
     if (mcp.HasMember("cycle_controls")) {
         cycle_controls = mcp["cycle_controls"].GetBool();
     }
 
-    if (mcp.HasMember("cycle_L")) {
-        auto& cycle_L_json = mcp["cycle_L"];
-        for (auto it = cycle_L_json.MemberBegin(); it != cycle_L_json.MemberEnd(); ++it) {
-            const auto device = Input::from_string_to_device(it->name.GetString());
-            if (device == Input::DEVICE::kUnknown) {
-                logger::error("Unknown device in settings.json");
-                continue;
-            }
-            cycle_L[device] = it->value.GetUint();
-        }
-    }
-    if (mcp.HasMember("cycle_R")) {
-        auto& cycle_R_json = mcp["cycle_R"];
-        for (auto it = cycle_R_json.MemberBegin(); it != cycle_R_json.MemberEnd(); ++it) {
-            const auto device = Input::from_string_to_device(it->name.GetString());
-            if (device == Input::DEVICE::kUnknown) {
-                logger::error("Unknown device in settings.json");
-                continue;
-            }
-            cycle_R[device] = it->value.GetUint();
-        }
-    }
+    LoadDeviceSettings(mcp, "cycle_L", cycle_L);
+    LoadDeviceSettings(mcp, "cycle_R", cycle_R);
+    ValidateVRBindings();
 
     // special commands
     if (mcp.HasMember("special_commands")) {
@@ -1314,6 +1332,9 @@ void __stdcall MCP::RenderControls() {
             for (size_t i = 0; i < keys.size(); ++i) {
                 RenderControl(keys[i], Translations::Format("$SkyPromptMCPControlsButton", i + 1),
                               std::format("controls.button.{}", i + 1));
+            }
+            if (current_device == Input::kVR && RenderNavigationModifier()) {
+                settingsChanged = true;
             }
         }
         ImGuiMCP::EndTable();

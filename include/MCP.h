@@ -23,6 +23,7 @@ namespace MCP {
         inline std::map<Input::DEVICE, std::vector<uint32_t>> default_keys;
         inline std::map<Input::DEVICE, uint32_t> cycle_L;
         inline std::map<Input::DEVICE, uint32_t> cycle_R;
+        inline uint32_t vr_navigation_modifier = SKSE::InputMap::kGamepadButtonOffset_LEFT_SHOULDER;
 
         inline std::atomic shouldReloadPromptSize = true;
         inline std::atomic shouldReloadLifetime = true;
@@ -32,8 +33,8 @@ namespace MCP {
 
         inline std::map<Input::DEVICE, bool> enabled_devices = {
             {Input::DEVICE::kKeyboardMouse, true},
-            {Input::DEVICE::kGamepadDirectX, true},
-            {Input::DEVICE::kGamepadOrbis, true}
+            {Input::DEVICE::kGamepad, true},
+            {Input::DEVICE::kVR, true}
         };
 
         bool IsEnabled(Input::DEVICE a_device);

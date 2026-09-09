@@ -152,6 +152,18 @@ void TranslateEmbedded(std::string& a_text) {
 
 uint32_t GetControlKey(const std::string_view a_controlName) {
     const auto controlMap = RE::ControlMap::GetSingleton();
+    if (MANAGER(Input)->GetInputDevice() == Input::kVR) {
+        const auto devices = RE::BSInputDeviceManager::GetSingleton();
+        for (const auto controller : {devices->GetVRControllerRight(), devices->GetVRControllerLeft()}) {
+            if (!controller) continue;
+            const auto device = controller->BSInputDevice::GetRuntimeData().device;
+            const auto key = controlMap->GetMappedKey(a_controlName, device);
+            if (key != RE::ControlMap::kInvalid) {
+                return Input::Manager::Convert(key, device);
+            }
+        }
+        return 0;
+    }
     auto device = MANAGER(Input)->GetInputDevice() == Input::kKeyboardMouse
         ? RE::INPUT_DEVICE::kKeyboard : RE::INPUT_DEVICE::kGamepad;
     auto key = controlMap->GetMappedKey(a_controlName, device);

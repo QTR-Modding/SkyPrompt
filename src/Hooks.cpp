@@ -5,6 +5,7 @@
 #include "Service.h"
 #include "Tutorial.h"
 #include "Styles.h"
+#include "VR.h"
 #include "imgui_impl_dx11.h"
 #include "imgui_impl_win32.h"
 
@@ -77,12 +78,11 @@ void DrawHook::thunk(std::uint32_t a_timer) {
 
     if (!MCP::Settings::initialized.load()) {
         MANAGER(ImGui::Renderer)->activationPop.Clear();
+        VR::Render(CreateD3DAndSwapChain::context, false);
         return;
     }
 
-    Styles::GetSingleton()->OnStyleRefresh();
-
-    ImGui_ImplDX11_NewFrame();
+    const auto previousDisplaySize = GetIO().DisplaySize;
     ImGui_ImplWin32_NewFrame();
     {
         // trick imgui into rendering at game's real resolution (ie. if upscaled with Display Tweaks)
@@ -92,13 +92,16 @@ void DrawHook::thunk(std::uint32_t a_timer) {
         io.DisplaySize.x = static_cast<float>(screenSize.width);
         io.DisplaySize.y = static_cast<float>(screenSize.height);
     }
+    VR::PrepareFrame(previousDisplaySize);
+    Styles::GetSingleton()->OnStyleRefresh();
+    ImGui_ImplDX11_NewFrame();
     NewFrame();
     {
         RenderPrompts();
     }
     EndFrame();
     Render();
-    ImGui_ImplDX11_RenderDrawData(GetDrawData());
+    VR::Render(CreateD3DAndSwapChain::context, true);
 }
 
 
@@ -118,7 +121,7 @@ void ImGui::Renderer::Install() {
                                                            CreateD3DAndSwapChain::thunk);
 
     const REL::Relocation<std::uintptr_t> target2{REL::RelocationID(75461, 77246)}; // BSGraphics::Renderer::End
-    DrawHook::func = trampoline.write_call<5>(target2.address() + 0x9, DrawHook::thunk);
+    DrawHook::func = trampoline.write_call<5>(target2.address() + REL::Relocate(0x9, 0x9, 0x15), DrawHook::thunk);
 
     MenuHook<RE::LoadingMenu>::InstallHook(RE::VTABLE_LoadingMenu[0]);
 }
@@ -155,15 +158,72 @@ void InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::Inp
     }
 }
 
+std::optional<bool> InputHook::ProcessVRNavigation(RE::InputEvent* event, const bool available) {
+    using Direction = Input::VRNavigation::Direction;
+    const auto input = MANAGER(Input);
+    auto& navigation = input->vrNavigation;
+    const auto modifier = MCP::Settings::vr_navigation_modifier;
+    if (!available || modifier != navigation.modifier) navigation.direction = Direction::kNone;
+
+    if (const auto button = event->AsButtonEvent()) {
+        const auto key = input->Convert(button->GetIDCode(), button->GetDevice());
+        if (navigation.modifier != 0 && key == navigation.modifier) {
+            const bool block = navigation.blocksModifier;
+            if (button->IsUp()) navigation = {};
+            return block;
+        }
+        if (available && navigation.modifier == 0 && modifier != 0 && key == modifier && button->IsDown()) {
+            const auto prompts = MANAGER(ImGui::Renderer)->GetPromptButtons();
+            // Prompt and enabled cycle bindings take priority over the navigation modifier.
+            if (std::ranges::any_of(prompts, [key](const auto& prompt) { return prompt.second == key; }) ||
+                (MCP::Settings::cycle_controls && (key == MCP::Settings::cycle_L.at(Input::kVR) ||
+                                                  key == MCP::Settings::cycle_R.at(Input::kVR)))) {
+                return std::nullopt;
+            }
+            navigation.modifier = key;
+            navigation.blocksModifier = std::ranges::any_of(prompts, [](const auto& prompt) {
+                return PromptTypeFlags::GetBlocksInput(prompt.first);
+            });
+            return navigation.blocksModifier;
+        }
+        return std::nullopt;
+    }
+
+    if (!available || navigation.modifier == 0 || modifier != navigation.modifier) return std::nullopt;
+    const auto stick = event->AsThumbstickEvent();
+    if (!stick) return std::nullopt;
+    const auto left = RE::BSInputDeviceManager::GetSingleton()->GetVRControllerLeft();
+    if (!left || event->GetDevice() != left->BSInputDevice::GetRuntimeData().device) return std::nullopt;
+
+    const auto direction = navigation.Step(stick->xValue, stick->yValue);
+    const auto renderer = MANAGER(ImGui::Renderer);
+    if (direction == Direction::kUp || direction == Direction::kDown) {
+        renderer->ProcessListNavigation(direction == Direction::kUp
+            ? PromptLayouts::List::Navigation::kPrevious : PromptLayouts::List::Navigation::kNext);
+    } else if ((direction == Direction::kLeft || direction == Direction::kRight) && MCP::Settings::cycle_controls) {
+        renderer->CycleClient(direction == Direction::kLeft);
+    }
+    // Forward a neutral movement event so Skyrim clears any previously held direction.
+    const auto prompts = renderer->GetPromptButtons();
+    if (std::ranges::any_of(prompts, [](const auto& prompt) { return PromptTypeFlags::GetBlocksInput(prompt.first); })) {
+        stick->xValue = stick->yValue = 0.0f;
+    }
+    return false;
+}
+
 bool InputHook::ProcessInput(RE::InputEvent* event) {
     bool block = false;
 
     const auto render_manager = MANAGER(ImGui::Renderer);
-    if (render_manager->IsPaused()) return block;
-    if (render_manager->IsHidden()) return block;
-
+    const auto eventDevice = Input::from_RE_device(event->GetDevice());
+    const bool available = !render_manager->IsPaused() && !render_manager->IsHidden() &&
+                           MCP::Settings::IsEnabled(eventDevice);
     const auto input_manager = MANAGER(Input);
-    input_manager->UpdateInputDevice(event);
+    if (available) input_manager->UpdateInputDevice(event);
+    if (eventDevice == Input::kVR) {
+        if (const auto handled = ProcessVRNavigation(event, available)) return *handled;
+    }
+    if (!available) return block;
 
     if (const auto handled = render_manager->ProcessListInput(event)) {
         return *handled;
@@ -196,7 +256,7 @@ bool InputHook::ProcessInput(RE::InputEvent* event) {
             }
         }
 
-        if (!block && button_event->IsDown()) {
+        if (!block && key != 0 && button_event->IsDown()) {
             const auto device = input_manager->GetInputDevice();
             const bool is_L = key == MCP::Settings::cycle_L[device];
             const bool is_R = key == MCP::Settings::cycle_R[device];
@@ -244,7 +304,7 @@ bool InputHook::ProcessInput(RE::InputEvent* event) {
 void ImGui::Renderer::InstallInputHook() {
     auto& trampoline = SKSE::GetTrampoline();
     const REL::Relocation<std::uintptr_t> target3{REL::RelocationID(67315, 68617)};
-    InputHook::func = trampoline.write_call<5>(target3.address() + 0x7B, InputHook::thunk);
+    InputHook::func = trampoline.write_call<5>(target3.address() + REL::Relocate(0x7B, 0x7B, 0x81), InputHook::thunk);
 }
 
 template <typename MenuType>

@@ -9,9 +9,13 @@
 #include "Utils.h"
 #include "PapyrusAPI/Bindings.h"
 #include "Tutorial.h"
+#include "VR.h"
 
 namespace {
     void OnMessage(SKSE::MessagingInterface::Message* message) {
+        if (message->type == SKSE::MessagingInterface::kPostPostLoad) {
+            ImGui::VR::Connect();
+        }
         if (message->type == SKSE::MessagingInterface::kDataLoaded) {
             SpeedProfiler profiler("Plugin load (Part 2)");
 
@@ -29,6 +33,7 @@ namespace {
             }
         }
         if (message->type == SKSE::MessagingInterface::kInputLoaded) {
+            Settings::GetSingleton()->LoadSettings();
             if (MCP::Settings::default_keys.empty()) {
                 MCP::Settings::LoadDefaultPromptKeys();
             }
@@ -55,7 +60,6 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
         messaging->RegisterListener(OnMessage);
     }
 
-    Settings::GetSingleton()->LoadSettings();
     ImGui::Styles::GetSingleton()->RefreshStyle();
     ImGui::Renderer::Install();
 

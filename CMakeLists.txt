@@ -82,6 +82,17 @@ set(Boost_USE_STATIC_LIBS ON)
 find_package(directxtex CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(unordered_dense CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+
+include(FetchContent)
+FetchContent_Declare(
+    ImGuiVRHelper
+    GIT_REPOSITORY https://github.com/alandtse/imgui-vr-helper.git
+    GIT_TAG 90a94252e433cd46c6bd8c2fa2c47bdbd3497fc6 # v1.8.3
+    GIT_SUBMODULES ""
+    SOURCE_SUBDIR api
+)
+FetchContent_MakeAvailable(ImGuiVRHelper)
 
 
 add_commonlibsse_plugin(
@@ -136,6 +147,8 @@ target_link_libraries(
 		Microsoft::DirectXTex
 		imgui::imgui
 		unordered_dense::unordered_dense
+		ImGuiVRHelper::api
+		nlohmann_json::nlohmann_json
 )
 
 

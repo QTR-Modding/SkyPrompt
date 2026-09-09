@@ -5,14 +5,24 @@ namespace Input {
     enum DEVICE {
         kUnknown = 0,
         kKeyboardMouse,
-        kGamepadDirectX, // xbox
-        kGamepadOrbis, // ps4
+        kGamepad,
+        kVR,
         kTotal
     };
 
     std::string device_to_string(DEVICE a_device);
-    DEVICE from_string_to_device(const std::string& a_device);
     DEVICE from_RE_device(RE::INPUT_DEVICE a_device);
+
+    struct VRNavigation {
+        enum class Direction { kNone, kUp, kDown, kLeft, kRight };
+
+        uint32_t modifier = 0;
+        bool blocksModifier = false;
+        Direction direction = Direction::kNone;
+        std::chrono::steady_clock::time_point nextRepeat;
+
+        Direction Step(float x, float y);
+    };
 
     class Manager final :
         public REX::Singleton<Manager> {
@@ -21,6 +31,8 @@ namespace Input {
         void UpdateInputDevice(RE::InputEvent* event);
         [[nodiscard]] static uint32_t Convert(uint32_t button_key, RE::INPUT_DEVICE a_device);
         static std::vector<uint32_t> GetKeys(DEVICE a_device);
+
+        VRNavigation vrNavigation;
 
     private:
         // members
@@ -33,6 +45,6 @@ namespace Input {
         std::uint32_t screenshotMouse{0};
         std::uint32_t screenshotGamepad{0};
 
-        DEVICE inputDevice{kKeyboardMouse};
+        DEVICE inputDevice{REL::Module::IsVR() ? kVR : kKeyboardMouse};
     };
 }

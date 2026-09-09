@@ -292,7 +292,9 @@ namespace IconFont {
     const IconTexture* Manager::GetGamePadIcon(const GamepadIcon& a_icons) const {
         switch (buttonScheme) {
             case BUTTON_SCHEME::kAutoDetect:
-                return MANAGER(Input)->GetInputDevice() == Input::DEVICE::kGamepadOrbis ? &a_icons.ps4 : &a_icons.xbox;
+                return MANAGER(Input)->GetInputDevice() == Input::kGamepad &&
+                       RE::ControlMap::GetSingleton()->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis
+                    ? &a_icons.ps4 : &a_icons.xbox;
             case BUTTON_SCHEME::kXbox:
                 return &a_icons.xbox;
             case BUTTON_SCHEME::kPS4:

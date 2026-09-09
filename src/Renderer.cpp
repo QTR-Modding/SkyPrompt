@@ -13,8 +13,8 @@
 using namespace ImGui::Renderer;
 
 float ImGui::Renderer::GetResolutionScale() {
-    static auto height = RE::BSGraphics::Renderer::GetScreenSize().height;
-    return DisplayTweaks::borderlessUpscale ? DisplayTweaks::resolutionScale : static_cast<float>(height) / 1080.0f;
+    const auto height = ImGui::GetIO().DisplaySize.y;
+    return DisplayTweaks::borderlessUpscale ? DisplayTweaks::resolutionScale : height / 1080.0f;
 }
 
 void ImGui::Renderer::RenderPrompts() {
@@ -377,7 +377,7 @@ namespace {
     }
 }
 
-ImVec2 SubManager::GetAttachedObjectPos() const {
+SubManager::AttachedPosition SubManager::GetAttachedObjectPos() const {
     if (const auto ref = GetAttachedObject()) {
         constexpr float padding = 10.f;
         RE::NiPoint3 pos;
@@ -394,7 +394,10 @@ ImVec2 SubManager::GetAttachedObjectPos() const {
                                 (Theme::last_theme->prompt_size + padding) * DisplayTweaks::resolutionScale, 0};
                 }
             }
-        } else if (const auto a_head = [&]() -> RE::NiAVObject* {
+            FastClampToScreen(pos2d);
+            return {pos2d, std::nullopt};
+        }
+        if (const auto a_head = [&]() -> RE::NiAVObject* {
             if (const auto actor = ref->As<RE::Actor>()) {
                 if (const auto middle = actor->GetMiddleHighProcess()) {
                     return middle->headNode;
@@ -404,13 +407,15 @@ ImVec2 SubManager::GetAttachedObjectPos() const {
         }()) {
             constexpr float npc_head_size = 15.f;
             const float objectScale = ref->GetScale();
-            const auto cameraPos = RE::PlayerCamera::GetSingleton()->GetRuntimeData2().pos;
+            const auto* vrNodes = REL::Module::IsVR() ? RE::PlayerCharacter::GetSingleton()->GetVRNodeData() : nullptr;
+            const auto cameraPos = vrNodes && vrNodes->HmdNode ? vrNodes->HmdNode->world.translate
+                : RE::PlayerCamera::GetSingleton()->GetRuntimeData2().pos;
             const auto npc_head_pos = a_head->world.translate;
             const auto diff = npc_head_pos - cameraPos;
             constexpr RE::NiPoint3 z_vec(0.f, 0.f, 1.f);
             const auto right_vec = diff.UnitCross(z_vec);
             pos = npc_head_pos + right_vec * (npc_head_size * objectScale);
-            pos2d = WorldToScreenLoc(pos) + ImVec2{
+            pos2d = ImVec2{
                         (Theme::last_theme->prompt_size + padding) * DisplayTweaks::resolutionScale, 0};
         } else {
             DirectX::BoundingOrientedBox bounding_box;
@@ -419,14 +424,16 @@ ImVec2 SubManager::GetAttachedObjectPos() const {
             const auto center = bounding_box.Center;
 
             pos = RE::NiPoint3{center.x, center.y, center.z + bounding_box.Extents.z + 10.f};
-            pos2d = WorldToScreenLoc(pos);
-
-            pos2d += ImVec2{0.f, -(Theme::last_theme->prompt_size + padding) * DisplayTweaks::resolutionScale};
+            pos2d = ImVec2{0.f, -(Theme::last_theme->prompt_size + padding) * DisplayTweaks::resolutionScale};
         }
 
+        if (auto world = VR::GetWorldAnchor(pos)) {
+            return {world->origin + pos2d, world};
+        }
+        pos2d += WorldToScreenLoc(pos);
         FastClampToScreen(pos2d);
 
-        return pos2d;
+        return {pos2d, std::nullopt};
     }
     return {};
 }
@@ -1246,7 +1253,7 @@ void Manager::ShowQueue() {
     }
 
     // Get the screen size
-    const auto [width, height] = RE::BSGraphics::Renderer::GetScreenSize();
+    const auto [width, height] = ImGui::GetIO().DisplaySize;
 
     // Calculate position
     const auto resScale = GetResolutionScale();
@@ -1301,7 +1308,8 @@ void Manager::ShowQueue() {
     int i = 0;
     for (std::shared_lock lock(mutex_);
          const auto& rowIndices : rowsByObject | std::views::values) {
-        auto window_pos = managers[rowIndices[0]]->GetAttachedObjectPos();
+        const auto position = managers[rowIndices[0]]->GetAttachedObjectPos();
+        auto window_pos = position.screen;
         window_pos.x -= Theme::last_theme->marginX * resScale;
         window_pos.y -= Theme::last_theme->marginY * resScale;
         renderBatch.clear();
@@ -1310,7 +1318,9 @@ void Manager::ShowQueue() {
         }
         BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str(),
                          GetSkyPromptContentOrigin(window_pos));
+        if (position.world) VR::BeginWorldPrompt(*position.world, GetWindowDrawList());
         RenderSkyPrompt(window_pos);
+        if (position.world) VR::EndWorldPrompt();
         EndImGuiWindow();
     }
 }
@@ -1358,6 +1368,11 @@ std::optional<bool> Manager::ProcessListInput(RE::InputEvent* event) {
     const auto button = event->AsButtonEvent();
     if (!button) return std::nullopt;
     const auto navigation = list.GetNavigation(*button, GetControlKey(RE::UserEvents::GetSingleton()->activate));
+    return ProcessListNavigation(navigation);
+}
+
+std::optional<bool> Manager::ProcessListNavigation(const PromptLayouts::List::Navigation navigation) {
+    if (Theme::last_theme->prompt_alignment != Theme::kList) return std::nullopt;
     if (navigation == PromptLayouts::List::Navigation::kUnhandled) return std::nullopt;
 
     std::unique_lock lock(mutex_);

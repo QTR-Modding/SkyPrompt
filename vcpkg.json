@@ -6,6 +6,7 @@
     "spdlog",
     "rapidcsv",
     "rapidjson",
+    "nlohmann-json",
     "clib-util",
     "clib-utils-qtr",
     "skse-mcp",
