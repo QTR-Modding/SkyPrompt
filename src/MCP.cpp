@@ -886,6 +886,13 @@ void MCP::Settings::LoadDefaultPromptKeys() {
                      {kGamepadButtonOffset_B, kGamepadButtonOffset_X,
                       kGamepadButtonOffset_Y, kGamepadButtonOffset_A}}};
     default_keys[Input::DEVICE::kVR] = default_keys.at(Input::DEVICE::kGamepad);
+    if (REL::Module::IsVR()) {
+        const auto vr = RE::BSOpenVR::GetSingleton();
+        if (!vr || vr->GetHMDDeviceType() != RE::BSVRInterface::HMDDeviceType::kOculus) {
+            default_keys.at(Input::kVR) = {kGamepadButtonOffset_RT, kGamepadButtonOffset_LT,
+                                         kGamepadButtonOffset_RIGHT_THUMB, kGamepadButtonOffset_LEFT_THUMB};
+        }
+    }
     cycle_L = {
         {Input::DEVICE::kKeyboardMouse, Input::Manager::Convert(KEY::kLeft, RE::INPUT_DEVICE::kKeyboard)},
         {Input::DEVICE::kGamepad, kGamepadButtonOffset_DPAD_LEFT},
@@ -1170,7 +1177,7 @@ namespace {
 
     template <class T>
     void LoadDeviceSettings(const rapidjson::Value& a_settings, const char* a_name,
-                            std::map<Input::DEVICE, T>& a_values) {
+                            std::map<Input::DEVICE, T>& a_values, const bool a_migrateVR = true) {
         const auto section = a_settings.FindMember(a_name);
         if (section == a_settings.MemberEnd() || !section->value.IsObject()) return;
         const auto& settings = section->value;
@@ -1184,7 +1191,7 @@ namespace {
                     if (member == settings.MemberEnd()) {
                         member = settings.FindMember(orbis ? "Gamepad (Xbox)" : "Gamepad (PS4)");
                     }
-                } else if (device == Input::kVR && REL::Module::IsVR()) {
+                } else if (a_migrateVR && device == Input::kVR && REL::Module::IsVR()) {
                     member = settings.FindMember("Gamepad (Xbox)");
                 }
             }
@@ -1262,7 +1269,9 @@ void MCP::Settings::from_json() {
         Theme::default_theme.n_max_buttons = mcp["n_max_buttons"].GetInt();
     }
 
-    LoadDeviceSettings(mcp, "keys", default_keys);
+    const auto vr = REL::Module::IsVR() ? RE::BSOpenVR::GetSingleton() : nullptr;
+    LoadDeviceSettings(mcp, "keys", default_keys,
+                       vr && vr->GetHMDDeviceType() == RE::BSVRInterface::HMDDeviceType::kOculus);
     Presets::Getters::JSON::Get(mcp, "vr_navigation_modifier", vr_navigation_modifier);
 
     if (mcp.HasMember("cycle_controls")) {
