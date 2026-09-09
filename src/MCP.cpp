@@ -1154,6 +1154,20 @@ void MCP::Settings::to_json() {
 }
 
 namespace {
+    void ValidateVRBindings() {
+        using namespace MCP::Settings;
+        const auto keys = Input::Manager::GetKeys(Input::kVR);
+        for (auto& key : default_keys.at(Input::kVR)) {
+            if (!std::ranges::contains(keys, key) && key != SkyPromptAPI::kThumbstickMoveL &&
+                key != SkyPromptAPI::kThumbstickMoveR && key != SkyPromptAPI::kSkyrim) {
+                key = 0;
+            }
+        }
+        for (const auto key : {&vr_navigation_modifier, &cycle_L.at(Input::kVR), &cycle_R.at(Input::kVR)}) {
+            if (!std::ranges::contains(keys, *key)) *key = 0;
+        }
+    }
+
     template <class T>
     void LoadDeviceSettings(const rapidjson::Value& a_settings, const char* a_name,
                             std::map<Input::DEVICE, T>& a_values) {
@@ -1257,13 +1271,7 @@ void MCP::Settings::from_json() {
 
     LoadDeviceSettings(mcp, "cycle_L", cycle_L);
     LoadDeviceSettings(mcp, "cycle_R", cycle_R);
-    for (const auto bindings : {&cycle_L, &cycle_R}) {
-        auto& key = bindings->at(Input::kVR);
-        if (key >= SKSE::InputMap::kGamepadButtonOffset_DPAD_UP &&
-            key <= SKSE::InputMap::kGamepadButtonOffset_DPAD_RIGHT) {
-            key = 0;
-        }
-    }
+    ValidateVRBindings();
 
     // special commands
     if (mcp.HasMember("special_commands")) {
