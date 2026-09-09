@@ -419,9 +419,7 @@ namespace Input {
                 }
                 break;
             case kVR:
-                keys = {kGamepadButtonOffset_DPAD_UP, kGamepadButtonOffset_DPAD_DOWN,
-                        kGamepadButtonOffset_DPAD_LEFT, kGamepadButtonOffset_DPAD_RIGHT,
-                        kGamepadButtonOffset_LEFT_THUMB, kGamepadButtonOffset_RIGHT_THUMB,
+                keys = {kGamepadButtonOffset_LEFT_THUMB, kGamepadButtonOffset_RIGHT_THUMB,
                         kGamepadButtonOffset_LEFT_SHOULDER, kGamepadButtonOffset_RIGHT_SHOULDER,
                         kGamepadButtonOffset_A, kGamepadButtonOffset_B,
                         kGamepadButtonOffset_X, kGamepadButtonOffset_Y,

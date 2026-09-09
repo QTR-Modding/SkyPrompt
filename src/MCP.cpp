@@ -889,11 +889,11 @@ void MCP::Settings::LoadDefaultPromptKeys() {
     cycle_L = {
         {Input::DEVICE::kKeyboardMouse, Input::Manager::Convert(KEY::kLeft, RE::INPUT_DEVICE::kKeyboard)},
         {Input::DEVICE::kGamepad, kGamepadButtonOffset_DPAD_LEFT},
-        {Input::DEVICE::kVR, kGamepadButtonOffset_DPAD_LEFT}};
+        {Input::DEVICE::kVR, 0}};
     cycle_R = {
         {Input::DEVICE::kKeyboardMouse, Input::Manager::Convert(KEY::kRight, RE::INPUT_DEVICE::kKeyboard)},
         {Input::DEVICE::kGamepad, kGamepadButtonOffset_DPAD_RIGHT},
-        {Input::DEVICE::kVR, kGamepadButtonOffset_DPAD_RIGHT}};
+        {Input::DEVICE::kVR, 0}};
 }
 
 namespace {
@@ -923,10 +923,11 @@ namespace {
     }
 
     void ControlBox(const char* label, const Input::DEVICE selected_device, uint32_t& selected_key,
-                    std::vector<uint32_t> a_keys = {}) {
+                    const bool a_allowNone = false) {
         if (ImGuiMCP::BeginCombo(label, ControlKeyName(selected_device, selected_key).c_str())) {
-            if (a_keys.empty()) a_keys = Input::Manager::GetKeys(selected_device);
-            for (const auto key_code : a_keys) {
+            auto keys = Input::Manager::GetKeys(selected_device);
+            if (a_allowNone) keys.insert(keys.begin(), 0);
+            for (const auto key_code : keys) {
                 const auto key_name = ControlKeyName(selected_device, key_code);
                 if (key_name.empty()) {
                     continue;
@@ -977,23 +978,18 @@ namespace {
         }
     }
 
-    void RenderControl(uint32_t& a_key, const std::string_view a_label, const std::string_view a_id) {
+    void RenderControl(uint32_t& a_key, const std::string_view a_label, const std::string_view a_id,
+                       const bool a_allowNone = false) {
         const auto label = SettingRow(a_label, a_id);
-        ControlBox(label.c_str(), MCP::current_device, a_key);
+        ControlBox(label.c_str(), MCP::current_device, a_key, a_allowNone);
     }
 
     bool RenderNavigationModifier() {
         const auto label = SettingRow(Translations::Get("$SkyPromptMCPControlsNavigationModifier"),
                                       "controls.vrNavigationModifier", "$SkyPromptMCPControlsNavigationModifierHelp");
-        auto keys = Input::Manager::GetKeys(Input::kVR);
-        std::erase_if(keys, [](const uint32_t a_key) {
-            return a_key >= SKSE::InputMap::kGamepadButtonOffset_DPAD_UP &&
-                   a_key <= SKSE::InputMap::kGamepadButtonOffset_DPAD_RIGHT;
-        });
-        keys.insert(keys.begin(), 0);
         auto& modifier = MCP::Settings::vr_navigation_modifier;
         const auto before = modifier;
-        ControlBox(label.c_str(), Input::kVR, modifier, std::move(keys));
+        ControlBox(label.c_str(), Input::kVR, modifier, true);
         return before != modifier;
     }
 };
@@ -1014,13 +1010,15 @@ bool MCP::Settings::CycleControls() {
 
     if (current_device != Input::DEVICE::kUnknown && BeginSettingsTable("controls.cycle")) {
         auto before = cycle_L.at(current_device);
-        RenderControl(cycle_L.at(current_device), Translations::Get("$SkyPromptMCPControlsCycleLeft"), "controls.cycleLeft");
+        RenderControl(cycle_L.at(current_device), Translations::Get("$SkyPromptMCPControlsCycleLeft"), "controls.cycleLeft",
+                      current_device == Input::kVR);
         if (before != cycle_L.at(current_device)) {
             settingsChanged = true;
         }
 
         before = cycle_R.at(current_device);
-        RenderControl(cycle_R.at(current_device), Translations::Get("$SkyPromptMCPControlsCycleRight"), "controls.cycleRight");
+        RenderControl(cycle_R.at(current_device), Translations::Get("$SkyPromptMCPControlsCycleRight"), "controls.cycleRight",
+                      current_device == Input::kVR);
         if (before != cycle_R.at(current_device)) {
             settingsChanged = true;
         }
@@ -1259,6 +1257,13 @@ void MCP::Settings::from_json() {
 
     LoadDeviceSettings(mcp, "cycle_L", cycle_L);
     LoadDeviceSettings(mcp, "cycle_R", cycle_R);
+    for (const auto bindings : {&cycle_L, &cycle_R}) {
+        auto& key = bindings->at(Input::kVR);
+        if (key >= SKSE::InputMap::kGamepadButtonOffset_DPAD_UP &&
+            key <= SKSE::InputMap::kGamepadButtonOffset_DPAD_RIGHT) {
+            key = 0;
+        }
+    }
 
     // special commands
     if (mcp.HasMember("special_commands")) {
