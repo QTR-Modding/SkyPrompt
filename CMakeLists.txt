@@ -53,6 +53,7 @@ find_path(SKSE_MCP_INCLUDE_DIRS "SKSEMCP/utils.hpp")
 find_path(CLIB_UTILS_QTR_INCLUDE_DIRS "ClibUtilsQTR/utils.hpp")
 find_path(SkyPromptAPI_INCLUDE_DIRS "SkyPrompt/API.hpp")
 find_path(SkyPromptAddOn_INCLUDE_DIRS "SkyPrompt/AddOns.hpp")
+find_path(IMGUIVRHELPER_API_DIR "ImGuiVRHelperAPI.h" PATH_SUFFIXES ImGuiVRHelper REQUIRED)
 
 file(
   GLOB_RECURSE
@@ -84,22 +85,11 @@ find_package(imgui CONFIG REQUIRED)
 find_package(unordered_dense CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
-include(FetchContent)
-FetchContent_Declare(
-    ImGuiVRHelper
-    GIT_REPOSITORY https://github.com/alandtse/imgui-vr-helper.git
-    GIT_TAG 90a94252e433cd46c6bd8c2fa2c47bdbd3497fc6 # v1.8.3
-    GIT_SUBMODULES ""
-    SOURCE_SUBDIR api
-)
-FetchContent_MakeAvailable(ImGuiVRHelper)
-
-
 add_commonlibsse_plugin(
   ${PROJECT_NAME}
   AUTHOR ${AUTHOR_NAME}
   MINIMUM_SKSE_VERSION 2.0.20
-  SOURCES ${headers} ${sources}
+  SOURCES ${headers} ${sources} "${IMGUIVRHELPER_API_DIR}/ImGuiVRHelperAPI.cpp"
 )
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23) # <--- use C++23 standard
 target_precompile_headers(${PROJECT_NAME} PRIVATE include/PCH.h) # <--- PCH.h is required!
@@ -112,6 +102,7 @@ target_include_directories(
     ${CLIB_UTILS_QTR}
     ${SkyPromptAPI_INCLUDE_DIRS}
     ${SkyPromptAddOn_INCLUDE_DIRS}
+    ${IMGUIVRHELPER_API_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 	${CMAKE_CURRENT_SOURCE_DIR}/src
 	${CMAKE_CURRENT_SOURCE_DIR}/src/ImGui
@@ -147,7 +138,6 @@ target_link_libraries(
 		Microsoft::DirectXTex
 		imgui::imgui
 		unordered_dense::unordered_dense
-		ImGuiVRHelper::api
 		nlohmann_json::nlohmann_json
 )
 

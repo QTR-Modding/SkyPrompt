@@ -32,8 +32,8 @@ cmake --preset release
 cmake --build build/release --parallel
 ```
 
-CMake downloads the other dependencies using the revisions in `CMakeLists.txt`,
-`vcpkg.json` and `cmake/ports`. The result is `build/release/SkyPrompt.dll`.
+vcpkg downloads the other dependencies using the revisions in `vcpkg.json`
+and `cmake/ports`. The result is `build/release/SkyPrompt.dll`.
 Leave mod-output environment variables unset to build without installing.
 
 ## Rebuilding with a modified ImGuiVRHelper client SDK
@@ -43,17 +43,17 @@ The separate helper plugin's `src/` files are not compiled into SkyPrompt.
 The exact client source revision is linked in [LICENSES.txt](LICENSES.txt).
 
 Download that revision, edit the files under `api/`, then use your local copy
-instead of CMake's download. The path below is the folder **containing** `api/`:
+instead of the packaged SDK. Point to the `api/` folder:
 
 ```powershell
-cmake --preset release -DFETCHCONTENT_SOURCE_DIR_IMGUIVRHELPER=C:/src/imgui-vr-helper
+cmake --preset release -DIMGUIVRHELPER_API_DIR=C:/src/imgui-vr-helper/api
 cmake --build build/release --parallel
 ```
 
 With Skyrim closed, back up the installed `SKSE/Plugins/SkyPrompt.dll` and replace
 it with your rebuilt DLL. Keep ImGuiVRHelper installed separately for VR. To use
 the original client SDK again, configure with
-`-DFETCHCONTENT_SOURCE_DIR_IMGUIVRHELPER=` and rebuild.
+`-UIMGUIVRHELPER_API_DIR` and rebuild.
 
 ## Packaging a release
 

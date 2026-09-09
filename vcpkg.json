@@ -13,6 +13,7 @@
     "directxtex",
     "skyprompt-api",
     "skyprompt-addon",
+    "imgui-vr-helper-api",
     "boost-pfr",
     "directxtk",
     {
