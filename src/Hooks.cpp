@@ -174,8 +174,10 @@ std::optional<bool> InputHook::ProcessVRNavigation(RE::InputEvent* event, const 
         }
         if (available && navigation.modifier == 0 && modifier != 0 && key == modifier && button->IsDown()) {
             const auto prompts = MANAGER(ImGui::Renderer)->GetPromptButtons();
-            // A prompt's activation binding takes priority over the navigation modifier.
-            if (std::ranges::any_of(prompts, [key](const auto& prompt) { return prompt.second == key; })) {
+            // Prompt and enabled cycle bindings take priority over the navigation modifier.
+            if (std::ranges::any_of(prompts, [key](const auto& prompt) { return prompt.second == key; }) ||
+                (MCP::Settings::cycle_controls && (key == MCP::Settings::cycle_L.at(Input::kVR) ||
+                                                  key == MCP::Settings::cycle_R.at(Input::kVR)))) {
                 return std::nullopt;
             }
             navigation.modifier = key;
