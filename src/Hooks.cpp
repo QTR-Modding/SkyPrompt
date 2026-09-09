@@ -168,7 +168,7 @@ std::optional<bool> InputHook::ProcessVRNavigation(RE::InputEvent* event, const 
     if (const auto button = event->AsButtonEvent()) {
         const auto key = input->Convert(button->GetIDCode(), button->GetDevice());
         if (navigation.modifier != 0 && key == navigation.modifier) {
-            const bool block = navigation.blocksInput;
+            const bool block = navigation.blocksModifier;
             if (button->IsUp()) navigation = {};
             return block;
         }
@@ -179,10 +179,10 @@ std::optional<bool> InputHook::ProcessVRNavigation(RE::InputEvent* event, const 
                 return std::nullopt;
             }
             navigation.modifier = key;
-            navigation.blocksInput = std::ranges::any_of(prompts, [](const auto& prompt) {
+            navigation.blocksModifier = std::ranges::any_of(prompts, [](const auto& prompt) {
                 return PromptTypeFlags::GetBlocksInput(prompt.first);
             });
-            return navigation.blocksInput;
+            return navigation.blocksModifier;
         }
         return std::nullopt;
     }
@@ -202,7 +202,10 @@ std::optional<bool> InputHook::ProcessVRNavigation(RE::InputEvent* event, const 
         renderer->CycleClient(direction == Direction::kLeft);
     }
     // Forward a neutral movement event so Skyrim clears any previously held direction.
-    if (navigation.blocksInput) stick->xValue = stick->yValue = 0.0f;
+    const auto prompts = renderer->GetPromptButtons();
+    if (std::ranges::any_of(prompts, [](const auto& prompt) { return PromptTypeFlags::GetBlocksInput(prompt.first); })) {
+        stick->xValue = stick->yValue = 0.0f;
+    }
     return false;
 }
 

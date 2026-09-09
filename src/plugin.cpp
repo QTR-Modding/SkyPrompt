@@ -33,6 +33,7 @@ namespace {
             }
         }
         if (message->type == SKSE::MessagingInterface::kInputLoaded) {
+            Settings::GetSingleton()->LoadSettings();
             if (MCP::Settings::default_keys.empty()) {
                 MCP::Settings::LoadDefaultPromptKeys();
             }
@@ -59,7 +60,6 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
         messaging->RegisterListener(OnMessage);
     }
 
-    Settings::GetSingleton()->LoadSettings();
     ImGui::Styles::GetSingleton()->RefreshStyle();
     ImGui::Renderer::Install();
 

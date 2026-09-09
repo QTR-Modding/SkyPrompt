@@ -17,7 +17,7 @@ namespace Input {
         enum class Direction { kNone, kUp, kDown, kLeft, kRight };
 
         uint32_t modifier = 0;
-        bool blocksInput = false;
+        bool blocksModifier = false;
         Direction direction = Direction::kNone;
         std::chrono::steady_clock::time_point nextRepeat;
 

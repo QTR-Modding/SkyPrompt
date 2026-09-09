@@ -33,12 +33,18 @@ namespace {
                               SkyPromptAPI::EventID eventID, SkyPromptAPI::ActionID actionID,
                               SkyPromptAPI::PromptType type, RE::TESForm* refForm,
                               std::string a_controlName, int a_contextID, float progress) {
-        constexpr std::array devices = {RE::INPUT_DEVICE::kKeyboard, RE::INPUT_DEVICE::kMouse,
-                                        RE::INPUT_DEVICE::kGamepad};
+        std::vector devices = {RE::INPUT_DEVICE::kKeyboard, RE::INPUT_DEVICE::kMouse,
+                               RE::INPUT_DEVICE::kGamepad};
+        if (REL::Module::IsVR()) {
+            const auto inputDevices = RE::BSInputDeviceManager::GetSingleton();
+            // Later bindings win, so prefer the right hand when both map the control.
+            for (const auto controller : {inputDevices->GetVRControllerLeft(), inputDevices->GetVRControllerRight()}) {
+                if (controller) devices.push_back(controller->BSInputDevice::GetRuntimeData().device);
+            }
+        }
 
         std::vector<std::pair<RE::INPUT_DEVICE, SkyPromptAPI::ButtonID>> bindings;
-        for (size_t i = 0; i < devices.size(); ++i) {
-            auto a_device = devices[i];
+        for (const auto a_device : devices) {
             auto a_key = RE::ControlMap::GetSingleton()->GetMappedKey(a_controlName, a_device,
                                                                       static_cast<RE::ControlMap::InputContextID>(
                                                                           a_contextID));
