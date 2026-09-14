@@ -37,7 +37,6 @@ function(copyOutputs TARGET_FOLDER)
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${LICENSE_FILE}" "${TARGET_FOLDER}/LICENSES.txt"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
-            "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
             "${CMAKE_CURRENT_SOURCE_DIR}/BUILDING.md"
             "${TARGET_FOLDER}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${TARGET_FOLDER}/licenses/ImGuiVRHelper"

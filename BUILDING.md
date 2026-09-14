@@ -57,7 +57,7 @@ the original client SDK again, configure with
 
 ## Packaging a release
 
-Keep `LICENSE`, `LICENSES.txt`, `README.md`, `BUILDING.md` and
+Keep `LICENSE`, `LICENSES.txt`, `BUILDING.md` and
 `licenses/ImGuiVRHelper/` in the install archive. Each Nexus download must also
 link to its matching SkyPrompt source commit or tag and these build instructions.
 Keep those sources and the referenced dependency sources available for as long
