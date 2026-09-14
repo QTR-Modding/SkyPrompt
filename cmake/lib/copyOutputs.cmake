@@ -39,11 +39,6 @@ function(copyOutputs TARGET_FOLDER)
             "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
             "${CMAKE_CURRENT_SOURCE_DIR}/BUILDING.md"
             "${TARGET_FOLDER}"
-        COMMAND "${CMAKE_COMMAND}" -E make_directory "${TARGET_FOLDER}/licenses/ImGuiVRHelper"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-            "${IMGUIVRHELPER_API_DIR}/COPYING"
-            "${IMGUIVRHELPER_API_DIR}/COPYING.LESSER"
-            "${TARGET_FOLDER}/licenses/ImGuiVRHelper"
         DEPENDS ${TRANSLATION_FILES} "${LICENSE_FILE}"
         COMMENT "Copying SkyPrompt translation tables and third-party notices to ${TARGET_FOLDER}"
         VERBATIM
