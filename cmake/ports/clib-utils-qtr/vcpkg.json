@@ -1,7 +1,8 @@
 {
   "name": "clib-utils-qtr",
-  "version-string": "2.2.1",
+  "version-string": "2.6.0",
+  "port-version": 1,
   "homepage": "https://github.com/QTR-Modding/CLibUtilsQTR",
   "license": "MIT",
-  "dependencies": [ "clib-util", "detours" ]
+  "dependencies": [ "clib-util", "detours", "rapidjson" ]
 }

@@ -1,35 +1,7 @@
 #include "Translations.h"
+#include "CLibUtilsQTR/Translator.hpp"
 
 namespace {
-    std::string Unescape(const std::string_view a_text) {
-        std::string result;
-        result.reserve(a_text.size());
-
-        for (std::size_t i = 0; i < a_text.size(); ++i) {
-            if (a_text[i] == '\\' && i + 1 < a_text.size()) {
-                switch (a_text[i + 1]) {
-                    case 'n':
-                        result.push_back('\n');
-                        ++i;
-                        continue;
-                    case 't':
-                        result.push_back('\t');
-                        ++i;
-                        continue;
-                    case '\\':
-                        result.push_back('\\');
-                        ++i;
-                        continue;
-                    default:
-                        break;
-                }
-            }
-            result.push_back(a_text[i]);
-        }
-
-        return result;
-    }
-
     const StringMap<std::string> english = {
         {"$SkyPromptTutorialQuit", "Quit Tutorial"},
         {"$SkyPromptTutorialMash", "Quick! Mash Me!"},
@@ -289,13 +261,21 @@ namespace {
 
 void Translations::Load() {
     strings = english;
-    SKSE::Translation::ParseTranslation("SkyPrompt");
+    const auto ini = RE::INISettingCollection::GetSingleton();
+    const auto setting = ini ? ini->GetSetting("sLanguage:General") : nullptr;
+    const auto language = setting && setting->GetType() == RE::Setting::Type::kString &&
+                                  setting->data.s && setting->data.s[0] ? setting->data.s : "ENGLISH";
+    const auto path = std::format("Data/Interface/Translations/SkyPrompt_{}.txt", language);
+    clib_utilsQTR::Translator translator(
+        clib_utilsQTR::Translator::Table(english.begin(), english.end()),
+        [](const std::string_view error) { logger::warn("{}", error); });
+    logger::info("Loading SkyPrompt translations from {}", path);
+    if (!translator.Load(path)) {
+        logger::warn("Some SkyPrompt translations could not be loaded; using English defaults where needed");
+    }
 
     for (auto& [key, value] : strings) {
-        std::string translated;
-        if (SKSE::Translation::Translate(key, translated)) {
-            value = Unescape(translated);
-        }
+        value = translator.Get(key);
     }
 
     std::string loaded_glyph_text;
