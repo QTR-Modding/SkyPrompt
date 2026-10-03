@@ -20,7 +20,7 @@ the revision used by this version of SkyPrompt:
 
 ```powershell
 git clone --recursive https://github.com/QTR-Modding/CommonLibVR-MIT.git C:/src/CommonLibVR-MIT
-git -C C:/src/CommonLibVR-MIT checkout 4190ec291f99c64b765c0647e25cf8a3a3d9a550
+git -C C:/src/CommonLibVR-MIT checkout 800eeae864eef097cfcec184c57435b18dcc4761
 git -C C:/src/CommonLibVR-MIT submodule update --init --recursive
 $env:COMMONLIB_SSE_FOLDER = 'C:/src/CommonLibVR-MIT'
 ```
