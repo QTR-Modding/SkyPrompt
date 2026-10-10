@@ -1,7 +1,6 @@
 {
   "name": "skyprompt-addon",
-  "version-string": "1.1.0",
-  "port-version": 4,
+  "version-string": "1.2.0",
   "homepage": "https://github.com/QTR-Modding/SkyPromptAddOn",
   "dependencies": []
 }
