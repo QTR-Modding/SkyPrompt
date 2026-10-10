@@ -26,7 +26,7 @@ namespace ImGui::PromptLayouts {
         if (!effect) return 0.0f;
         const SkyPrompt::AddOns::SpecialEffects::Separator separator(
             SpecialsView{effect->id, effect->integers, effect->strings, effect->floats, effect->bools});
-        if (separator.thickness <= 0.0f || (separator.color & IM_COL32_A_MASK) == 0) return 0.0f;
+        if (!separator.IsVisible()) return 0.0f;
         return separator.thickness + separator.spacing * 2.0f;
     }
 

@@ -56,10 +56,13 @@ namespace ImGui::PromptEffects {
         constexpr FloatParameter separatorFloats[] = {
             {"$SkyPromptMCPEffectLineThickness", "$SkyPromptMCPEffectLineThicknessHelp", Separator::defaultThickness, 0.0f, Separator::maxThickness},
             {"$SkyPromptMCPEffectSeparatorSpacing", "$SkyPromptMCPEffectSeparatorSpacingHelp", Separator::defaultSpacing, 0.0f, Separator::maxSpacing},
-            {"$SkyPromptMCPEffectSeparatorExtension", "$SkyPromptMCPEffectSeparatorExtensionHelp", Separator::defaultExtension, Separator::minExtension, Separator::maxExtension}
+            {"$SkyPromptMCPEffectSeparatorExtension", "$SkyPromptMCPEffectSeparatorExtensionHelp", Separator::defaultExtension, Separator::minExtension, Separator::maxExtension},
+            {"$SkyPromptMCPThemeBackgroundRadius", "$SkyPromptMCPEffectSeparatorRadiusHelp", Separator::defaultRounding, 0.0f, Separator::maxRounding}
         };
         constexpr ColorParameter separatorColors[] = {
-            {"$SkyPromptMCPEffectLineColor", "$SkyPromptMCPEffectColorHelp", Separator::defaultColor}
+            {"$SkyPromptMCPEffectLineColor", "$SkyPromptMCPEffectGradientHelp", Separator::defaultColor},
+            {"$SkyPromptMCPEffectColor2", "$SkyPromptMCPEffectGradientHelp", Separator::defaultColor},
+            {"$SkyPromptMCPEffectColor3", "$SkyPromptMCPEffectGradientHelp", Separator::defaultColor}
         };
         constexpr FloatParameter frameFloats[] = {
             {"$SkyPromptMCPThemeBackgroundPaddingX", "$SkyPromptMCPEffectFramePaddingHelp", Frame::defaultPaddingX, Frame::minPadding, Frame::maxPadding},
@@ -68,7 +71,9 @@ namespace ImGui::PromptEffects {
             {"$SkyPromptMCPEffectLineThickness", "$SkyPromptMCPEffectLineThicknessHelp", Frame::defaultThickness, 0.0f, Frame::maxThickness}
         };
         constexpr ColorParameter frameColors[] = {
-            {"$SkyPromptMCPEffectBorderColor", "$SkyPromptMCPEffectColorHelp", Frame::defaultColor}
+            {"$SkyPromptMCPEffectBorderColor", "$SkyPromptMCPEffectGradientHelp", Frame::defaultColor},
+            {"$SkyPromptMCPEffectColor2", "$SkyPromptMCPEffectGradientHelp", Frame::defaultColor},
+            {"$SkyPromptMCPEffectColor3", "$SkyPromptMCPEffectGradientHelp", Frame::defaultColor}
         };
         constexpr Definition separator{SkyPrompt::AddOns::SpecialEffects::kSeparator, "$SkyPromptMCPThemeEffectSeparator", separatorFloats, separatorColors, {}};
         constexpr Definition frame{SkyPrompt::AddOns::SpecialEffects::kFrame, "$SkyPromptMCPThemeEffectFrame", frameFloats, frameColors, {}};

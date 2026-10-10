@@ -24,7 +24,7 @@ namespace {
         const auto* effect = ImGui::PromptEffects::Find(SkyPrompt::AddOns::SpecialEffects::kSeparator);
         if (!effect) return std::nullopt;
         const SkyPrompt::AddOns::SpecialEffects::Separator separator(GetSpecialsView(*effect));
-        if (separator.thickness <= 0.0f || (separator.color & IM_COL32_A_MASK) == 0) return std::nullopt;
+        if (!separator.IsVisible()) return std::nullopt;
         return separator;
     }
 
