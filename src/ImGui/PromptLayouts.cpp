@@ -2,6 +2,7 @@
 #include "PromptEffects.h"
 #include "Theme.h"
 #include "imgui_internal.h"
+#include "SkyPrompt/AddOns.hpp"
 
 namespace ImGui::PromptLayouts {
     float List::GetIndicatorPadding() {
@@ -15,6 +16,18 @@ namespace ImGui::PromptLayouts {
     float GetIconSize() {
         const auto a_fontsize = ImGui::GetIO().FontDefault->FontSize;
         return a_fontsize * Theme::last_theme->icon2font_ratio;
+    }
+
+    float GetSeparatorGap() {
+        using namespace SkyPrompt::AddOns::SpecialEffects;
+        if (Theme::last_theme->prompt_alignment == Theme::kRadial ||
+            Theme::last_theme->prompt_alignment == Theme::kDiamond) return 0.0f;
+        const auto* effect = PromptEffects::Find(kSeparator);
+        if (!effect) return 0.0f;
+        const SkyPrompt::AddOns::SpecialEffects::Separator separator(
+            SpecialsView{effect->id, effect->integers, effect->strings, effect->floats, effect->bools});
+        if (!separator.IsVisible()) return 0.0f;
+        return separator.thickness + separator.spacing * 2.0f;
     }
 
     VerticalPromptLayout MeasureVerticalPrompts(const std::vector<ImGui::RenderInfo>& batch) {
@@ -35,7 +48,13 @@ namespace ImGui::PromptLayouts {
         const float scrollPadding = Theme::last_theme->prompt_alignment == Theme::kList ? List::GetIndicatorPadding() : 0.0f;
         float rowStart = scrollPadding;
         float maxBottom = 0.0f;
-        for (const auto& renderInfo : batch) {
+        const float separatorGap = GetSeparatorGap();
+        for (size_t i = 0; i < batch.size(); ++i) {
+            const auto& renderInfo = batch[i];
+            if (separatorGap > 0.0f && i > 0 &&
+                InteractionID::Client(batch[i - 1].interaction.event) != InteractionID::Client(renderInfo.interaction.event)) {
+                rowStart = std::max(rowStart, maxBottom + separatorGap);
+            }
             const ImVec2 textSize = ImGui::CalcTextSize(renderInfo.text.c_str());
             const float rowHeight = std::max(circleDiameter, textSize.y);
             const float iconOffset = (rowHeight - iconSize) * 0.5f;
@@ -75,7 +94,14 @@ namespace ImGui::PromptLayouts {
 
         const float iconSize = GetIconSize();
         const float circleDiameter = iconSize * 1.25f;
-        for (const auto& renderInfo : batch) {
+        const float separatorGap = GetSeparatorGap();
+        float extraSpacing = 0.0f;
+        for (size_t i = 0; i < batch.size(); ++i) {
+            const auto& renderInfo = batch[i];
+            if (separatorGap > 0.0f && i > 0 &&
+                InteractionID::Client(batch[i - 1].interaction.event) != InteractionID::Client(renderInfo.interaction.event)) {
+                extraSpacing += std::max(lineSpacingPx, separatorGap) - lineSpacingPx;
+            }
             const ImVec2 textSize = ImGui::CalcTextSize(renderInfo.text.c_str());
             const float rowHeight = std::max(circleDiameter, textSize.y);
             const float textPad =
@@ -93,7 +119,7 @@ namespace ImGui::PromptLayouts {
         }
 
         if (layout.items.size() > 1) {
-            layout.size.x += lineSpacingPx * static_cast<float>(layout.items.size() - 1);
+            layout.size.x += lineSpacingPx * static_cast<float>(layout.items.size() - 1) + extraSpacing;
         }
         return layout;
     }

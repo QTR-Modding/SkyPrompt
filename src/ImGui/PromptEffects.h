@@ -49,7 +49,7 @@ namespace ImGui::PromptEffects {
     };
 
     const Definition* GetDefinition(uint32_t a_id);
-    const Theme::SpecialEffect* Find(EffectID a_id);
+    const Theme::SpecialEffect* Find(uint32_t a_id);
     float Float(const Theme::SpecialEffect* a_effect, EffectID a_id, size_t a_index);
     uint32_t Color(const Theme::SpecialEffect* a_effect, EffectID a_id, size_t a_index);
     bool Bool(const Theme::SpecialEffect* a_effect, EffectID a_id, size_t a_index);

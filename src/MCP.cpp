@@ -392,6 +392,8 @@ namespace {
     bool RenderSpecialEffectSettings(Theme::SpecialEffect& a_effect, const std::string_view a_id) {
         const auto* definition = ImGui::PromptEffects::GetDefinition(a_effect.id);
         const bool background = a_effect.id == SkyPrompt::AddOns::SpecialEffects::kTextBackground;
+        const bool gradient = a_effect.id == SkyPrompt::AddOns::SpecialEffects::kSeparator ||
+                              a_effect.id == SkyPrompt::AddOns::SpecialEffects::kFrame;
         constexpr std::array backgroundFloatLabels = {
             "$SkyPromptMCPThemeBackgroundPaddingX", "$SkyPromptMCPThemeBackgroundPaddingY",
             "$SkyPromptMCPThemeBackgroundRadius"
@@ -434,6 +436,7 @@ namespace {
             const auto* parameter = definition && i < definition->colors.size() ? &definition->colors[i] : nullptr;
             const bool named = background && i == 0;
             auto value = i < a_effect.integers.size() ? a_effect.integers[i]
+                                                    : gradient && !a_effect.integers.empty() ? a_effect.integers.back()
                                                     : parameter ? parameter->default_value : IM_COL32(0, 0, 0, 128);
             const auto label = SettingRow(parameter ? Translations::Get(parameter->label)
                                                    : named ? Translations::Get("$SkyPromptMCPThemeBackgroundColor")
@@ -460,7 +463,8 @@ namespace {
             if (edited) {
                 while (i >= a_effect.integers.size()) {
                     const auto index = a_effect.integers.size();
-                    a_effect.integers.push_back(definition && index < definition->colors.size()
+                    a_effect.integers.push_back(gradient && !a_effect.integers.empty() ? a_effect.integers.back()
+                                               : definition && index < definition->colors.size()
                                                    ? definition->colors[index].default_value : 0);
                 }
                 a_effect.integers[i] = value;
@@ -489,9 +493,10 @@ namespace {
         if (!BeginSettingsGroup("$SkyPromptMCPThemeSpecialEffects", "theme.special")) return false;
         auto& effects = GetTheme().special_effects;
         using namespace SkyPrompt::AddOns::SpecialEffects;
-        constexpr std::array<uint32_t, 5> supported = {
+        constexpr std::array<uint32_t, 7> supported = {
             kVinyArcs, kTextBackground, ImGui::PromptEffects::kProgressCircle,
-            ImGui::PromptEffects::kListIndicators, ImGui::PromptEffects::kActivationPop
+            ImGui::PromptEffects::kListIndicators, ImGui::PromptEffects::kActivationPop,
+            kSeparator, kFrame
         };
         const auto present = [&](const auto id) {
             return std::ranges::find(effects, id, &Theme::SpecialEffect::id) != effects.end();

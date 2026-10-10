@@ -1,5 +1,6 @@
 #include "PromptEffects.h"
 #include "imgui.h"
+#include "SkyPrompt/AddOns.hpp"
 
 namespace ImGui::PromptEffects {
     namespace {
@@ -50,6 +51,34 @@ namespace ImGui::PromptEffects {
         constexpr Definition progress{kProgressCircle, "$SkyPromptMCPThemeEffectProgressCircle", progressFloats, progressColors, progressBools};
         constexpr Definition list{kListIndicators, "$SkyPromptMCPThemeEffectListIndicators", listFloats, listColors, listBools};
         constexpr Definition pop{kActivationPop, "$SkyPromptMCPThemeEffectActivationPop", popFloats, {}, popBools};
+        using SkyPrompt::AddOns::SpecialEffects::Separator;
+        using SkyPrompt::AddOns::SpecialEffects::Frame;
+        constexpr FloatParameter separatorFloats[] = {
+            {"$SkyPromptMCPEffectLineThickness", "$SkyPromptMCPEffectLineThicknessHelp", Separator::defaultThickness, 0.0f, Separator::maxThickness},
+            {"$SkyPromptMCPEffectSeparatorSpacing", "$SkyPromptMCPEffectSeparatorSpacingHelp", Separator::defaultSpacing, 0.0f, Separator::maxSpacing},
+            {"$SkyPromptMCPEffectSeparatorExtension", "$SkyPromptMCPEffectSeparatorExtensionHelp", Separator::defaultExtension, Separator::minExtension, Separator::maxExtension},
+            {"$SkyPromptMCPThemeBackgroundRadius", "$SkyPromptMCPEffectSeparatorRadiusHelp", Separator::defaultRounding, 0.0f, Separator::maxRounding},
+            {"$SkyPromptMCPEffectGradientSpeed", "$SkyPromptMCPEffectGradientSpeedHelp", SkyPrompt::AddOns::SpecialEffects::defaultGradientSpeed, -SkyPrompt::AddOns::SpecialEffects::maxGradientSpeed, SkyPrompt::AddOns::SpecialEffects::maxGradientSpeed}
+        };
+        constexpr ColorParameter separatorColors[] = {
+            {"$SkyPromptMCPEffectLineColor", "$SkyPromptMCPEffectGradientHelp", Separator::defaultColor},
+            {"$SkyPromptMCPEffectColor2", "$SkyPromptMCPEffectGradientHelp", Separator::defaultColor},
+            {"$SkyPromptMCPEffectColor3", "$SkyPromptMCPEffectGradientHelp", Separator::defaultColor}
+        };
+        constexpr FloatParameter frameFloats[] = {
+            {"$SkyPromptMCPThemeBackgroundPaddingX", "$SkyPromptMCPEffectFramePaddingHelp", Frame::defaultPaddingX, Frame::minPadding, Frame::maxPadding},
+            {"$SkyPromptMCPThemeBackgroundPaddingY", "$SkyPromptMCPEffectFramePaddingHelp", Frame::defaultPaddingY, Frame::minPadding, Frame::maxPadding},
+            {"$SkyPromptMCPThemeBackgroundRadius", "$SkyPromptMCPThemeBackgroundRadiusHelp", Frame::defaultRounding, 0.0f, Frame::maxRounding},
+            {"$SkyPromptMCPEffectLineThickness", "$SkyPromptMCPEffectLineThicknessHelp", Frame::defaultThickness, 0.0f, Frame::maxThickness},
+            {"$SkyPromptMCPEffectGradientSpeed", "$SkyPromptMCPEffectGradientSpeedHelp", SkyPrompt::AddOns::SpecialEffects::defaultGradientSpeed, -SkyPrompt::AddOns::SpecialEffects::maxGradientSpeed, SkyPrompt::AddOns::SpecialEffects::maxGradientSpeed}
+        };
+        constexpr ColorParameter frameColors[] = {
+            {"$SkyPromptMCPEffectBorderColor", "$SkyPromptMCPEffectGradientHelp", Frame::defaultColor},
+            {"$SkyPromptMCPEffectColor2", "$SkyPromptMCPEffectGradientHelp", Frame::defaultColor},
+            {"$SkyPromptMCPEffectColor3", "$SkyPromptMCPEffectGradientHelp", Frame::defaultColor}
+        };
+        constexpr Definition separator{SkyPrompt::AddOns::SpecialEffects::kSeparator, "$SkyPromptMCPThemeEffectSeparator", separatorFloats, separatorColors, {}};
+        constexpr Definition frame{SkyPrompt::AddOns::SpecialEffects::kFrame, "$SkyPromptMCPThemeEffectFrame", frameFloats, frameColors, {}};
     }
 
     const Definition* GetDefinition(const uint32_t a_id) {
@@ -57,11 +86,13 @@ namespace ImGui::PromptEffects {
             case kProgressCircle: return &progress;
             case kListIndicators: return &list;
             case kActivationPop: return &pop;
+            case SkyPrompt::AddOns::SpecialEffects::kSeparator: return &separator;
+            case SkyPrompt::AddOns::SpecialEffects::kFrame: return &frame;
             default: return nullptr;
         }
     }
 
-    const Theme::SpecialEffect* Find(const EffectID a_id) {
+    const Theme::SpecialEffect* Find(const uint32_t a_id) {
         const auto& effects = Theme::last_theme->special_effects;
         const auto effect = std::ranges::find(effects, a_id, &Theme::SpecialEffect::id);
         return effect != effects.end() ? &*effect : nullptr;

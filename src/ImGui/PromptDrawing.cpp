@@ -20,6 +20,38 @@ namespace {
         }
     }
 
+    std::optional<SkyPrompt::AddOns::SpecialEffects::Separator> GetSeparator() {
+        const auto* effect = ImGui::PromptEffects::Find(SkyPrompt::AddOns::SpecialEffects::kSeparator);
+        if (!effect) return std::nullopt;
+        const SkyPrompt::AddOns::SpecialEffects::Separator separator(GetSpecialsView(*effect));
+        if (!separator.IsVisible()) return std::nullopt;
+        return separator;
+    }
+
+    float GetRowHeight(const VerticalPromptRow& row) {
+        return row.textSize.y + row.textOffset * 2.0f;
+    }
+
+    void DrawVerticalSeparator(const SkyPrompt::AddOns::SpecialEffects::Separator& separator,
+                               ImDrawList* drawList, const VerticalPromptLayout& layout,
+                               const ImVec2 start, const size_t index, const float alpha) {
+        const auto& previous = layout.rows[index - 1];
+        const auto& current = layout.rows[index];
+        const float y = start.y + (previous.centerY + GetRowHeight(previous) * 0.5f +
+            current.centerY - GetRowHeight(current) * 0.5f) * 0.5f;
+        separator.Draw(drawList, {start.x + layout.bounds.min.x, y},
+            {start.x + layout.bounds.min.x + layout.bounds.size.x, y}, alpha);
+    }
+
+    void IncludeRotatedBounds(ImRect& bounds, const ImVec2 center, const ImVec2 size, const float angle) {
+        const float cosine = std::abs(cosf(angle));
+        const float sine = std::abs(sinf(angle));
+        const ImVec2 extent{(size.x * cosine + size.y * sine) * 0.5f,
+                            (size.x * sine + size.y * cosine) * 0.5f};
+        bounds.Add(center - extent);
+        bounds.Add(center + extent);
+    }
+
     // Utility: scale a packed ImU32 color's alpha by factor in [0,1]
     ImU32 MulAlpha(const ImU32 c, float a) {
         a = ImClamp(a, 0.0f, 1.0f);
@@ -282,12 +314,12 @@ namespace {
     }
 
 
-    void RenderPromptsRadialRotated(const ImVec2 anchor,
-                                    const std::vector<ImGui::RenderInfo>& batch,
-                                    const float lineSpacingPx,
-                                    const float bendRadius,
-                                    const float midpointAngleRad) {
-        if (batch.empty()) return;
+    PromptBounds RenderPromptsRadialRotated(const ImVec2 anchor,
+                                           const std::vector<ImGui::RenderInfo>& batch,
+                                           const float lineSpacingPx,
+                                           const float bendRadius,
+                                           const float midpointAngleRad, const bool measureBounds) {
+        if (batch.empty()) return {};
 
         ImDrawList* dl = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
         ImFont* font = ImGui::GetFont();
@@ -304,6 +336,8 @@ namespace {
         const float circleOverhang = (circleDia - iconSz) * 0.5f;
         const bool textFirst = Theme::last_theme->prompt_order == Theme::kTextFirst;
         const auto layout = MeasureVerticalPrompts(batch);
+        ImRect bounds{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
+                      std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest()};
 
         const float radius = std::max(bendRadius, 1.0f);
         const float centerlineX = layout.bounds.min.x + layout.bounds.size.x * 0.5f;
@@ -360,6 +394,10 @@ namespace {
                 arcPoint.x + (textCenterX - centerlineX) * rowX.x,
                 arcPoint.y + (textCenterX - centerlineX) * rowX.y
             };
+            if (measureBounds) {
+                IncludeRotatedBounds(bounds, iconCenter, {circleDia, circleDia}, angle);
+                IncludeRotatedBounds(bounds, textCenter, row.textSize, angle);
+            }
 
             // draw rotated text centered on this pivot
             const ImU32 color = MulAlpha(ri.text_color ? ri.text_color : IM_COL32(255, 255, 255, 255), ri.alpha);
@@ -379,6 +417,7 @@ namespace {
         }
 
         dl->PopClipRect();
+        return measureBounds ? PromptBounds{.min = bounds.Min, .size = bounds.GetSize()} : PromptBounds{};
     }
 
     void DrawHorizontalPrompt(ImDrawList* drawList, ImFont* font, const float fontSize,
@@ -422,20 +461,34 @@ namespace {
             {dimensions.textWidth, dimensions.textHeight});
     }
 
-    void RenderPromptsVertical(const std::vector<ImGui::RenderInfo>& batch) {
+    PromptBounds RenderPromptsVertical(const std::vector<ImGui::RenderInfo>& batch, const bool measureBounds) {
+        const auto separator = GetSeparator();
+        VerticalPromptLayout layout{};
+        if (separator || measureBounds || Theme::last_theme->prompt_order == Theme::kTextFirst) {
+            layout = MeasureVerticalPrompts(batch);
+        }
+        const auto start = ImGui::GetCursorScreenPos();
+        const float startY = ImGui::GetCursorPosY();
         float textFirstIconX = 0.0f;
         if (Theme::last_theme->prompt_order == Theme::kTextFirst) {
-            const auto layout = MeasureVerticalPrompts(batch);
             textFirstIconX = ImGui::GetCursorPosX() + layout.iconX;
         }
         auto* drawList = ImGui::GetWindowDrawList();
-        for (const auto& renderInfo : batch) {
+        for (size_t i = 0; i < batch.size(); ++i) {
+            const auto& renderInfo = batch[i];
+            if (separator && i > 0 &&
+                InteractionID::Client(batch[i - 1].interaction.event) != InteractionID::Client(renderInfo.interaction.event)) {
+                ImGui::SetCursorPosY(startY + layout.rows[i].centerY - GetRowHeight(layout.rows[i]) * 0.5f);
+                DrawVerticalSeparator(*separator, drawList, layout, start, i,
+                    std::min(batch[i - 1].alpha, renderInfo.alpha));
+            }
             const auto firstVertex = drawList->VtxBuffer.Size;
             DrawVerticalPrompt(renderInfo, textFirstIconX);
             for (auto vertex = firstVertex; vertex < drawList->VtxBuffer.Size; ++vertex) {
                 drawList->VtxBuffer[vertex].col = MulAlpha(drawList->VtxBuffer[vertex].col, renderInfo.alpha);
             }
         }
+        return {.min = start + layout.bounds.min, .size = layout.bounds.size};
     }
 
     void DrawListIndicators(ImDrawList* drawList, const std::vector<ImGui::RenderInfo>& batch,
@@ -459,9 +512,10 @@ namespace {
         }
     }
 
-    void RenderPromptsList(const std::vector<ImGui::RenderInfo>& batch) {
+    PromptBounds RenderPromptsList(const std::vector<ImGui::RenderInfo>& batch) {
         const auto layout = MeasureVerticalPrompts(batch);
         const auto start = ImGui::GetCursorScreenPos();
+        const auto separator = GetSeparator();
         auto* drawList = ImGui::GetWindowDrawList();
         const float iconSize = GetIconSize();
         const float radius = iconSize * 1.25f * 0.5f;
@@ -469,6 +523,11 @@ namespace {
         for (size_t i = 0; i < batch.size(); ++i) {
             const auto& info = batch[i];
             const auto& row = layout.rows[i];
+            if (separator && i > 0 &&
+                InteractionID::Client(batch[i - 1].interaction.event) != InteractionID::Client(info.interaction.event)) {
+                DrawVerticalSeparator(*separator, drawList, layout, start, i,
+                    std::min(batch[i - 1].alpha, info.alpha));
+            }
             const auto firstVertex = drawList->VtxBuffer.Size;
             const ImVec2 center = start + ImVec2(layout.iconX + iconSize * 0.5f, row.centerY);
             if (info.selected) {
@@ -492,15 +551,18 @@ namespace {
         }
         DrawListIndicators(drawList, batch, layout, start);
         ImGui::Dummy(layout.bounds.size);
+        return {.min = start + layout.bounds.min, .size = layout.bounds.size};
     }
 
-    void RenderPromptsHorizontal(const std::vector<ImGui::RenderInfo>& batch, const float lineSpacingPx) {
-        if (batch.empty()) return;
+    PromptBounds RenderPromptsHorizontal(const std::vector<ImGui::RenderInfo>& batch, const float lineSpacingPx) {
+        if (batch.empty()) return {};
 
         ImFont* font = ImGui::GetFont();
         const float fs = ImGui::GetFontSize();
 
         const auto layout = MeasureHorizontalPrompts(batch, lineSpacingPx);
+        const auto separator = GetSeparator();
+        const float separatorGap = GetSeparatorGap();
         const ImVec2 startPos = ImGui::GetCursorScreenPos();
         ImDrawList* dl = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
 
@@ -513,13 +575,22 @@ namespace {
             const auto& dim = layout.items[i];
             DrawHorizontalPrompt(dl, font, fs, ri, dim,
                                  {xCursor, yCenter - dim.height * 0.5f}, textFirst);
-            xCursor += dim.width + lineSpacingPx;
+            float gap = lineSpacingPx;
+            if (separator && i + 1 < batch.size() &&
+                InteractionID::Client(ri.interaction.event) != InteractionID::Client(batch[i + 1].interaction.event)) {
+                gap = std::max(gap, separatorGap);
+                const float x = xCursor + dim.width + gap * 0.5f;
+                separator->Draw(ImGui::GetWindowDrawList(), {x, startPos.y},
+                    {x, startPos.y + layout.size.y}, std::min(ri.alpha, batch[i + 1].alpha));
+            }
+            xCursor += dim.width + gap;
         }
 
         ImGui::Dummy(layout.size);
+        return {.min = startPos, .size = layout.size};
     }
 
-    void RenderPromptsDiamond(const std::vector<ImGui::RenderInfo>& batch, const float lineSpacingPx) {
+    PromptBounds RenderPromptsDiamond(const std::vector<ImGui::RenderInfo>& batch, const float lineSpacingPx) {
         const auto layout = MeasureDiamondPrompts(batch, lineSpacingPx);
         const ImVec2 startPosition = ImGui::GetCursorScreenPos();
         ImDrawList* drawList = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
@@ -533,6 +604,7 @@ namespace {
         }
 
         ImGui::Dummy(layout.bounds.size);
+        return {.min = startPosition + layout.bounds.min, .size = layout.bounds.size};
     }
 
 }
@@ -588,33 +660,41 @@ void ImGui::RenderSkyPrompt(const ImVec2& anchor) {
 
     const auto& curr_theme = Theme::last_theme;
     const auto prompt_alignment = curr_theme->prompt_alignment;
+    const auto* frameEffect = PromptEffects::Find(SkyPrompt::AddOns::SpecialEffects::kFrame);
+    PromptBounds bounds{};
 
     // Decorations may extend beyond the auto-sized layout window.
     auto* drawList = GetWindowDrawList();
     drawList->PushClipRectFullScreen();
     switch (prompt_alignment) {
         case Theme::PromptAlignment::kVertical:
-            RenderPromptsVertical(renderBatch);
+            bounds = RenderPromptsVertical(renderBatch, frameEffect != nullptr);
             break;
         case Theme::PromptAlignment::kList:
-            RenderPromptsList(renderBatch);
+            bounds = RenderPromptsList(renderBatch);
             break;
         case Theme::PromptAlignment::kHorizontal:
-            RenderPromptsHorizontal(renderBatch, GetFontSize() * curr_theme->linespacing);
+            bounds = RenderPromptsHorizontal(renderBatch, GetFontSize() * curr_theme->linespacing);
             break;
         case Theme::PromptAlignment::kDiamond:
-            RenderPromptsDiamond(renderBatch, GetFontSize() * curr_theme->linespacing);
+            bounds = RenderPromptsDiamond(renderBatch, GetFontSize() * curr_theme->linespacing);
             break;
         case Theme::PromptAlignment::kRadial: {
             const float lineSpacingPx = GetFontSize() * curr_theme->linespacing;
             const float iconSize = GetIO().FontDefault->FontSize * curr_theme->icon2font_ratio;
             const float bendRadius = iconSize * 6;
 
-            RenderPromptsRadialRotated(anchor,
-                                       renderBatch,
-                                       lineSpacingPx, bendRadius, 0.0f);
+            bounds = RenderPromptsRadialRotated(anchor,
+                                              renderBatch,
+                                              lineSpacingPx, bendRadius, 0.0f, frameEffect != nullptr);
             break;
         }
+    }
+
+    if (frameEffect) {
+        const SkyPrompt::AddOns::SpecialEffects::Frame frame(GetSpecialsView(*frameEffect));
+        const float alpha = std::ranges::max(renderBatch | std::views::transform(&RenderInfo::alpha));
+        frame.Draw(drawList, bounds.min, bounds.min + bounds.size, alpha);
     }
 
     drawList->PopClipRect();

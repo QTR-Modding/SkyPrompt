@@ -47,6 +47,7 @@ namespace ImGui::PromptLayouts {
     };
 
     float GetIconSize();
+    float GetSeparatorGap();
     VerticalPromptLayout MeasureVerticalPrompts(const std::vector<RenderInfo>& batch);
     HorizontalPromptLayout MeasureHorizontalPrompts(const std::vector<RenderInfo>& batch,
                                                     float lineSpacingPx);
