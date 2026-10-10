@@ -489,9 +489,10 @@ namespace {
         if (!BeginSettingsGroup("$SkyPromptMCPThemeSpecialEffects", "theme.special")) return false;
         auto& effects = GetTheme().special_effects;
         using namespace SkyPrompt::AddOns::SpecialEffects;
-        constexpr std::array<uint32_t, 5> supported = {
+        constexpr std::array<uint32_t, 7> supported = {
             kVinyArcs, kTextBackground, ImGui::PromptEffects::kProgressCircle,
-            ImGui::PromptEffects::kListIndicators, ImGui::PromptEffects::kActivationPop
+            ImGui::PromptEffects::kListIndicators, ImGui::PromptEffects::kActivationPop,
+            kSeparator, kFrame
         };
         const auto present = [&](const auto id) {
             return std::ranges::find(effects, id, &Theme::SpecialEffect::id) != effects.end();
