@@ -155,6 +155,8 @@ namespace {
         {"$SkyPromptMCPEffectSeparatorRadiusHelp", "Radius of the line's corners, in screen pixels. Zero keeps square ends."},
         {"$SkyPromptMCPEffectColor2", "Color 2"},
         {"$SkyPromptMCPEffectColor3", "Color 3"},
+        {"$SkyPromptMCPEffectGradientSpeed", "Animation Speed"},
+        {"$SkyPromptMCPEffectGradientSpeedHelp", "Color cycles per second. Zero keeps the gradient static; negative values reverse the cycle. Requires at least two different colors."},
         {"$SkyPromptMCPEffectGradientHelp", "Blend up to three colors along the separator or left-to-right across the frame. Matching colors give a solid color."},
         {"$SkyPromptMCPEffectFramePaddingHelp", "Extra space on each side of the whole prompt area, in screen pixels. Negative values shrink the frame."},
         {"$SkyPromptMCPEffectRadius", "Radius Multiplier"},

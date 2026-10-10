@@ -57,7 +57,8 @@ namespace ImGui::PromptEffects {
             {"$SkyPromptMCPEffectLineThickness", "$SkyPromptMCPEffectLineThicknessHelp", Separator::defaultThickness, 0.0f, Separator::maxThickness},
             {"$SkyPromptMCPEffectSeparatorSpacing", "$SkyPromptMCPEffectSeparatorSpacingHelp", Separator::defaultSpacing, 0.0f, Separator::maxSpacing},
             {"$SkyPromptMCPEffectSeparatorExtension", "$SkyPromptMCPEffectSeparatorExtensionHelp", Separator::defaultExtension, Separator::minExtension, Separator::maxExtension},
-            {"$SkyPromptMCPThemeBackgroundRadius", "$SkyPromptMCPEffectSeparatorRadiusHelp", Separator::defaultRounding, 0.0f, Separator::maxRounding}
+            {"$SkyPromptMCPThemeBackgroundRadius", "$SkyPromptMCPEffectSeparatorRadiusHelp", Separator::defaultRounding, 0.0f, Separator::maxRounding},
+            {"$SkyPromptMCPEffectGradientSpeed", "$SkyPromptMCPEffectGradientSpeedHelp", SkyPrompt::AddOns::SpecialEffects::defaultGradientSpeed, -SkyPrompt::AddOns::SpecialEffects::maxGradientSpeed, SkyPrompt::AddOns::SpecialEffects::maxGradientSpeed}
         };
         constexpr ColorParameter separatorColors[] = {
             {"$SkyPromptMCPEffectLineColor", "$SkyPromptMCPEffectGradientHelp", Separator::defaultColor},
@@ -68,7 +69,8 @@ namespace ImGui::PromptEffects {
             {"$SkyPromptMCPThemeBackgroundPaddingX", "$SkyPromptMCPEffectFramePaddingHelp", Frame::defaultPaddingX, Frame::minPadding, Frame::maxPadding},
             {"$SkyPromptMCPThemeBackgroundPaddingY", "$SkyPromptMCPEffectFramePaddingHelp", Frame::defaultPaddingY, Frame::minPadding, Frame::maxPadding},
             {"$SkyPromptMCPThemeBackgroundRadius", "$SkyPromptMCPThemeBackgroundRadiusHelp", Frame::defaultRounding, 0.0f, Frame::maxRounding},
-            {"$SkyPromptMCPEffectLineThickness", "$SkyPromptMCPEffectLineThicknessHelp", Frame::defaultThickness, 0.0f, Frame::maxThickness}
+            {"$SkyPromptMCPEffectLineThickness", "$SkyPromptMCPEffectLineThicknessHelp", Frame::defaultThickness, 0.0f, Frame::maxThickness},
+            {"$SkyPromptMCPEffectGradientSpeed", "$SkyPromptMCPEffectGradientSpeedHelp", SkyPrompt::AddOns::SpecialEffects::defaultGradientSpeed, -SkyPrompt::AddOns::SpecialEffects::maxGradientSpeed, SkyPrompt::AddOns::SpecialEffects::maxGradientSpeed}
         };
         constexpr ColorParameter frameColors[] = {
             {"$SkyPromptMCPEffectBorderColor", "$SkyPromptMCPEffectGradientHelp", Frame::defaultColor},
