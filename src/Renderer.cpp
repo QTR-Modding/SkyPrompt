@@ -389,7 +389,7 @@ SubManager::AttachedPosition SubManager::GetAttachedObjectPos() const {
                 .empty()) {
                 if (const auto& model = inv3dmngr->GetRuntimeData().loadedModels.back().spModel) {
                     OffsetPosition(model->world.translate, RE::UI3DSceneManager::GetSingleton()->cachedCameraPos, pos,
-                                   model->worldBound.radius - Theme::last_theme->marginX, Theme::last_theme->marginY);
+                                   model->worldBound.radius - Theme::last_theme->attachedOffsetX, Theme::last_theme->attachedOffsetY);
                     pos2d = WorldToScreenLoc(pos, RE::UI3DSceneManager::GetSingleton()->camera) + ImVec2{
                                 (Theme::last_theme->prompt_size + padding) * DisplayTweaks::resolutionScale, 0};
                 }
@@ -427,7 +427,7 @@ SubManager::AttachedPosition SubManager::GetAttachedObjectPos() const {
             pos2d = ImVec2{0.f, -(Theme::last_theme->prompt_size + padding) * DisplayTweaks::resolutionScale};
         }
 
-        OffsetPosition(pos, cameraPos, pos, -Theme::last_theme->marginX, Theme::last_theme->marginY);
+        OffsetPosition(pos, cameraPos, pos, -Theme::last_theme->attachedOffsetX, Theme::last_theme->attachedOffsetY);
 
         if (auto world = VR::GetWorldAnchor(pos)) {
             return {world->origin + pos2d, world};
@@ -1312,6 +1312,8 @@ void Manager::ShowQueue() {
          const auto& rowIndices : rowsByObject | std::views::values) {
         const auto position = managers[rowIndices[0]]->GetAttachedObjectPos();
         auto window_pos = position.screen;
+        window_pos.x -= Theme::last_theme->marginX * resScale;
+        window_pos.y -= Theme::last_theme->marginY * resScale;
         renderBatch.clear();
         for (const auto index : rowIndices) {
             ShowPromptRow(index, isList, visibleCount);

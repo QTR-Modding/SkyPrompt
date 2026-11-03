@@ -133,6 +133,8 @@ Theme::Theme::Theme(const rapidjson::Value& a_value) {
     n_max_buttons = block.n_max_buttons.get();
     marginX = block.marginX.get();
     marginY = block.marginY.get();
+    attachedOffsetX = block.attachedOffsetX.get();
+    attachedOffsetY = block.attachedOffsetY.get();
     xPercent = block.xPercent.get();
     yPercent = block.yPercent.get();
 
@@ -214,6 +216,8 @@ void Theme::Theme::UpdateSettings(rapidjson::Document& a_document) const {
     set("n_max_buttons", n_max_buttons);
     set("marginX", marginX);
     set("marginY", marginY);
+    set("attachedOffsetX", attachedOffsetX);
+    set("attachedOffsetY", attachedOffsetY);
     set("xPercent", xPercent);
     set("yPercent", yPercent);
     set("prompt_size", prompt_size);

@@ -17,6 +17,8 @@ namespace Theme {
         Field<int, rapidjson::Value> n_max_buttons = {"n_max_buttons", 4};
         Field<float, rapidjson::Value> marginX = {"marginX", 0.0f};
         Field<float, rapidjson::Value> marginY = {"marginY", 0.0f};
+        Field<float, rapidjson::Value> attachedOffsetX = {"attachedOffsetX", 0.0f};
+        Field<float, rapidjson::Value> attachedOffsetY = {"attachedOffsetY", 0.0f};
         Field<float, rapidjson::Value> xPercent = {"xPercent", 0.85f};
         Field<float, rapidjson::Value> yPercent = {"yPercent", 0.85f};
         Field<float, rapidjson::Value> prompt_size = {"prompt_size", 45.65f};
@@ -87,6 +89,8 @@ namespace Theme {
         int n_max_buttons = 4;
         float marginX = 38.714f;
         float marginY = -140.979f;
+        float attachedOffsetX = 0.f;
+        float attachedOffsetY = 0.f;
         float xPercent = 0.779f;
         float yPercent = 0.737f;
         float prompt_size = 45.65f;
