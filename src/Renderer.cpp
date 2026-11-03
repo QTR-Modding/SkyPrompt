@@ -673,6 +673,29 @@ SubManager* Manager::Add2Q(
     return manager_list->back().get();
 }
 
+bool Manager::RequestTheme(const SkyPromptAPI::ClientID a_clientID, const std::string_view theme_name) {
+    std::shared_lock lock(mutex_);
+    std::unique_lock theme_lock(Theme::m_theme_);
+    auto theme = &Theme::default_theme;
+    if (theme_name.empty()) {
+        Theme::themes.erase(a_clientID);
+    } else {
+        const auto it = Theme::themes_loaded.find(std::string(theme_name));
+        if (it == Theme::themes_loaded.end()) {
+            logger::error("Theme not found: {}", theme_name);
+            return false;
+        }
+        theme = &it->second;
+        theme->ReLoad(theme_name);
+        Theme::themes[a_clientID] = theme;
+    }
+    if (a_clientID == last_clientID) {
+        Theme::last_theme = theme;
+        MCP::refreshStyle.store(true);
+    }
+    return true;
+}
+
 bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
     if (std::shared_lock lock(mutex_); client_id == last_clientID) {
         return false;

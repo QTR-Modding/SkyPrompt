@@ -76,18 +76,5 @@ bool ProcessRequestTheme(SkyPromptAPI::ClientID a_clientID, const std::string_vi
         logger::error("Invalid ClientID: {}", a_clientID);
         return false;
     }
-    if (theme_name.empty()) {
-        logger::error("Theme name cannot be empty");
-        return false;
-    }
-    if (auto theme_str = std::string(theme_name); Theme::themes_loaded.contains(theme_str)) {
-        std::unique_lock lock(Theme::m_theme_);
-        auto& a_theme = Theme::themes_loaded.at(theme_str);
-        a_theme.ReLoad(theme_str);
-        Theme::themes[a_clientID] = &a_theme;
-        return true;
-    } else {
-        logger::error("Theme not found: {}", theme_str);
-        return false;
-    }
+    return MANAGER(ImGui::Renderer)->RequestTheme(a_clientID, theme_name);
 }

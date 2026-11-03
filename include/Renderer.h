@@ -224,6 +224,7 @@ namespace ImGui::Renderer {
         void SendEvents();
 
         bool InitializeClient(SkyPromptAPI::ClientID a_clientID);
+        bool RequestTheme(SkyPromptAPI::ClientID a_clientID, std::string_view theme_name);
         bool CycleClient(bool a_left);
     };
 }
