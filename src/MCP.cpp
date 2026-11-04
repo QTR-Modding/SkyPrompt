@@ -265,6 +265,8 @@ namespace {
         settings.yPercent = defaults.yPercent;
         settings.marginX = defaults.marginX;
         settings.marginY = defaults.marginY;
+        settings.attachedOffsetX = defaults.attachedOffsetX;
+        settings.attachedOffsetY = defaults.attachedOffsetY;
         settings.prompt_size = defaults.prompt_size;
         settings.icon2font_ratio = defaults.icon2font_ratio;
         settings.prompt_order = defaults.prompt_order;
@@ -335,6 +337,10 @@ namespace {
                                 -1000.0f, 1000.0f, "$SkyPromptMCPSettingsMarginXHelp");
         changed |= SettingFloat("$SkyPromptMCPSettingsMarginY", "settings.marginY", &theme.marginY,
                                 -1000.0f, 1000.0f, "$SkyPromptMCPSettingsMarginYHelp");
+        changed |= SettingFloat("$SkyPromptMCPSettingsAttachedOffsetX", "settings.attachedOffsetX", &theme.attachedOffsetX,
+                                -1000.0f, 1000.0f, "$SkyPromptMCPSettingsAttachedOffsetXHelp");
+        changed |= SettingFloat("$SkyPromptMCPSettingsAttachedOffsetY", "settings.attachedOffsetY", &theme.attachedOffsetY,
+                                -1000.0f, 1000.0f, "$SkyPromptMCPSettingsAttachedOffsetYHelp");
 
         const auto pivotBefore = theme.prompt_pivot;
         if (SettingCombo("$SkyPromptMCPSettingsPromptPivot", "settings.promptPivot",
@@ -1062,6 +1068,8 @@ void MCP::Settings::to_json() {
     root.AddMember("yPercent", Theme::default_theme.yPercent, allocator);
     root.AddMember("marginX", Theme::default_theme.marginX, allocator);
     root.AddMember("marginY", Theme::default_theme.marginY, allocator);
+    root.AddMember("attachedOffsetX", Theme::default_theme.attachedOffsetX, allocator);
+    root.AddMember("attachedOffsetY", Theme::default_theme.attachedOffsetY, allocator);
     root.AddMember("prompt_size", Theme::default_theme.prompt_size, allocator);
     root.AddMember("icon2font_ratio", Theme::default_theme.icon2font_ratio, allocator);
     root.AddMember("linespacing", Theme::default_theme.linespacing, allocator);
@@ -1241,6 +1249,12 @@ void MCP::Settings::from_json() {
     }
     if (mcp.HasMember("marginY")) {
         Theme::default_theme.marginY = mcp["marginY"].GetFloat();
+    }
+    if (mcp.HasMember("attachedOffsetX")) {
+        Theme::default_theme.attachedOffsetX = mcp["attachedOffsetX"].GetFloat();
+    }
+    if (mcp.HasMember("attachedOffsetY")) {
+        Theme::default_theme.attachedOffsetY = mcp["attachedOffsetY"].GetFloat();
     }
     if (mcp.HasMember("prompt_size")) {
         Theme::default_theme.prompt_size = mcp["prompt_size"].GetFloat();

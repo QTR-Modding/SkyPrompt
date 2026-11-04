@@ -347,12 +347,12 @@ namespace {
         return screenLocOut;
     }
 
-    void OffsetRight(const RE::NiPoint3& a_pos, const RE::NiPoint3& a_cam_pos, RE::NiPoint3& a_out,
-                     const float a_offset) {
+    void OffsetPosition(const RE::NiPoint3& a_pos, const RE::NiPoint3& a_cam_pos, RE::NiPoint3& a_out,
+                        const float a_offset_x, const float a_offset_y) {
         const auto diff = a_pos - a_cam_pos;
         constexpr RE::NiPoint3 z_vec(0.f, 0.f, 1.f);
         const auto right_vec = diff.UnitCross(z_vec);
-        a_out = a_pos + right_vec * a_offset;
+        a_out = a_pos + right_vec * a_offset_x + z_vec * a_offset_y;
     }
 
     constexpr float CLAMP_MAX_OVERSHOOT = -100;
@@ -388,8 +388,8 @@ SubManager::AttachedPosition SubManager::GetAttachedObjectPos() const {
             if (const auto inv3dmngr = RE::Inventory3DManager::GetSingleton(); !inv3dmngr->GetRuntimeData().loadedModels
                 .empty()) {
                 if (const auto& model = inv3dmngr->GetRuntimeData().loadedModels.back().spModel) {
-                    OffsetRight(model->world.translate, RE::UI3DSceneManager::GetSingleton()->cachedCameraPos, pos,
-                                model->worldBound.radius);
+                    OffsetPosition(model->world.translate, RE::UI3DSceneManager::GetSingleton()->cachedCameraPos, pos,
+                                   model->worldBound.radius - Theme::last_theme->attachedOffsetX, Theme::last_theme->attachedOffsetY);
                     pos2d = WorldToScreenLoc(pos, RE::UI3DSceneManager::GetSingleton()->camera) + ImVec2{
                                 (Theme::last_theme->prompt_size + padding) * DisplayTweaks::resolutionScale, 0};
                 }
@@ -397,6 +397,9 @@ SubManager::AttachedPosition SubManager::GetAttachedObjectPos() const {
             FastClampToScreen(pos2d);
             return {pos2d, std::nullopt};
         }
+        const auto* vrNodes = REL::Module::IsVR() ? RE::PlayerCharacter::GetSingleton()->GetVRNodeData() : nullptr;
+        const auto cameraPos = vrNodes && vrNodes->HmdNode ? vrNodes->HmdNode->world.translate
+            : RE::PlayerCamera::GetSingleton()->GetRuntimeData2().pos;
         if (const auto a_head = [&]() -> RE::NiAVObject* {
             if (const auto actor = ref->As<RE::Actor>()) {
                 if (const auto middle = actor->GetMiddleHighProcess()) {
@@ -407,9 +410,6 @@ SubManager::AttachedPosition SubManager::GetAttachedObjectPos() const {
         }()) {
             constexpr float npc_head_size = 15.f;
             const float objectScale = ref->GetScale();
-            const auto* vrNodes = REL::Module::IsVR() ? RE::PlayerCharacter::GetSingleton()->GetVRNodeData() : nullptr;
-            const auto cameraPos = vrNodes && vrNodes->HmdNode ? vrNodes->HmdNode->world.translate
-                : RE::PlayerCamera::GetSingleton()->GetRuntimeData2().pos;
             const auto npc_head_pos = a_head->world.translate;
             const auto diff = npc_head_pos - cameraPos;
             constexpr RE::NiPoint3 z_vec(0.f, 0.f, 1.f);
@@ -426,6 +426,8 @@ SubManager::AttachedPosition SubManager::GetAttachedObjectPos() const {
             pos = RE::NiPoint3{center.x, center.y, center.z + bounding_box.Extents.z + 10.f};
             pos2d = ImVec2{0.f, -(Theme::last_theme->prompt_size + padding) * DisplayTweaks::resolutionScale};
         }
+
+        OffsetPosition(pos, cameraPos, pos, -Theme::last_theme->attachedOffsetX, Theme::last_theme->attachedOffsetY);
 
         if (auto world = VR::GetWorldAnchor(pos)) {
             return {world->origin + pos2d, world};
@@ -669,6 +671,29 @@ SubManager* Manager::Add2Q(
     const auto iButton = InteractionButton(a_interaction, a_mutables, a_type, a_refid, a_bttn_map, index);
     manager_list->back()->Add2Q(iButton, show);
     return manager_list->back().get();
+}
+
+bool Manager::RequestTheme(const SkyPromptAPI::ClientID a_clientID, const std::string_view theme_name) {
+    std::shared_lock lock(mutex_);
+    std::unique_lock theme_lock(Theme::m_theme_);
+    auto theme = &Theme::default_theme;
+    if (theme_name.empty()) {
+        Theme::themes.erase(a_clientID);
+    } else {
+        const auto it = Theme::themes_loaded.find(std::string(theme_name));
+        if (it == Theme::themes_loaded.end()) {
+            logger::error("Theme not found: {}", theme_name);
+            return false;
+        }
+        theme = &it->second;
+        theme->ReLoad(theme_name);
+        Theme::themes[a_clientID] = theme;
+    }
+    if (a_clientID == last_clientID) {
+        Theme::last_theme = theme;
+        MCP::refreshStyle.store(true);
+    }
+    return true;
 }
 
 bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
