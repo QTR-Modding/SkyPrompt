@@ -686,7 +686,9 @@ bool Manager::RequestTheme(const SkyPromptAPI::ClientID a_clientID, const std::s
             return false;
         }
         theme = &it->second;
-        theme->ReLoad(theme_name);
+        if (!theme->ReLoad(theme_name)) {
+            return false;
+        }
         Theme::themes[a_clientID] = theme;
     }
     if (a_clientID == last_clientID) {

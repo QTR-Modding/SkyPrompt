@@ -112,7 +112,7 @@ namespace Theme {
         Theme() = default;
         explicit Theme(const rapidjson::Value& a_value);
 
-        void ReLoad(std::string_view a_filename);
+        bool ReLoad(std::string_view a_filename);
         void LoadSpecialEffects(const rapidjson::Value& a_value);
         void UpdateSpecialEffects(rapidjson::Value& a_value, rapidjson::Document::AllocatorType& a_allocator) const;
         void UpdateSettings(rapidjson::Document& a_document) const;
