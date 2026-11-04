@@ -274,10 +274,10 @@ bool Theme::Theme::Save(const std::filesystem::path& a_path) const {
     return WriteThemeFile(a_path, document);
 }
 
-void Theme::Theme::ReLoad(std::string_view a_filename) {
+bool Theme::Theme::ReLoad(std::string_view a_filename) {
     if (!std::filesystem::exists(themes_folder)) {
         logger::error("Mod folder does not exist: {}", themes_folder);
-        return;
+        return false;
     }
     for (const auto& file : std::filesystem::directory_iterator(themes_folder)) {
         if (!file.is_regular_file() || file.path().extension() != ".json") {
@@ -291,20 +291,26 @@ void Theme::Theme::ReLoad(std::string_view a_filename) {
         std::ifstream ifs(file.path());
         if (!ifs.is_open()) {
             logger::error("Failed to open file: {}", file.path().string());
-            return;
+            return false;
         }
         std::string json_str((std::istreambuf_iterator(ifs)), std::istreambuf_iterator<char>());
+        if (ifs.bad()) {
+            logger::error("Failed to read file: {}", file.path().string());
+            return false;
+        }
         ifs.close();
         doc.Parse(json_str.c_str());
         if (doc.HasParseError() || !doc.IsObject()) {
             logger::error("JSON Parse Error at offset {}: {}", doc.GetErrorOffset(),
                           doc.HasParseError() ? rapidjson::GetParseError_En(doc.GetParseError()) : "Expected an object");
-            return;
+            return false;
         }
         *this = Theme(doc); // Update the theme with the new data
 
-        return;
+        return true;
     }
+    logger::error("Theme file not found: {}", a_filename);
+    return false;
 }
 
 void Theme::LoadThemes() {
