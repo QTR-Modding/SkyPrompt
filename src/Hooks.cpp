@@ -93,7 +93,10 @@ void DrawHook::thunk(std::uint32_t a_timer) {
         io.DisplaySize.y = static_cast<float>(screenSize.height);
     }
     VR::PrepareFrame(previousDisplaySize);
-    Styles::GetSingleton()->OnStyleRefresh();
+    if (MCP::refreshStyle.exchange(false)) {
+        Styles::GetSingleton()->OnStyleRefresh();
+        MANAGER(ImGui::Renderer)->PrepareFonts();
+    }
     ImGui_ImplDX11_NewFrame();
     NewFrame();
     {

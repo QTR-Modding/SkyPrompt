@@ -1,14 +1,9 @@
 #include "Styles.h"
-#include "IconsFonts.h"
 #include "MCP.h"
 #include "Renderer.h"
 
 namespace ImGui {
     void Styles::OnStyleRefresh() const {
-        if (!MCP::refreshStyle.exchange(false)) {
-            return;
-        }
-
         ImGuiStyle style;
         auto& colors = style.Colors;
 
@@ -51,16 +46,6 @@ namespace ImGui {
         style.ScaleAllSizes(Renderer::GetResolutionScale());
         GetStyle() = style;
 
-        static bool reloadAttempted = false;
-        if (!MANAGER(IconFont)->ReloadFonts(MANAGER(Renderer)->GetCurrentTheme())) {
-            if (!reloadAttempted) {
-                reloadAttempted = true;
-                MANAGER(Renderer)->ResetCurrentTheme();
-            }
-            // else: already attempted reload, do not retry to avoid infinite loop
-        } else {
-            reloadAttempted = false; // reset on success
-        }
     }
 
     void Styles::RefreshStyle() {

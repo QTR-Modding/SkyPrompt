@@ -176,6 +176,7 @@ namespace ImGui::Renderer {
 
         mutable std::shared_mutex mutex_;
         std::atomic<bool> isPaused = false;
+        bool defaultFont_ReloadAttempted = false;
 
 
         struct Page {
@@ -240,6 +241,7 @@ namespace ImGui::Renderer {
         bool InitializeClient(SkyPromptAPI::ClientID a_clientID);
         bool RequestTheme(SkyPromptAPI::ClientID a_clientID, std::string_view theme_name);
         const Theme::Theme& GetCurrentTheme() const;
+        void PrepareFonts();
         void ResetCurrentTheme();
         bool CyclePage(bool a_left);
     };

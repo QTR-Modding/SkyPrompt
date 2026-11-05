@@ -689,6 +689,17 @@ const Theme::Theme& Manager::GetCurrentTheme() const {
     return page ? *page->theme : Theme::default_theme;
 }
 
+void Manager::PrepareFonts() {
+    if (!MANAGER(IconFont)->ReloadFonts(GetCurrentTheme())) {
+        if (!defaultFont_ReloadAttempted) {
+            defaultFont_ReloadAttempted = true;
+            ResetCurrentTheme();
+        }
+    } else {
+        defaultFont_ReloadAttempted = false;
+    }
+}
+
 void Manager::ResetCurrentTheme() {
     std::unique_lock lock(mutex_);
     std::unique_lock theme_lock(Theme::m_theme_);
