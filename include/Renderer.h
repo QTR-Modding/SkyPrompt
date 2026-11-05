@@ -184,6 +184,8 @@ namespace ImGui::Renderer {
             PromptLayouts::List list;
             Theme::Theme* theme = &Theme::default_theme;
 
+            void Render(SkyPromptAPI::ClientID pageIndex, SkyPromptAPI::ClientID pageCount);
+            void ShowPromptRow(size_t index, bool isList, size_t visibleCount);
             bool ProcessInput(RE::InputEvent* event, uint32_t buttonKey);
             std::optional<bool> ProcessListInput(RE::InputEvent* event);
             std::optional<bool> ProcessListNavigation(PromptLayouts::List::Navigation navigation);
@@ -201,7 +203,6 @@ namespace ImGui::Renderer {
         SkyPromptAPI::ClientID FindCompatibleClientID(SkyPromptAPI::ClientID a_clientID) const;
 
         void Clear(SkyPromptAPI::PromptEventType a_event_type);
-        void ShowPromptRow(Page& page, size_t index, bool isList, size_t visibleCount);
 
     public:
         ActivationPop activationPop;
@@ -219,7 +220,7 @@ namespace ImGui::Renderer {
         void Start();
         void Stop();
         void CleanUpQueue();
-        void ShowQueue();
+        void Render();
         void ResetQueue() const;
         void WakeUpQueue() const;
         bool IsPaused() const { return isPaused.load(); }

@@ -38,7 +38,7 @@ void ImGui::Renderer::RenderPrompts() {
         manager->Start();
     }
     if (manager->HasTask()) {
-        manager->ShowQueue();
+        manager->Render();
     }
     if (Manager::IsGameFrozen() && !Tutorial::showing_tutorial.load()) {
         manager->activationPop.Clear();
@@ -1270,101 +1270,97 @@ bool Manager::RemoveEmptyRows(Page& page) {
     return removed;
 }
 
-void Manager::ShowPromptRow(Page& page, const size_t index, const bool isList, const size_t visibleCount) {
+void Manager::Page::ShowPromptRow(const size_t index, const bool isList, const size_t visibleCount) {
     // Advance every row's lifetime, but draw only the List viewport.
     const auto before = renderBatch.size();
-    page.managers[index]->ShowQueue(*page.theme);
+    managers[index]->ShowQueue(*theme);
     if (isList && renderBatch.size() != before &&
-        !page.list.PrepareRow(renderBatch.back(), index, page.managers.size(), visibleCount)) {
+        !list.PrepareRow(renderBatch.back(), index, managers.size(), visibleCount)) {
         renderBatch.resize(before);
     }
 }
 
-void Manager::ShowQueue() {
-    if (IsPaused()) {
-        return;
-    }
-
-    std::shared_lock page_lock(mutex_);
-    const auto page = GetPage(current_pageID);
-    if (!page) return;
-    const auto& theme = *page->theme;
-    page_lock.unlock();
-
-    // Get the screen size
+void Manager::Page::Render(const SkyPromptAPI::ClientID pageIndex, const SkyPromptAPI::ClientID pageCount) {
+    const auto& pageTheme = *theme;
     const auto [width, height] = ImGui::GetIO().DisplaySize;
 
-    // Calculate position
     const auto resScale = GetResolutionScale();
     const ImVec2 windowPos(
-        width * theme.xPercent - theme.marginX * resScale,
-        height * theme.yPercent - theme.marginY * resScale
+        width * pageTheme.xPercent - pageTheme.marginX * resScale,
+        height * pageTheme.yPercent - pageTheme.marginY * resScale
         );
 
-    const bool isList = theme.prompt_alignment == Theme::kList;
-    const auto visibleCount = static_cast<size_t>(std::max(theme.n_max_buttons, 1));
+    const bool isList = pageTheme.prompt_alignment == Theme::kList;
+    const auto visibleCount = static_cast<size_t>(std::max(pageTheme.n_max_buttons, 1));
     if (isList) {
-        std::unique_lock lock(mutex_);
-        page->list.UpdateViewport(page->managers.size(), visibleCount);
+        list.UpdateViewport(managers.size(), visibleCount);
     }
     std::map<RefID, std::vector<size_t>> rowsByObject;
     renderBatch.clear();
 
-    for (std::shared_lock lock(mutex_); const auto index : std::views::iota(size_t{0}, page->managers.size())) {
-        if (const auto a_ref = page->managers[index]->GetAttachedObject()) {
+    for (const auto index : std::views::iota(size_t{0}, managers.size())) {
+        if (const auto a_ref = managers[index]->GetAttachedObject()) {
             rowsByObject[a_ref->GetFormID()].push_back(index);
             continue;
         }
-        ShowPromptRow(*page, index, isList, visibleCount);
+        ShowPromptRow(index, isList, visibleCount);
     }
 
-    const float windowPadding = 0.4f * theme.prompt_size;
-    BeginImGuiWindow("SkyPrompt", GetSkyPromptContentOrigin(theme, windowPos), windowPadding);
-    RenderSkyPrompt(theme, windowPos);
+    const float windowPadding = 0.4f * pageTheme.prompt_size;
+    BeginImGuiWindow("SkyPrompt", GetSkyPromptContentOrigin(pageTheme, windowPos), windowPadding);
+    RenderSkyPrompt(pageTheme, windowPos);
 
-    if (MCP::Settings::cycle_controls.load()) {
-        SkyPromptAPI::ClientID n_has_prompts = 0;
-        SkyPromptAPI::ClientID index = 0;
-        for (std::shared_lock lock(mutex_);
-             const auto& [pageID, otherPage] : pages) {
-            if (pageID != current_pageID) {
-                for (auto& a_manager : otherPage.managers) {
-                    if (a_manager && a_manager->HasQueue()) {
-                        n_has_prompts++;
-                        break;
-                    }
-                }
-            }
-            if (pageID == current_pageID) {
-                index = n_has_prompts;
-            }
-        }
-
-        if (n_has_prompts > 0) {
-            DrawCycleIndicators(theme, index + 1, n_has_prompts + 1);
-        }
+    if (pageCount > 1) {
+        DrawCycleIndicators(pageTheme, pageIndex, pageCount);
     }
 
     EndImGuiWindow();
 
     int i = 0;
-    for (std::shared_lock lock(mutex_);
-         const auto& rowIndices : rowsByObject | std::views::values) {
-        const auto position = page->managers[rowIndices[0]]->GetAttachedObjectPos(theme);
+    for (const auto& rowIndices : rowsByObject | std::views::values) {
+        const auto position = managers[rowIndices[0]]->GetAttachedObjectPos(pageTheme);
         auto window_pos = position.screen;
-        window_pos.x -= theme.marginX * resScale;
-        window_pos.y -= theme.marginY * resScale;
+        window_pos.x -= pageTheme.marginX * resScale;
+        window_pos.y -= pageTheme.marginY * resScale;
         renderBatch.clear();
         for (const auto index : rowIndices) {
-            ShowPromptRow(*page, index, isList, visibleCount);
+            ShowPromptRow(index, isList, visibleCount);
         }
         BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str(),
-                         GetSkyPromptContentOrigin(theme, window_pos), windowPadding);
+                         GetSkyPromptContentOrigin(pageTheme, window_pos), windowPadding);
         if (position.world) VR::BeginWorldPrompt(*position.world, GetWindowDrawList());
-        RenderSkyPrompt(theme, window_pos);
+        RenderSkyPrompt(pageTheme, window_pos);
         if (position.world) VR::EndWorldPrompt();
         EndImGuiWindow();
     }
+}
+
+void Manager::Render() {
+    if (IsPaused()) {
+        return;
+    }
+
+    std::unique_lock lock(mutex_);
+    const auto page = GetPage(current_pageID);
+    if (!page) return;
+
+    SkyPromptAPI::ClientID otherPages = 0;
+    SkyPromptAPI::ClientID index = 0;
+    if (MCP::Settings::cycle_controls.load()) {
+        for (const auto& [a_pageID, a_page] : pages) {
+            if (a_pageID != current_pageID) {
+                for (const auto& manager : a_page.managers) {
+                    if (manager && manager->HasQueue()) {
+                        ++otherPages;
+                        break;
+                    }
+                }
+            } else {
+                index = otherPages;
+            }
+        }
+    }
+    page->Render(index + 1, otherPages + 1);
 }
 
 void Manager::Clear(const SkyPromptAPI::PromptEventType a_event_type) {
