@@ -97,6 +97,10 @@ void DrawHook::thunk(std::uint32_t a_timer) {
         Styles::GetSingleton()->OnStyleRefresh();
         MANAGER(ImGui::Renderer)->PrepareFonts();
     }
+    if (!MANAGER(IconFont)->HasFonts()) {
+        VR::Render(CreateD3DAndSwapChain::context, false);
+        return;
+    }
     ImGui_ImplDX11_NewFrame();
     NewFrame();
     {

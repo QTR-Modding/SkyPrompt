@@ -690,23 +690,30 @@ const Theme::Theme& Manager::GetCurrentTheme() const {
 }
 
 void Manager::PrepareFonts() {
-    if (!MANAGER(IconFont)->ReloadFonts(GetCurrentTheme())) {
-        if (!defaultFont_ReloadAttempted) {
-            defaultFont_ReloadAttempted = true;
-            ResetCurrentTheme();
-        }
-    } else {
-        defaultFont_ReloadAttempted = false;
+    const float resolutionScale = GetResolutionScale();
+    std::set<std::pair<std::string, float>> requiredFonts;
+    {
+        std::shared_lock lock(mutex_);
+        std::shared_lock theme_lock(Theme::m_theme_);
+        const auto page = GetPage(current_pageID);
+        const auto& theme = page ? *page->theme : Theme::default_theme;
+        requiredFonts.emplace(theme.font_name, theme.prompt_size * resolutionScale);
     }
-}
 
-void Manager::ResetCurrentTheme() {
-    std::unique_lock lock(mutex_);
-    std::unique_lock theme_lock(Theme::m_theme_);
-    Theme::ReLoadDefaultTheme();
-    if (const auto page = GetPage(current_pageID)) {
-        page->theme = &Theme::default_theme;
+    const auto fontManager = MANAGER(IconFont);
+    if (fontManager->ReloadFonts(requiredFonts)) return;
+
+    {
+        std::unique_lock lock(mutex_);
+        std::unique_lock theme_lock(Theme::m_theme_);
+        Theme::default_theme = Theme::Theme();
+        if (const auto page = GetPage(current_pageID)) {
+            page->theme = &Theme::default_theme;
+        }
+        requiredFonts.clear();
+        requiredFonts.emplace(Theme::default_theme.font_name, Theme::default_theme.prompt_size * resolutionScale);
     }
+    if (!fontManager->ReloadFonts(requiredFonts)) return;
 }
 
 bool Manager::SwitchToPage(const SkyPromptAPI::ClientID pageID) {
@@ -1293,6 +1300,9 @@ void Manager::Page::ShowPromptRow(const size_t index, const bool isList, const s
 
 void Manager::Page::Render(const SkyPromptAPI::ClientID pageIndex, const SkyPromptAPI::ClientID pageCount) {
     const auto& pageTheme = *theme;
+    const auto& pageFonts = MANAGER(IconFont)->GetFonts(pageTheme.font_name,
+                                                      pageTheme.prompt_size * GetResolutionScale());
+    PushFont(pageFonts.normalFont);
     const auto [width, height] = ImGui::GetIO().DisplaySize;
 
     const auto resScale = GetResolutionScale();
@@ -1322,7 +1332,7 @@ void Manager::Page::Render(const SkyPromptAPI::ClientID pageIndex, const SkyProm
     RenderSkyPrompt(pageTheme, windowPos);
 
     if (pageCount > 1) {
-        DrawCycleIndicators(pageTheme, pageIndex, pageCount);
+        DrawCycleIndicators(pageTheme, pageFonts.smallFont, pageIndex, pageCount);
     }
 
     EndImGuiWindow();
@@ -1344,6 +1354,7 @@ void Manager::Page::Render(const SkyPromptAPI::ClientID pageIndex, const SkyProm
         if (position.world) VR::EndWorldPrompt();
         EndImGuiWindow();
     }
+    PopFont();
 }
 
 void Manager::Render() {

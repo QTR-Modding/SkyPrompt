@@ -327,7 +327,7 @@ namespace {
 
         dl->PushClipRectFullScreen();
 
-        const float iconSz = ImGui::GetIO().FontDefault->FontSize * theme.icon2font_ratio;
+        const float iconSz = ImGui::GetFontSize() * theme.icon2font_ratio;
         const ImVec2 iconSzV = {iconSz, iconSz};
 
         const float circleDia = iconSz * 1.25f;
@@ -616,7 +616,8 @@ ImVec2 ImGui::ButtonIcon(const Theme::Theme& theme, const IconFont::IconTexture*
     return a_size;
 }
 
-void ImGui::DrawCycleIndicators(const Theme::Theme& theme, SkyPromptAPI::ClientID curr_index, SkyPromptAPI::ClientID queue_size) {
+void ImGui::DrawCycleIndicators(const Theme::Theme& theme, ImFont* smallFont,
+                                 SkyPromptAPI::ClientID curr_index, SkyPromptAPI::ClientID queue_size) {
     auto* iconMgr = MANAGER(IconFont);
     const auto* inputMgr = MANAGER(Input);
     const auto curr_device = inputMgr->GetInputDevice();
@@ -639,17 +640,15 @@ void ImGui::DrawCycleIndicators(const Theme::Theme& theme, SkyPromptAPI::ClientI
 
     SameLine();
 
-    if (auto* smallFont = MANAGER(IconFont)->GetSmallFont()) {
-        PushFont(smallFont);
-        const std::string text = std::format("({}/{})", curr_index, queue_size);
-        const ImVec2 textSize = CalcTextSize(text.c_str());
+    PushFont(smallFont);
+    const std::string text = std::format("({}/{})", curr_index, queue_size);
+    const ImVec2 textSize = CalcTextSize(text.c_str());
 
-        const float textOffset = (iconSz - textSize.y) * 0.5f;
-        SetCursorPosY(GetCursorPosY() + textOffset);
+    const float textOffset = (iconSz - textSize.y) * 0.5f;
+    SetCursorPosY(GetCursorPosY() + textOffset);
 
-        TextUnformatted(text.c_str());
-        PopFont();
-    }
+    TextUnformatted(text.c_str());
+    PopFont();
 }
 
 
@@ -680,7 +679,7 @@ void ImGui::RenderSkyPrompt(const Theme::Theme& theme, const ImVec2& anchor) {
             break;
         case Theme::PromptAlignment::kRadial: {
             const float lineSpacingPx = GetFontSize() * theme.linespacing;
-            const float iconSize = GetIO().FontDefault->FontSize * theme.icon2font_ratio;
+            const float iconSize = GetFontSize() * theme.icon2font_ratio;
             const float bendRadius = iconSize * 6;
 
             bounds = RenderPromptsRadialRotated(theme, anchor,
@@ -699,7 +698,7 @@ void ImGui::RenderSkyPrompt(const Theme::Theme& theme, const ImVec2& anchor) {
     drawList->PopClipRect();
 
     for (const auto& effect : theme.special_effects) {
-        const auto a_size = GetIO().FontDefault->FontSize * theme.icon2font_ratio;
+        const auto a_size = GetFontSize() * theme.icon2font_ratio;
         SkyPrompt::AddOns::RenderSpecialEffect(GetSpecialsView(effect), anchor, a_size,
                                                Renderer::GetResolutionScale());
     }

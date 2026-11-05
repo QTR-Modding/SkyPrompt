@@ -14,7 +14,7 @@ namespace ImGui::PromptLayouts {
     }
 
     float GetIconSize(const Theme::Theme& theme) {
-        const auto a_fontsize = ImGui::GetIO().FontDefault->FontSize;
+        const auto a_fontsize = ImGui::GetFontSize();
         return a_fontsize * theme.icon2font_ratio;
     }
 

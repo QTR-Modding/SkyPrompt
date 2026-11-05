@@ -1,5 +1,4 @@
 #include "Theme.h"
-#include "MCP.h"
 #include <rapidjson/error/en.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/stringbuffer.h>
@@ -354,9 +353,4 @@ void Theme::LoadThemes() {
             logger::error("Theme name is empty or already exists: {}", a_name);
         }
     }
-}
-
-void Theme::ReLoadDefaultTheme() {
-    default_theme = Theme();
-    MCP::refreshStyle.store(true);
 }

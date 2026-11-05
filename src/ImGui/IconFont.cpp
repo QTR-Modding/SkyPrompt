@@ -1,5 +1,4 @@
 #include "IconsFonts.h"
-#include "Renderer.h"
 #include "Translations.h"
 #include <imgui_impl_dx11.h>
 #include "ClibUtilsQTR/StringHelpers.hpp"
@@ -113,8 +112,9 @@ namespace IconFont {
         checkboxFilled.Load();
     }
 
-    bool Manager::ReloadFonts(const Theme::Theme& theme) {
+    bool Manager::ReloadFonts(const std::set<std::pair<std::string, float>>& requiredFonts) {
         auto& io = ImGui::GetIO();
+        fonts.clear();
         std::set<FontInfo> discoveredFonts{};
 
         constexpr auto fontPath = R"(Data\Interface\ImGuiIcons\Fonts\)";
@@ -147,30 +147,22 @@ namespace IconFont {
 
         builder.BuildRanges(&ranges);
 
-        const auto resolutionScale = ImGui::Renderer::GetResolutionScale();
+        constexpr int kMaxAtlasDimension = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+        std::map<std::pair<std::string, float>, FontPair> loadedFonts;
 
-        float a_fontsize;
-        {
-            const auto& prompt_size = theme.prompt_size;
-            a_fontsize = prompt_size * resolutionScale;
-        }
-        const auto a_smallfontsize = a_fontsize * 0.65f;
-
-        constexpr int kMaxAtlasDimension = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION; // 16384
-
-        auto smallFontPtr = &smallFont;
-        auto a_fontPath = fontPath;
-
-        auto tryBuildFonts = [&io, &ranges, a_fontsize, a_smallfontsize, smallFontPtr,
-                a_fontPath, font_name = theme.font_name](float scale) -> bool {
+        auto tryBuildFonts = [&io, &ranges, &requiredFonts, &loadedFonts, fontPath, this](const float scale) -> bool {
+            loadedFonts.clear();
+            io.FontDefault = nullptr;
             io.Fonts->Clear();
 
-            io.FontDefault = LoadFontIconSet(a_fontsize * scale, ranges, a_fontPath, font_name);
-            *smallFontPtr = LoadFontIconSet(a_smallfontsize * scale, ranges, a_fontPath, font_name);
-
-            if (!io.FontDefault || !*smallFontPtr) {
-                logger::error("Failed to load one or more fonts for scale {}", scale);
-                return false;
+            for (const auto& [filename, size] : requiredFonts) {
+                auto& pair = loadedFonts[{filename, size}];
+                pair.normalFont = LoadFontIconSet(size * scale, ranges, fontPath, filename);
+                pair.smallFont = LoadFontIconSet(size * 0.65f * scale, ranges, fontPath, filename);
+                if (!pair.normalFont || !pair.smallFont) {
+                    logger::error("Failed to load font pair: {} at size {}", filename, size);
+                    return false;
+                }
             }
 
             if (!io.Fonts->Build()) {
@@ -193,7 +185,7 @@ namespace IconFont {
         bool built = tryBuildFonts(scale);
         while (!built && scale > 0.1f) {
             scale *= 0.8f;
-            logger::warn("Retrying font atlas build for font path {} at scale {}", a_fontPath, scale);
+            logger::warn("Retrying font atlas build at scale {}", scale);
             built = tryBuildFonts(scale);
         }
 
@@ -206,14 +198,16 @@ namespace IconFont {
         if (!ImGui_ImplDX11_CreateDeviceObjects()) {
             logger::error("Failed to recreate ImGui device objects after font reload");
             io.Fonts->Clear();
-            smallFont = nullptr;
             return false;
         }
+        fonts = std::move(loadedFonts);
         return true;
     }
 
-    ImFont* Manager::GetSmallFont() const {
-        return smallFont;
+    const Manager::FontPair& Manager::GetFonts(const std::string& filename, const float size) const {
+        const auto it = fonts.find({filename, size});
+        // Theme changes during event dispatch use the prepared fonts until the next refresh.
+        return it != fonts.end() ? it->second : fonts.begin()->second;
     }
 
     const std::set<Manager::FontInfo>& Manager::GetAvailableFonts() const {
