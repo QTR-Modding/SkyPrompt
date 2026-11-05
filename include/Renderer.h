@@ -158,7 +158,6 @@ namespace ImGui::Renderer {
     };
 
     class Manager : public REX::Singleton<Manager> {
-        bool RemoveEmptyRows(std::vector<std::unique_ptr<SubManager>>& rows);
         void RestorePromptOrder(SkyPromptAPI::ClientID pageID, SkyPromptAPI::ClientID clientID,
                                 std::span<const SkyPromptAPI::Prompt> prompts);
 
@@ -170,25 +169,31 @@ namespace ImGui::Renderer {
                           SkyPromptAPI::PromptType a_type, RefID a_refid,
                           const std::map<Input::DEVICE, uint32_t>& a_bttn_map, bool show = true);
 
-        bool SwitchToClientManager(SkyPromptAPI::ClientID client_id);
+        bool SwitchToPage(SkyPromptAPI::ClientID pageID);
 
-        SkyPromptAPI::ClientID last_clientID = 0;
+        SkyPromptAPI::ClientID current_pageID = 0;
 
         mutable std::shared_mutex mutex_;
         std::atomic<bool> isPaused = false;
 
-        std::vector<std::unique_ptr<SubManager>> managers;
-        PromptLayouts::List list;
 
-        std::map<SkyPromptAPI::ClientID, std::vector<std::unique_ptr<SubManager>>> client_managers;
+        struct Page {
+            std::vector<std::unique_ptr<SubManager>> managers;
+            PromptLayouts::List list;
+            Theme::Theme* theme = &Theme::default_theme;
+        };
 
-        const std::vector<std::unique_ptr<SubManager>>* GetManagerList(SkyPromptAPI::ClientID a_clientID) const;
-        std::vector<std::unique_ptr<SubManager>>* GetManagerList(SkyPromptAPI::ClientID a_clientID);
+        std::map<SkyPromptAPI::ClientID, Page> pages; // every page has a leader
+
+        // Caller holds mutex_.
+        const Page* GetPage(SkyPromptAPI::ClientID pageID) const;
+        Page* GetPage(SkyPromptAPI::ClientID pageID);
+        bool RemoveEmptyRows(Page& page);
 
         SkyPromptAPI::ClientID FindCompatibleClientID(SkyPromptAPI::ClientID a_clientID) const;
 
         void Clear(SkyPromptAPI::PromptEventType a_event_type);
-        void ShowPromptRow(size_t index, bool isList, size_t visibleCount);
+        void ShowPromptRow(Page& page, size_t index, bool isList, size_t visibleCount);
 
     public:
         ActivationPop activationPop;
@@ -225,6 +230,6 @@ namespace ImGui::Renderer {
 
         bool InitializeClient(SkyPromptAPI::ClientID a_clientID);
         bool RequestTheme(SkyPromptAPI::ClientID a_clientID, std::string_view theme_name);
-        bool CycleClient(bool a_left);
+        bool CyclePage(bool a_left);
     };
 }

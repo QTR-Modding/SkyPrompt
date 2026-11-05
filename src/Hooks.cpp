@@ -201,7 +201,7 @@ std::optional<bool> InputHook::ProcessVRNavigation(RE::InputEvent* event, const 
         renderer->ProcessListNavigation(direction == Direction::kUp
             ? PromptLayouts::List::Navigation::kPrevious : PromptLayouts::List::Navigation::kNext);
     } else if ((direction == Direction::kLeft || direction == Direction::kRight) && MCP::Settings::cycle_controls) {
-        renderer->CycleClient(direction == Direction::kLeft);
+        renderer->CyclePage(direction == Direction::kLeft);
     }
     // Forward a neutral movement event so Skyrim clears any previously held direction.
     const auto prompts = renderer->GetPromptButtons();
@@ -261,7 +261,7 @@ bool InputHook::ProcessInput(RE::InputEvent* event) {
             const bool is_L = key == MCP::Settings::cycle_L[device];
             const bool is_R = key == MCP::Settings::cycle_R[device];
             if (is_L || is_R) {
-                block = Manager::GetSingleton()->CycleClient(is_L);
+                block = Manager::GetSingleton()->CyclePage(is_L);
             }
         }
     } else if (const auto mouse_event = event->AsMouseMoveEvent()) {

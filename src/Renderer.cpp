@@ -220,26 +220,14 @@ const InteractionButton* ButtonQueue::Next() const {
     return nullptr;
 }
 
-const std::vector<std::unique_ptr<SubManager>>* Manager::GetManagerList(const SkyPromptAPI::ClientID a_clientID) const {
-    std::shared_lock lock(mutex_);
-    if (last_clientID == a_clientID) {
-        return &managers;
-    }
-    if (client_managers.contains(a_clientID)) {
-        return &client_managers.at(a_clientID);
-    }
-    return nullptr;
+const Manager::Page* Manager::GetPage(const SkyPromptAPI::ClientID pageID) const {
+    const auto it = pages.find(pageID);
+    return it != pages.end() ? &it->second : nullptr;
 }
 
-std::vector<std::unique_ptr<SubManager>>* Manager::GetManagerList(const SkyPromptAPI::ClientID a_clientID) {
-    std::shared_lock lock(mutex_);
-    if (last_clientID == a_clientID) {
-        return &managers;
-    }
-    if (client_managers.contains(a_clientID)) {
-        return &client_managers.at(a_clientID);
-    }
-    return nullptr;
+Manager::Page* Manager::GetPage(const SkyPromptAPI::ClientID pageID) {
+    const auto it = pages.find(pageID);
+    return it != pages.end() ? &it->second : nullptr;
 }
 
 SkyPromptAPI::ClientID Manager::FindCompatibleClientID(const SkyPromptAPI::ClientID a_clientID) const {
@@ -254,12 +242,12 @@ SkyPromptAPI::ClientID Manager::FindCompatibleClientID(const SkyPromptAPI::Clien
 
     std::shared_lock lock(mutex_);
 
-    if (contains_client(managers)) {
-        return last_clientID;
+    if (const auto page = GetPage(current_pageID); page && contains_client(page->managers)) {
+        return current_pageID;
     }
 
-    for (const auto& [clientID, manager_list] : client_managers) {
-        if (contains_client(manager_list)) {
+    for (const auto& [clientID, page] : pages) {
+        if (clientID != current_pageID && contains_client(page.managers)) {
             return clientID;
         }
     }
@@ -270,14 +258,14 @@ SkyPromptAPI::ClientID Manager::FindCompatibleClientID(const SkyPromptAPI::Clien
 bool Manager::InitializeClient(const SkyPromptAPI::ClientID a_clientID) {
     {
         std::shared_lock lock(mutex_);
-        if (a_clientID == 0 || last_clientID == a_clientID || client_managers.contains(a_clientID)) {
+        if (a_clientID == 0 || current_pageID == a_clientID || pages.contains(a_clientID)) {
             return false;
         }
     }
 
     {
         std::unique_lock lock(mutex_);
-        client_managers[a_clientID] = std::vector<std::unique_ptr<SubManager>>{};
+        pages.try_emplace(a_clientID);
     }
 
     return true;
@@ -627,14 +615,14 @@ SubManager* Manager::Add2Q(
     const SkyPromptAPI::ClientID a_clientID, const Interaction& a_interaction, const ButtonMutables& a_mutables,
     const SkyPromptAPI::PromptType a_type, const RefID a_refid, const std::map<Input::DEVICE, uint32_t>& a_bttn_map,
     const bool show) {
-    const auto manager_list = GetManagerList(a_clientID);
-    if (!manager_list) {
+    std::unique_lock lock(mutex_);
+    const auto page = GetPage(a_clientID);
+    if (!page) {
         return nullptr;
     }
+    auto& manager_list = page->managers;
 
-    std::unique_lock lock(mutex_);
-
-    for (const auto& a_manager : *manager_list) {
+    for (const auto& a_manager : manager_list) {
         if (std::ranges::any_of(a_manager->GetInteractions(),
                                 [&](const auto& i) { return i == a_interaction; })) {
             a_manager->Update(a_interaction, a_mutables);
@@ -643,7 +631,7 @@ SubManager* Manager::Add2Q(
     }
 
     int index = 0;
-    for (const auto& a_manager : *manager_list) {
+    for (const auto& a_manager : manager_list) {
         if (const auto& interactions = a_manager->GetInteractions(); interactions.empty()) {
             const auto iButton = InteractionButton(a_interaction, a_mutables, a_type, a_refid, a_bttn_map, index);
             a_manager->Add2Q(iButton, show);
@@ -661,20 +649,20 @@ SubManager* Manager::Add2Q(
         std::shared_lock theme_lock(Theme::m_theme_);
         const auto it = Theme::themes.find(a_clientID);
         const auto& theme = it != Theme::themes.end() ? *it->second : Theme::default_theme;
-        if (theme.prompt_alignment != Theme::kList && manager_list->size() >= theme.n_max_buttons) {
+        if (theme.prompt_alignment != Theme::kList && manager_list.size() >= theme.n_max_buttons) {
             return nullptr;
         }
     }
     // If no manager has the event, make a new row.
-    manager_list->emplace_back(std::make_unique<SubManager>());
+    manager_list.emplace_back(std::make_unique<SubManager>());
 
     const auto iButton = InteractionButton(a_interaction, a_mutables, a_type, a_refid, a_bttn_map, index);
-    manager_list->back()->Add2Q(iButton, show);
-    return manager_list->back().get();
+    manager_list.back()->Add2Q(iButton, show);
+    return manager_list.back().get();
 }
 
 bool Manager::RequestTheme(const SkyPromptAPI::ClientID a_clientID, const std::string_view theme_name) {
-    std::shared_lock lock(mutex_);
+    std::unique_lock lock(mutex_);
     std::unique_lock theme_lock(Theme::m_theme_);
     auto theme = &Theme::default_theme;
     if (theme_name.empty()) {
@@ -691,15 +679,18 @@ bool Manager::RequestTheme(const SkyPromptAPI::ClientID a_clientID, const std::s
         }
         Theme::themes[a_clientID] = theme;
     }
-    if (a_clientID == last_clientID) {
+    if (const auto page = GetPage(a_clientID)) {
+        page->theme = theme;
+    }
+    if (a_clientID == current_pageID) {
         Theme::last_theme = theme;
         MCP::refreshStyle.store(true);
     }
     return true;
 }
 
-bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
-    if (std::shared_lock lock(mutex_); client_id == last_clientID) {
+bool Manager::SwitchToPage(const SkyPromptAPI::ClientID pageID) {
+    if (std::shared_lock lock(mutex_); pageID == current_pageID) {
         return false;
     }
 
@@ -712,17 +703,14 @@ bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
 
     std::unique_lock lock(mutex_);
 
-    if (last_clientID != 0) {
-        client_managers.at(last_clientID) = std::move(managers);
-    }
-
-    managers = std::move(client_managers.at(client_id));
-    last_clientID = client_id;
-    list.Reset();
+    current_pageID = pageID;
+    auto& page = pages.at(pageID);
+    page.list.Reset();
 
     std::shared_lock theme_lock(Theme::m_theme_);
     const auto last_theme = Theme::last_theme;
-    Theme::last_theme = Theme::themes.contains(last_clientID) ? Theme::themes.at(last_clientID) : &Theme::default_theme;
+    page.theme = Theme::themes.contains(pageID) ? Theme::themes.at(pageID) : &Theme::default_theme;
+    Theme::last_theme = page.theme;
 
     if (last_theme != Theme::last_theme) {
         MCP::refreshStyle.store(true);
@@ -731,41 +719,39 @@ bool Manager::SwitchToClientManager(const SkyPromptAPI::ClientID client_id) {
     return true;
 }
 
-bool Manager::CycleClient(const bool a_left) {
+bool Manager::CyclePage(const bool a_left) {
     std::shared_lock lock(mutex_);
-    if (client_managers.size() <= 1) {
+    if (pages.size() <= 1) {
         return false;
     }
-    const bool any_has_queue = std::ranges::any_of(client_managers | std::views::values,
-                                                   [](const auto& managers) {
-                                                       return !managers.empty() && std::ranges::any_of(
-                                                                  managers, [](const auto& m) {
-                                                                      return m && m->HasQueue();
-                                                                  });
-                                                   });
+    const bool any_has_queue = std::ranges::any_of(pages, [this](const auto& entry) {
+        return entry.first != current_pageID && std::ranges::any_of(entry.second.managers, [](const auto& manager) {
+            return manager && manager->HasQueue();
+        });
+    });
 
     if (!any_has_queue) {
         return false;
     }
 
-    auto it = client_managers.find(last_clientID);
-    while (it->first == last_clientID || it->second.empty()) {
+    auto it = pages.find(current_pageID);
+    while (it->first == current_pageID || it->second.managers.empty()) {
         if (a_left) {
-            if (it == client_managers.begin()) {
-                it = std::prev(client_managers.end());
+            if (it == pages.begin()) {
+                it = std::prev(pages.end());
             } else {
                 --it;
             }
         } else {
             ++it;
-            if (it == client_managers.end()) {
-                it = client_managers.begin();
+            if (it == pages.end()) {
+                it = pages.begin();
             }
         }
     }
 
     lock.unlock();
-    return SwitchToClientManager(it->first);
+    return SwitchToPage(it->first);
 }
 
 bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID) {
@@ -775,11 +761,11 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
     if (compatibleID == 0) {
         compatibleID = a_clientID;
 
-        if (std::shared_lock lock(mutex_); last_clientID != 0 && last_clientID != a_clientID) {
+        if (std::shared_lock lock(mutex_); current_pageID != 0 && current_pageID != a_clientID) {
             bool found_client = false;
             bool all_compatible = true;
 
-            for (const auto& manager : managers) {
+            for (const auto& manager : pages.at(current_pageID).managers) {
                 for (const auto& interaction : manager->GetInteractions()) {
                     found_client = true;
 
@@ -795,7 +781,7 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
             }
 
             if (found_client && all_compatible) {
-                compatibleID = last_clientID;
+                compatibleID = current_pageID;
             }
         }
     }
@@ -838,7 +824,7 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
     if (refresh) {
         RestorePromptOrder(compatibleID, a_clientID, prompts);
     } else if (success) {
-        SwitchToClientManager(compatibleID);
+        SwitchToPage(compatibleID);
     }
 
     return success && !refresh;
@@ -846,12 +832,13 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
 
 void Manager::RestorePromptOrder(const SkyPromptAPI::ClientID pageID, const SkyPromptAPI::ClientID clientID,
                                  const std::span<const SkyPromptAPI::Prompt> prompts) {
-    const auto rows = GetManagerList(pageID);
     std::unique_lock lock(mutex_);
-    if (!rows || rows->size() < 2) return;
+    const auto page = GetPage(pageID);
+    if (!page || page->managers.size() < 2) return;
+    auto& rows = page->managers;
 
     bool moved = false;
-    auto before = rows->end();
+    auto before = rows.end();
     for (size_t index = prompts.size(); index > 0;) {
         const auto& prompt = prompts[--index];
         // A row follows the first appearance of its event, not each stacked action.
@@ -860,14 +847,14 @@ void Manager::RestorePromptOrder(const SkyPromptAPI::ClientID pageID, const SkyP
         })) continue;
 
         const auto event = InteractionID::Pack(clientID, prompt.eventID);
-        const auto row = std::ranges::find_if(*rows, [event](const auto& candidate) {
+        const auto row = std::ranges::find_if(rows, [event](const auto& candidate) {
             const auto interactions = candidate->GetInteractions();
             return !interactions.empty() && interactions.front().event == event;
         });
-        if (row == rows->end()) continue;
+        if (row == rows.end()) continue;
 
         if (row > before) {
-            if (rows == &managers) list.OnRowRestored(row - rows->begin(), before - rows->begin());
+            if (pageID == current_pageID) page->list.OnRowRestored(row - rows.begin(), before - rows.begin());
             std::rotate(before, row, std::next(row));
             moved = true;
         } else {
@@ -876,8 +863,8 @@ void Manager::RestorePromptOrder(const SkyPromptAPI::ClientID pageID, const SkyP
     }
     if (moved) {
         int index = 0;
-        for (const auto& row : *rows) row->SetDefaultKeyIndex(index++);
-        if (rows == &managers) list.ClampSelection(rows->size());
+        for (const auto& row : rows) row->SetDefaultKeyIndex(index++);
+        if (pageID == current_pageID) page->list.ClampSelection(rows.size());
     }
 }
 
@@ -890,14 +877,14 @@ bool Manager::IsInQueue(const SkyPromptAPI::ClientID a_clientID, const SkyPrompt
         return false;
     }
 
-    const auto a_list = GetManagerList(compatibleID);
+    std::shared_lock lock(mutex_);
+    const auto page = GetPage(compatibleID);
 
-    if (!a_list) {
+    if (!page) {
         return false;
     }
 
-    std::shared_lock lock(mutex_);
-    for (const auto& a_manager : *a_list) {
+    for (const auto& a_manager : page->managers) {
         if (a_manager->IsInQueue(a_prompt_sink)) {
             result = true;
             if (wake_up) {
@@ -914,13 +901,15 @@ bool Manager::RemoveFromQ(const SkyPromptAPI::ClientID a_clientID, const SkyProm
                          const std::optional<Interaction>& a_interaction) {
     const auto compatibleID = FindCompatibleClientID(a_clientID);
     bool removed = false;
-    if (const auto manager_list = compatibleID != 0 ? GetManagerList(compatibleID) : nullptr) {
+    {
         std::unique_lock lock(mutex_);
-        for (const auto& a_manager : *manager_list) {
-            removed |= a_manager->RemoveFromQ(a_clientID, a_prompt_sink, a_interaction);
-        }
-        if (manager_list != &managers) {
-            RemoveEmptyRows(*manager_list);
+        if (const auto page = GetPage(compatibleID)) {
+            for (const auto& a_manager : page->managers) {
+                removed |= a_manager->RemoveFromQ(a_clientID, a_prompt_sink, a_interaction);
+            }
+            if (compatibleID != current_pageID) {
+                RemoveEmptyRows(*page);
+            }
         }
     }
     {
@@ -945,7 +934,10 @@ bool Manager::RemoveFromQ(const SkyPromptAPI::ClientID a_clientID, const SkyProm
 }
 
 bool Manager::HasTask() const {
-    for (const auto& a_manager : managers) {
+    std::shared_lock lock(mutex_);
+    const auto page = GetPage(current_pageID);
+    if (!page) return false;
+    for (const auto& a_manager : page->managers) {
         if (a_manager->HasQueue()) {
             return true;
         }
@@ -1215,7 +1207,9 @@ InteractionButton::InteractionButton(const Interaction& a_interaction, const Mut
 void Manager::Start() {
     isPaused.store(false);
     std::unique_lock lock(mutex_);
-    for (const auto& a_manager : managers) {
+    const auto page = GetPage(current_pageID);
+    if (!page) return;
+    for (const auto& a_manager : page->managers) {
         a_manager->Start();
     }
 }
@@ -1224,30 +1218,36 @@ void Manager::Stop() {
     isPaused.store(true);
     activationPop.Clear();
     std::unique_lock lock(mutex_);
-    for (const auto& a_manager : managers) {
+    const auto page = GetPage(current_pageID);
+    if (!page) return;
+    for (const auto& a_manager : page->managers) {
         a_manager->Stop();
     }
 }
 
 void Manager::CleanUpQueue() {
     std::unique_lock lock(mutex_);
-    for (const auto& manager : managers) {
+    const auto page = GetPage(current_pageID);
+    if (!page) return;
+    for (const auto& manager : page->managers) {
         manager->CleanUpQueue();
     }
-    if (RemoveEmptyRows(managers) && managers.empty()) {
+    if (RemoveEmptyRows(*page) && page->managers.empty()) {
         lock.unlock();
-        CycleClient(false);
+        CyclePage(false);
     }
 }
 
-bool Manager::RemoveEmptyRows(std::vector<std::unique_ptr<SubManager>>& rows) {
+bool Manager::RemoveEmptyRows(Page& page) {
+    auto& rows = page.managers;
+    const bool active = &page == GetPage(current_pageID);
     bool removed = false;
     for (size_t index = rows.size(); index > 0;) {
         --index;
         if (!rows[index]->HasQueue()) {
             rows.erase(rows.begin() + index);
-            if (&rows == &managers) {
-                list.OnRowRemoved(index);
+            if (active) {
+                page.list.OnRowRemoved(index);
             }
             removed = true;
         }
@@ -1257,19 +1257,19 @@ bool Manager::RemoveEmptyRows(std::vector<std::unique_ptr<SubManager>>& rows) {
         for (const auto& row : rows) {
             row->SetDefaultKeyIndex(index++);
         }
-        if (&rows == &managers) {
-            list.ClampSelection(rows.size());
+        if (active) {
+            page.list.ClampSelection(rows.size());
         }
     }
     return removed;
 }
 
-void Manager::ShowPromptRow(const size_t index, const bool isList, const size_t visibleCount) {
+void Manager::ShowPromptRow(Page& page, const size_t index, const bool isList, const size_t visibleCount) {
     // Advance every row's lifetime, but draw only the List viewport.
     const auto before = renderBatch.size();
-    managers[index]->ShowQueue();
+    page.managers[index]->ShowQueue();
     if (isList && renderBatch.size() != before &&
-        !list.PrepareRow(renderBatch.back(), index, managers.size(), visibleCount)) {
+        !page.list.PrepareRow(renderBatch.back(), index, page.managers.size(), visibleCount)) {
         renderBatch.resize(before);
     }
 }
@@ -1278,6 +1278,11 @@ void Manager::ShowQueue() {
     if (IsPaused()) {
         return;
     }
+
+    std::shared_lock page_lock(mutex_);
+    const auto page = GetPage(current_pageID);
+    if (!page) return;
+    page_lock.unlock();
 
     // Get the screen size
     const auto [width, height] = ImGui::GetIO().DisplaySize;
@@ -1293,17 +1298,17 @@ void Manager::ShowQueue() {
     const auto visibleCount = static_cast<size_t>(std::max(Theme::last_theme->n_max_buttons, 1));
     if (isList) {
         std::unique_lock lock(mutex_);
-        list.UpdateViewport(managers.size(), visibleCount);
+        page->list.UpdateViewport(page->managers.size(), visibleCount);
     }
     std::map<RefID, std::vector<size_t>> rowsByObject;
     renderBatch.clear();
 
-    for (std::shared_lock lock(mutex_); const auto index : std::views::iota(size_t{0}, managers.size())) {
-        if (const auto a_ref = managers[index]->GetAttachedObject()) {
+    for (std::shared_lock lock(mutex_); const auto index : std::views::iota(size_t{0}, page->managers.size())) {
+        if (const auto a_ref = page->managers[index]->GetAttachedObject()) {
             rowsByObject[a_ref->GetFormID()].push_back(index);
             continue;
         }
-        ShowPromptRow(index, isList, visibleCount);
+        ShowPromptRow(*page, index, isList, visibleCount);
     }
 
     BeginImGuiWindow("SkyPrompt", GetSkyPromptContentOrigin(windowPos));
@@ -1313,14 +1318,16 @@ void Manager::ShowQueue() {
         SkyPromptAPI::ClientID n_has_prompts = 0;
         SkyPromptAPI::ClientID index = 0;
         for (std::shared_lock lock(mutex_);
-             const auto& [a_clientID,a_managers] : client_managers) {
-            for (auto& a_manager : a_managers) {
-                if (a_manager && a_manager->HasQueue()) {
-                    n_has_prompts++;
-                    break;
+             const auto& [pageID, otherPage] : pages) {
+            if (pageID != current_pageID) {
+                for (auto& a_manager : otherPage.managers) {
+                    if (a_manager && a_manager->HasQueue()) {
+                        n_has_prompts++;
+                        break;
+                    }
                 }
             }
-            if (a_clientID == last_clientID) {
+            if (pageID == current_pageID) {
                 index = n_has_prompts;
             }
         }
@@ -1335,13 +1342,13 @@ void Manager::ShowQueue() {
     int i = 0;
     for (std::shared_lock lock(mutex_);
          const auto& rowIndices : rowsByObject | std::views::values) {
-        const auto position = managers[rowIndices[0]]->GetAttachedObjectPos();
+        const auto position = page->managers[rowIndices[0]]->GetAttachedObjectPos();
         auto window_pos = position.screen;
         window_pos.x -= Theme::last_theme->marginX * resScale;
         window_pos.y -= Theme::last_theme->marginY * resScale;
         renderBatch.clear();
         for (const auto index : rowIndices) {
-            ShowPromptRow(index, isList, visibleCount);
+            ShowPromptRow(*page, index, isList, visibleCount);
         }
         BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str(),
                          GetSkyPromptContentOrigin(window_pos));
@@ -1354,11 +1361,13 @@ void Manager::ShowQueue() {
 
 void Manager::Clear(const SkyPromptAPI::PromptEventType a_event_type) {
     std::unique_lock lock(mutex_);
-    for (const auto& a_manager : managers) {
+    const auto page = GetPage(current_pageID);
+    if (!page) return;
+    for (const auto& a_manager : page->managers) {
         a_manager->ClearQueue(a_event_type);
     }
-    managers.clear();
-    list.Reset();
+    page->managers.clear();
+    page->list.Reset();
 }
 
 Interaction Manager::MakeInteraction(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::EventID a_event,
@@ -1368,21 +1377,27 @@ Interaction Manager::MakeInteraction(const SkyPromptAPI::ClientID a_clientID, co
 
 void Manager::ResetQueue() const {
     std::unique_lock lock(mutex_);
-    for (auto& a_manager : managers) {
+    const auto page = GetPage(current_pageID);
+    if (!page) return;
+    for (auto& a_manager : page->managers) {
         a_manager->ResetQueue();
     }
 }
 
 void Manager::WakeUpQueue() const {
     std::unique_lock lock(mutex_);
-    for (auto& a_manager : managers) {
+    const auto page = GetPage(current_pageID);
+    if (!page) return;
+    for (auto& a_manager : page->managers) {
         a_manager->WakeUpQueue();
     }
 }
 
 bool Manager::IsHidden() const {
     std::shared_lock lock(mutex_);
-    for (const auto& a_manager : managers) {
+    const auto page = GetPage(current_pageID);
+    if (!page) return true;
+    for (const auto& a_manager : page->managers) {
         if (!a_manager->IsHidden()) {
             return false;
         }
@@ -1394,7 +1409,7 @@ std::optional<bool> Manager::ProcessListInput(RE::InputEvent* event) {
     if (Theme::last_theme->prompt_alignment != Theme::kList) return std::nullopt;
     const auto button = event->AsButtonEvent();
     if (!button) return std::nullopt;
-    const auto navigation = list.GetNavigation(*button, GetControlKey(RE::UserEvents::GetSingleton()->activate));
+    const auto navigation = PromptLayouts::List::GetNavigation(*button, GetControlKey(RE::UserEvents::GetSingleton()->activate));
     return ProcessListNavigation(navigation);
 }
 
@@ -1403,15 +1418,17 @@ std::optional<bool> Manager::ProcessListNavigation(const PromptLayouts::List::Na
     if (navigation == PromptLayouts::List::Navigation::kUnhandled) return std::nullopt;
 
     std::unique_lock lock(mutex_);
-    if (list.selection >= managers.size()) return std::nullopt;
-    const auto selected = managers[list.selection].get();
+    const auto page = GetPage(current_pageID);
+    if (!page) return std::nullopt;
+    if (page->list.selection >= page->managers.size()) return std::nullopt;
+    const auto selected = page->managers[page->list.selection].get();
     if (selected->IsHidden()) return std::nullopt;
     const bool block = PromptTypeFlags::GetBlocksInput(selected->GetPromptType());
     // Finish the current press before changing its target.
     if (navigation != PromptLayouts::List::Navigation::kNone && !selected->buttonState.isPressing) {
         selected->buttonState.Reset();
-        list.MoveSelection(navigation, managers.size());
-        for (const auto& manager : managers) {
+        page->list.MoveSelection(navigation, page->managers.size());
+        for (const auto& manager : page->managers) {
             manager->WakeUpQueue();
         }
     }
@@ -1420,11 +1437,13 @@ std::optional<bool> Manager::ProcessListNavigation(const PromptLayouts::List::Na
 
 SubManager* Manager::GetSubManagerByKey(const uint32_t a_prompt_key) const {
     std::shared_lock lock(mutex_);
+    const auto page = GetPage(current_pageID);
+    if (!page) return nullptr;
     if (Theme::last_theme->prompt_alignment == Theme::kList) {
-        const auto selected = list.selection < managers.size() ? managers[list.selection].get() : nullptr;
+        const auto selected = page->list.selection < page->managers.size() ? page->managers[page->list.selection].get() : nullptr;
         return selected && selected->GetPromptKey() == a_prompt_key ? selected : nullptr;
     }
-    for (auto& a_manager : managers) {
+    for (auto& a_manager : page->managers) {
         if (const auto key = a_manager->GetPromptKey(); key == a_prompt_key) {
             return a_manager.get();
         }
@@ -1434,9 +1453,11 @@ SubManager* Manager::GetSubManagerByKey(const uint32_t a_prompt_key) const {
 
 std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::GetPromptButtons() const {
     std::shared_lock lock(mutex_);
+    const auto page = GetPage(current_pageID);
+    if (!page) return {};
     std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> buttons;
     if (Theme::last_theme->prompt_alignment == Theme::kList) {
-        if (const auto selected = list.selection < managers.size() ? managers[list.selection].get() : nullptr;
+        if (const auto selected = page->list.selection < page->managers.size() ? page->managers[page->list.selection].get() : nullptr;
             selected && !selected->IsHidden()) {
             if (const auto key = selected->GetPromptKey(); key != 0) {
                 buttons.emplace_back(selected->GetPromptType(), key);
@@ -1444,7 +1465,7 @@ std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::GetPromptBut
         }
         return buttons;
     }
-    for (const auto& a_manager : managers) {
+    for (const auto& a_manager : page->managers) {
         if (a_manager->IsHidden()) {
             continue;
         }
@@ -1458,7 +1479,9 @@ std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::GetPromptBut
 
 void Manager::ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func) {
     std::unique_lock lock(mutex_);
-    for (auto& a_manager : managers) {
+    const auto page = GetPage(current_pageID);
+    if (!page) return;
+    for (auto& a_manager : page->managers) {
         a_func(a_manager);
     }
 }
