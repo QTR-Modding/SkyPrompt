@@ -178,19 +178,25 @@ namespace ImGui::Renderer {
         std::atomic<bool> isPaused = false;
 
 
-        struct Page {
-            SkyPromptAPI::ClientID page_leaderID;
+        struct Subpage {
             std::vector<std::unique_ptr<SubManager>> managers;
             PromptLayouts::List list;
             Theme::Theme* theme = &Theme::default_theme;
 
-            void Render(SkyPromptAPI::ClientID pageIndex, SkyPromptAPI::ClientID pageCount);
+            void Render(size_t subpageIndex, SkyPromptAPI::ClientID pageIndex, SkyPromptAPI::ClientID pageCount);
             void ShowPromptRow(size_t index, bool isList, size_t visibleCount);
             bool ProcessInput(RE::InputEvent* event, uint32_t buttonKey);
             std::optional<bool> ProcessListInput(RE::InputEvent* event);
             std::optional<bool> ProcessListNavigation(PromptLayouts::List::Navigation navigation);
             SubManager* GetSubManagerByKey(uint32_t a_prompt_key) const;
             std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> GetPromptButtons() const;
+        };
+
+        struct Page {
+            SkyPromptAPI::ClientID page_leaderID;
+            std::vector<Subpage> subpages{1};
+
+            void Render(SkyPromptAPI::ClientID pageIndex, SkyPromptAPI::ClientID pageCount);
         };
 
         std::map<SkyPromptAPI::ClientID, Page> pages; // every page has a leader
