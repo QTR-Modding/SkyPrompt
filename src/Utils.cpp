@@ -53,10 +53,10 @@ std::vector<std::string> ReadLogFile() {
     return logLines;
 }
 
-void BeginImGuiWindow(const char* window_name, const ImVec2& content_position) {
+void BeginImGuiWindow(const char* window_name, const ImVec2& content_position, const float padding) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,
-                        ImVec2(0.4f * Theme::last_theme->prompt_size, 0.4f * Theme::last_theme->prompt_size));
+                        ImVec2(padding, padding));
     // Padding for cleaner layout
 
     auto window_position = ImVec2(

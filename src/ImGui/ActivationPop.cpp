@@ -4,10 +4,10 @@
 #include "imgui_internal.h"
 
 namespace ImGui {
-    void ActivationPop::Capture(const RenderInfo& info, const ImVec2 iconCenter, const ImVec2 textCenter,
+    void ActivationPop::Capture(const Theme::Theme& theme, const RenderInfo& info, const ImVec2 iconCenter, const ImVec2 textCenter,
                                  const ImVec2 textSize, const float angle, const bool showIcon) {
         using namespace PromptEffects;
-        const auto* effect = Find(kActivationPop);
+        const auto* effect = Find(theme, kActivationPop);
         if (!effect || info.alpha <= 0.0f) return;
         const float opacity = Float(effect, kActivationPop, Pop::kOpacity);
         if (opacity <= 0.0f) return;
@@ -27,11 +27,11 @@ namespace ImGui {
         visual.iconCenter = iconCenter;
         visual.textCenter = textCenter;
         visual.textSize = textSize;
-        visual.iconSize = PromptLayouts::GetIconSize();
+        visual.iconSize = PromptLayouts::GetIconSize(theme);
         visual.fontSize = GetFontSize();
         visual.angle = angle;
         visual.alpha = info.alpha;
-        visual.shadow = Theme::last_theme->font_shadow;
+        visual.shadow = theme.font_shadow;
         visual.duration = Float(effect, kActivationPop, Pop::kDuration);
         visual.endScale = Float(effect, kActivationPop, Pop::kEndScale);
         visual.opacity = opacity;

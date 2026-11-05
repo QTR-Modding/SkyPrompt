@@ -6,7 +6,7 @@
 
 namespace {
     ImFont* LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges,
-                            const std::string& a_fontPath) {
+                            const std::string& a_fontPath, const std::string& font_name) {
         const auto& io = ImGui::GetIO();
 
         const auto iconManager = MANAGER(IconFont);
@@ -16,7 +16,6 @@ namespace {
             return nullptr;
         }
 
-        const auto& font_name = Theme::last_theme->font_name;
         const auto selectedFontInfo = iconManager->GetFontInfoByName(font_name);
         const auto& fontInfo = selectedFontInfo ? *selectedFontInfo : *availableFonts.begin();
         const auto a_fontName = (std::filesystem::path(a_fontPath) / fontInfo.GetName()).string();
@@ -114,7 +113,7 @@ namespace IconFont {
         checkboxFilled.Load();
     }
 
-    bool Manager::ReloadFonts() {
+    bool Manager::ReloadFonts(const Theme::Theme& theme) {
         auto& io = ImGui::GetIO();
         std::set<FontInfo> discoveredFonts{};
 
@@ -152,7 +151,7 @@ namespace IconFont {
 
         float a_fontsize;
         {
-            const auto& prompt_size = Theme::last_theme->prompt_size;
+            const auto& prompt_size = theme.prompt_size;
             a_fontsize = prompt_size * resolutionScale;
         }
         const auto a_smallfontsize = a_fontsize * 0.65f;
@@ -163,11 +162,11 @@ namespace IconFont {
         auto a_fontPath = fontPath;
 
         auto tryBuildFonts = [&io, &ranges, a_fontsize, a_smallfontsize, smallFontPtr,
-                a_fontPath](float scale) -> bool {
+                a_fontPath, font_name = theme.font_name](float scale) -> bool {
             io.Fonts->Clear();
 
-            io.FontDefault = LoadFontIconSet(a_fontsize * scale, ranges, a_fontPath);
-            *smallFontPtr = LoadFontIconSet(a_smallfontsize * scale, ranges, a_fontPath);
+            io.FontDefault = LoadFontIconSet(a_fontsize * scale, ranges, a_fontPath, font_name);
+            *smallFontPtr = LoadFontIconSet(a_smallfontsize * scale, ranges, a_fontPath, font_name);
 
             if (!io.FontDefault || !*smallFontPtr) {
                 logger::error("Failed to load one or more fonts for scale {}", scale);

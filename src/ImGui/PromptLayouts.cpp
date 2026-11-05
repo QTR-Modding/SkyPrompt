@@ -5,24 +5,24 @@
 #include "SkyPrompt/AddOns.hpp"
 
 namespace ImGui::PromptLayouts {
-    float List::GetIndicatorPadding() {
+    float List::GetIndicatorPadding(const Theme::Theme& theme) {
         using namespace PromptEffects;
-        const auto* effect = Find(kListIndicators);
+        const auto* effect = Find(theme, kListIndicators);
         const float scale = Float(effect, kListIndicators, ListIndicators::kSize);
         if (!Bool(effect, kListIndicators, ListIndicators::kShow) || scale <= 0.0f) return 0.0f;
         return ImGui::GetFontSize() * scale + Float(effect, kListIndicators, ListIndicators::kSpacing);
     }
 
-    float GetIconSize() {
+    float GetIconSize(const Theme::Theme& theme) {
         const auto a_fontsize = ImGui::GetIO().FontDefault->FontSize;
-        return a_fontsize * Theme::last_theme->icon2font_ratio;
+        return a_fontsize * theme.icon2font_ratio;
     }
 
-    float GetSeparatorGap() {
+    float GetSeparatorGap(const Theme::Theme& theme) {
         using namespace SkyPrompt::AddOns::SpecialEffects;
-        if (Theme::last_theme->prompt_alignment == Theme::kRadial ||
-            Theme::last_theme->prompt_alignment == Theme::kDiamond) return 0.0f;
-        const auto* effect = PromptEffects::Find(kSeparator);
+        if (theme.prompt_alignment == Theme::kRadial ||
+            theme.prompt_alignment == Theme::kDiamond) return 0.0f;
+        const auto* effect = PromptEffects::Find(theme, kSeparator);
         if (!effect) return 0.0f;
         const SkyPrompt::AddOns::SpecialEffects::Separator separator(
             SpecialsView{effect->id, effect->integers, effect->strings, effect->floats, effect->bools});
@@ -30,25 +30,25 @@ namespace ImGui::PromptLayouts {
         return separator.thickness + separator.spacing * 2.0f;
     }
 
-    VerticalPromptLayout MeasureVerticalPrompts(const std::vector<ImGui::RenderInfo>& batch) {
+    VerticalPromptLayout MeasureVerticalPrompts(const Theme::Theme& theme, const std::vector<ImGui::RenderInfo>& batch) {
         VerticalPromptLayout layout{};
         if (batch.empty()) {
             return layout;
         }
 
-        const float iconSize = GetIconSize();
+        const float iconSize = GetIconSize(theme);
         const float circleDiameter = iconSize * 1.25f;
         const float circleOverhang = (circleDiameter - iconSize) * 0.5f;
-        const float extraSpacing = Theme::last_theme->linespacing * 5.0f;
-        const bool textFirst = Theme::last_theme->prompt_order == Theme::kTextFirst;
+        const float extraSpacing = theme.linespacing * 5.0f;
+        const bool textFirst = theme.prompt_order == Theme::kTextFirst;
 
         layout.rows.reserve(batch.size());
         float maxPrefixWidth = 0.0f;
         float maxTextExtent = 0.0f;
-        const float scrollPadding = Theme::last_theme->prompt_alignment == Theme::kList ? List::GetIndicatorPadding() : 0.0f;
+        const float scrollPadding = theme.prompt_alignment == Theme::kList ? List::GetIndicatorPadding(theme) : 0.0f;
         float rowStart = scrollPadding;
         float maxBottom = 0.0f;
-        const float separatorGap = GetSeparatorGap();
+        const float separatorGap = GetSeparatorGap(theme);
         for (size_t i = 0; i < batch.size(); ++i) {
             const auto& renderInfo = batch[i];
             if (separatorGap > 0.0f && i > 0 &&
@@ -87,14 +87,14 @@ namespace ImGui::PromptLayouts {
         return layout;
     }
 
-    HorizontalPromptLayout MeasureHorizontalPrompts(const std::vector<ImGui::RenderInfo>& batch,
+    HorizontalPromptLayout MeasureHorizontalPrompts(const Theme::Theme& theme, const std::vector<ImGui::RenderInfo>& batch,
                                                     const float lineSpacingPx) {
         HorizontalPromptLayout layout;
         layout.items.reserve(batch.size());
 
-        const float iconSize = GetIconSize();
+        const float iconSize = GetIconSize(theme);
         const float circleDiameter = iconSize * 1.25f;
-        const float separatorGap = GetSeparatorGap();
+        const float separatorGap = GetSeparatorGap(theme);
         float extraSpacing = 0.0f;
         for (size_t i = 0; i < batch.size(); ++i) {
             const auto& renderInfo = batch[i];
@@ -128,22 +128,22 @@ namespace ImGui::PromptLayouts {
         return static_cast<DiamondArm>(index % kDiamondArmCount);
     }
 
-    bool IsDiamondTextFirst(const DiamondArm arm) {
+    bool IsDiamondTextFirst(const Theme::Theme& theme, const DiamondArm arm) {
         const bool textFirst = arm == kDiamondLeft || arm == kDiamondTop;
-        return Theme::last_theme->prompt_order == Theme::kIconFirst ? textFirst : !textFirst;
+        return theme.prompt_order == Theme::kIconFirst ? textFirst : !textFirst;
     }
 
-    float GetPromptIconCenterX(const PromptItemDimensions& dimensions, const bool textFirst) {
-        const float circleDiameter = GetIconSize() * 1.25f;
+    float GetPromptIconCenterX(const Theme::Theme& theme, const PromptItemDimensions& dimensions, const bool textFirst) {
+        const float circleDiameter = GetIconSize(theme) * 1.25f;
         return textFirst
                    ? dimensions.textWidth + dimensions.textPad + circleDiameter * 0.5f
                    : circleDiameter * 0.5f;
     }
 
-    DiamondPromptLayout MeasureDiamondPrompts(const std::vector<ImGui::RenderInfo>& batch,
+    DiamondPromptLayout MeasureDiamondPrompts(const Theme::Theme& theme, const std::vector<ImGui::RenderInfo>& batch,
                                               const float lineSpacingPx) {
         DiamondPromptLayout layout;
-        layout.prompts = MeasureHorizontalPrompts(batch, 0.0f);
+        layout.prompts = MeasureHorizontalPrompts(theme, batch, 0.0f);
         layout.positions.resize(batch.size());
         if (batch.empty()) {
             return layout;
@@ -157,7 +157,7 @@ namespace ImGui::PromptLayouts {
                 continue;
             }
             const auto& dimensions = layout.prompts.items[i];
-            const float iconCenterX = GetPromptIconCenterX(dimensions, IsDiamondTextFirst(arm));
+            const float iconCenterX = GetPromptIconCenterX(theme, dimensions, IsDiamondTextFirst(theme, arm));
             if (arm == kDiamondLeft) {
                 leftInward = std::max(leftInward, dimensions.width - iconCenterX);
             } else {
@@ -177,7 +177,7 @@ namespace ImGui::PromptLayouts {
         for (std::size_t i = 0; i < batch.size(); ++i) {
             const auto arm = GetDiamondArm(i);
             const auto& dimensions = layout.prompts.items[i];
-            const float iconCenterX = GetPromptIconCenterX(dimensions, IsDiamondTextFirst(arm));
+            const float iconCenterX = GetPromptIconCenterX(theme, dimensions, IsDiamondTextFirst(theme, arm));
             auto& position = layout.positions[i];
 
             if (arm == kDiamondBottom || arm == kDiamondTop) {
@@ -247,8 +247,8 @@ namespace ImGui::PromptLayouts {
         }
     }
 
-    static ImVec2 GetContentOrigin(const ImVec2& anchor, const PromptBounds& bounds) {
-        const auto pivot = GetPromptPivotFactor(Theme::last_theme->prompt_pivot);
+    static ImVec2 GetContentOrigin(const Theme::Theme& theme, const ImVec2& anchor, const PromptBounds& bounds) {
+        const auto pivot = GetPromptPivotFactor(theme.prompt_pivot);
         return {
             anchor.x - bounds.size.x * pivot.x - bounds.min.x,
             anchor.y - bounds.size.y * pivot.y - bounds.min.y
@@ -257,21 +257,21 @@ namespace ImGui::PromptLayouts {
 }
 
 
-ImVec2 ImGui::GetSkyPromptContentOrigin(const ImVec2& anchor) {
+ImVec2 ImGui::GetSkyPromptContentOrigin(const Theme::Theme& theme, const ImVec2& anchor) {
     using namespace ImGui::PromptLayouts;
     if (renderBatch.empty()) {
         return anchor;
     }
 
-    const auto promptAlignment = Theme::last_theme->prompt_alignment;
-    const float lineSpacingPx = GetFontSize() * Theme::last_theme->linespacing;
+    const auto promptAlignment = theme.prompt_alignment;
+    const float lineSpacingPx = GetFontSize() * theme.linespacing;
     if (promptAlignment != Theme::kList) {
         std::ranges::sort(renderBatch, {}, [](const RenderInfo& info) { return info.interaction.event; });
     }
 
     if (promptAlignment == Theme::kDiamond) {
-        const auto layout = MeasureDiamondPrompts(renderBatch, lineSpacingPx);
-        return GetContentOrigin(anchor, layout.bounds);
+        const auto layout = MeasureDiamondPrompts(theme, renderBatch, lineSpacingPx);
+        return GetContentOrigin(theme, anchor, layout.bounds);
     }
 
     if (promptAlignment == Theme::kRadial) {
@@ -279,10 +279,10 @@ ImVec2 ImGui::GetSkyPromptContentOrigin(const ImVec2& anchor) {
     }
 
     if (promptAlignment == Theme::kHorizontal) {
-        const auto layout = MeasureHorizontalPrompts(renderBatch, lineSpacingPx);
-        return GetContentOrigin(anchor, {.min = {0.0f, 0.0f}, .size = layout.size});
+        const auto layout = MeasureHorizontalPrompts(theme, renderBatch, lineSpacingPx);
+        return GetContentOrigin(theme, anchor, {.min = {0.0f, 0.0f}, .size = layout.size});
     }
-    return GetContentOrigin(anchor, MeasureVerticalPrompts(renderBatch).bounds);
+    return GetContentOrigin(theme, anchor, MeasureVerticalPrompts(theme, renderBatch).bounds);
 }
 
 namespace ImGui::PromptLayouts {

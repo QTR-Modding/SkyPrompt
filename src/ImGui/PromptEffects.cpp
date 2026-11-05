@@ -92,8 +92,8 @@ namespace ImGui::PromptEffects {
         }
     }
 
-    const Theme::SpecialEffect* Find(const uint32_t a_id) {
-        const auto& effects = Theme::last_theme->special_effects;
+    const Theme::SpecialEffect* Find(const Theme::Theme& theme, const uint32_t a_id) {
+        const auto& effects = theme.special_effects;
         const auto effect = std::ranges::find(effects, a_id, &Theme::SpecialEffect::id);
         return effect != effects.end() ? &*effect : nullptr;
     }

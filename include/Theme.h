@@ -129,6 +129,4 @@ namespace Theme {
     inline std::unordered_map<std::string, Theme> themes_loaded;
 
     inline std::shared_mutex m_theme_;
-    inline std::unordered_map<SkyPromptAPI::ClientID, Theme*> themes;
-    inline Theme* last_theme = &default_theme;
 };

@@ -358,6 +358,5 @@ void Theme::LoadThemes() {
 
 void Theme::ReLoadDefaultTheme() {
     default_theme = Theme();
-    last_theme = &default_theme;
     MCP::refreshStyle.store(true);
 }

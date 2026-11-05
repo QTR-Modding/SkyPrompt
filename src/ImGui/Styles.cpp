@@ -52,10 +52,10 @@ namespace ImGui {
         GetStyle() = style;
 
         static bool reloadAttempted = false;
-        if (!MANAGER(IconFont)->ReloadFonts()) {
+        if (!MANAGER(IconFont)->ReloadFonts(MANAGER(Renderer)->GetCurrentTheme())) {
             if (!reloadAttempted) {
                 reloadAttempted = true;
-                Theme::ReLoadDefaultTheme();
+                MANAGER(Renderer)->ResetCurrentTheme();
             }
             // else: already attempted reload, do not retry to avoid infinite loop
         } else {

@@ -26,7 +26,7 @@ public:
     }
 };
 
-void BeginImGuiWindow(const char* window_name, const ImVec2& content_position);
+void BeginImGuiWindow(const char* window_name, const ImVec2& content_position, float padding);
 void EndImGuiWindow();
 
 void TranslateEmbedded(std::string& a_text);
