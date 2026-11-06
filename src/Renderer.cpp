@@ -748,13 +748,20 @@ bool Manager::SwitchToGroup(const SkyPromptAPI::ClientID groupID) {
 
     std::unique_lock lock(mutex_);
 
-    const auto previous = GetPage(current_groupID);
-    const auto previousTheme = previous ? previous->theme : &Theme::default_theme;
+    const auto previous = groups.find(current_groupID);
     current_groupID = groupID;
-    auto& page = groups.at(groupID).at(groupID);
-    page.OnShown();
+    auto& group = groups.at(groupID);
+    for (auto& page : group | std::views::values) {
+        page.OnShown();
+    }
 
-    if (previousTheme != page.theme) {
+    const bool themesChanged = previous != groups.end()
+        ? !std::ranges::equal(previous->second | std::views::values, group | std::views::values,
+                              {}, &Page::theme, &Page::theme)
+        : std::ranges::any_of(group | std::views::values, [](const auto& page) {
+            return page.theme != &Theme::default_theme;
+        });
+    if (themesChanged) {
         MCP::refreshStyle.store(true);
     }
 
@@ -767,7 +774,8 @@ bool Manager::CyclePage(const bool a_left) {
         return false;
     }
     const bool any_has_queue = std::ranges::any_of(groups, [this](const auto& entry) {
-        return entry.first != current_groupID && entry.second.at(entry.first).HasQueue();
+        return entry.first != current_groupID &&
+               std::ranges::any_of(entry.second | std::views::values, &Page::HasQueue);
     });
 
     if (!any_has_queue) {
@@ -775,7 +783,8 @@ bool Manager::CyclePage(const bool a_left) {
     }
 
     auto it = groups.find(current_groupID);
-    while (it->first == current_groupID || it->second.at(it->first).IsEmpty()) {
+    while (it->first == current_groupID ||
+           std::ranges::all_of(it->second | std::views::values, &Page::IsEmpty)) {
         if (a_left) {
             if (it == groups.begin()) {
                 it = std::prev(groups.end());
@@ -1236,9 +1245,11 @@ InteractionButton::InteractionButton(const Interaction& a_interaction, const Mut
 void Manager::Start() {
     isPaused.store(false);
     std::unique_lock lock(mutex_);
-    const auto page = GetPage(current_groupID);
-    if (!page) return;
-    page->Start();
+    const auto group = groups.find(current_groupID);
+    if (group == groups.end()) return;
+    for (auto& page : group->second | std::views::values) {
+        page.Start();
+    }
 }
 
 void Manager::Page::Start() {
@@ -1251,9 +1262,11 @@ void Manager::Stop() {
     isPaused.store(true);
     activationPop.Clear();
     std::unique_lock lock(mutex_);
-    const auto page = GetPage(current_groupID);
-    if (!page) return;
-    page->Stop();
+    const auto group = groups.find(current_groupID);
+    if (group == groups.end()) return;
+    for (auto& page : group->second | std::views::values) {
+        page.Stop();
+    }
 }
 
 void Manager::Page::Stop() {
@@ -1264,9 +1277,13 @@ void Manager::Page::Stop() {
 
 void Manager::CleanUpQueue() {
     std::unique_lock lock(mutex_);
-    const auto page = GetPage(current_groupID);
-    if (!page) return;
-    if (page->CleanUpQueue()) {
+    const auto group = groups.find(current_groupID);
+    if (group == groups.end()) return;
+    bool removed = false;
+    for (auto& page : group->second | std::views::values) {
+        removed |= page.CleanUpQueue();
+    }
+    if (removed && std::ranges::all_of(group->second | std::views::values, &Page::IsEmpty)) {
         lock.unlock();
         CyclePage(false);
     }
@@ -1276,7 +1293,7 @@ bool Manager::Page::CleanUpQueue() {
     for (const auto& manager : managers) {
         manager->CleanUpQueue(*theme);
     }
-    return RemoveEmptyRows(true) && IsEmpty();
+    return RemoveEmptyRows(true);
 }
 
 bool Manager::Page::RemoveEmptyRows(const bool active) {
@@ -1406,9 +1423,11 @@ void Manager::Render() {
 
 void Manager::Clear(const SkyPromptAPI::PromptEventType a_event_type) {
     std::unique_lock lock(mutex_);
-    const auto page = GetPage(current_groupID);
-    if (!page) return;
-    page->Clear(a_event_type);
+    const auto group = groups.find(current_groupID);
+    if (group == groups.end()) return;
+    for (auto& page : group->second | std::views::values) {
+        page.Clear(a_event_type);
+    }
 }
 
 void Manager::Page::Clear(const SkyPromptAPI::PromptEventType eventType) {
@@ -1430,9 +1449,11 @@ Interaction Manager::MakeInteraction(const SkyPromptAPI::ClientID a_clientID, co
 
 void Manager::ResetQueue() const {
     std::unique_lock lock(mutex_);
-    const auto page = GetPage(current_groupID);
-    if (!page) return;
-    page->ResetQueue();
+    const auto group = groups.find(current_groupID);
+    if (group == groups.end()) return;
+    for (const auto& page : group->second | std::views::values) {
+        page.ResetQueue();
+    }
 }
 
 void Manager::Page::ResetQueue() const {
@@ -1443,9 +1464,11 @@ void Manager::Page::ResetQueue() const {
 
 void Manager::WakeUpQueue() const {
     std::unique_lock lock(mutex_);
-    const auto page = GetPage(current_groupID);
-    if (!page) return;
-    page->WakeUpQueue();
+    const auto group = groups.find(current_groupID);
+    if (group == groups.end()) return;
+    for (const auto& page : group->second | std::views::values) {
+        page.WakeUpQueue();
+    }
 }
 
 void Manager::Page::WakeUpQueue() const {
@@ -1456,8 +1479,9 @@ void Manager::Page::WakeUpQueue() const {
 
 bool Manager::IsHidden() const {
     std::shared_lock lock(mutex_);
-    const auto page = GetPage(current_groupID);
-    return !page || page->IsHidden();
+    const auto group = groups.find(current_groupID);
+    return group == groups.end() ||
+           std::ranges::all_of(group->second | std::views::values, &Page::IsHidden);
 }
 
 bool Manager::Page::IsHidden() const {
@@ -1591,6 +1615,11 @@ SubManager* Manager::Page::GetSubManagerByKey(const uint32_t a_prompt_key) const
 
 std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::Page::GetPromptButtons() const {
     std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> buttons;
+    CollectPromptButtons(buttons);
+    return buttons;
+}
+
+void Manager::Page::CollectPromptButtons(std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>>& buttons) const {
     if (theme->prompt_alignment == Theme::kList) {
         if (const auto selected = list.selection < managers.size() ? managers[list.selection].get() : nullptr;
             selected && !selected->IsHidden()) {
@@ -1598,7 +1627,7 @@ std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::Page::GetPro
                 buttons.emplace_back(selected->GetPromptType(), key);
             }
         }
-        return buttons;
+        return;
     }
     for (const auto& a_manager : managers) {
         if (a_manager->IsHidden()) {
@@ -1609,33 +1638,52 @@ std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::Page::GetPro
             buttons.emplace_back(type, key);
         }
     }
-    return buttons;
 }
 
 std::optional<bool> Manager::ProcessInput(RE::InputEvent* event, const uint32_t buttonKey) {
     std::unique_lock lock(mutex_);
-    const auto page = GetPage(current_groupID);
-    return page ? page->ProcessInput(event, buttonKey) : std::nullopt;
+    const auto group = groups.find(current_groupID);
+    if (group == groups.end()) return std::nullopt;
+    std::optional<bool> block;
+    for (auto& page : group->second | std::views::values) {
+        if (const auto handled = page.ProcessInput(event, buttonKey)) {
+            block = block.value_or(false) || *handled;
+        }
+    }
+    return block;
 }
 
 std::optional<bool> Manager::ProcessInput(const Input::VRNavigation::Direction direction) {
     std::unique_lock lock(mutex_);
-    const auto page = GetPage(current_groupID);
-    return page ? page->ProcessInput(direction) : std::nullopt;
+    const auto group = groups.find(current_groupID);
+    if (group == groups.end()) return std::nullopt;
+    std::optional<bool> block;
+    for (auto& page : group->second | std::views::values) {
+        if (const auto handled = page.ProcessInput(direction)) {
+            block = block.value_or(false) || *handled;
+        }
+    }
+    return block;
 }
 
 std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::GetPromptButtons() const {
     std::shared_lock lock(mutex_);
-    const auto page = GetPage(current_groupID);
-    if (!page) return {};
-    return page->GetPromptButtons();
+    std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> buttons;
+    if (const auto group = groups.find(current_groupID); group != groups.end()) {
+        for (const auto& page : group->second | std::views::values) {
+            page.CollectPromptButtons(buttons);
+        }
+    }
+    return buttons;
 }
 
 void Manager::ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func) {
     std::unique_lock lock(mutex_);
-    const auto page = GetPage(current_groupID);
-    if (!page) return;
-    page->ForEachManager(a_func);
+    const auto group = groups.find(current_groupID);
+    if (group == groups.end()) return;
+    for (auto& page : group->second | std::views::values) {
+        page.ForEachManager(a_func);
+    }
 }
 
 void Manager::Page::ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func) {

@@ -193,6 +193,7 @@ namespace ImGui::Renderer {
             std::optional<bool> ProcessListNavigation(PromptLayouts::List::Navigation navigation);
             SubManager* GetSubManagerByKey(uint32_t a_prompt_key) const;
             std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> GetPromptButtons() const;
+            void CollectPromptButtons(std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>>& buttons) const;
             bool WakeUpPrompt(const SkyPromptAPI::PromptSink* a_prompt_sink) const;
             bool RemoveEmptyRows(bool active);
             bool ContainsClient(SkyPromptAPI::ClientID clientID) const;
