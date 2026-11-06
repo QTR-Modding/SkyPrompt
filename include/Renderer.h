@@ -184,7 +184,8 @@ namespace ImGui::Renderer {
             PromptLayouts::List list;
             Theme::Theme* theme = &Theme::default_theme;
 
-            void Render(SkyPromptAPI::ClientID pageIndex, SkyPromptAPI::ClientID pageCount);
+            void Render(SkyPromptAPI::ClientID groupID, SkyPromptAPI::ClientID pageID,
+                        SkyPromptAPI::ClientID groupIndex, SkyPromptAPI::ClientID groupCount);
             void ShowPromptRow(size_t index, bool isList, size_t visibleCount);
             std::optional<bool> ProcessInput(RE::InputEvent* event, uint32_t buttonKey);
             std::optional<bool> ProcessInput(Input::VRNavigation::Direction direction);

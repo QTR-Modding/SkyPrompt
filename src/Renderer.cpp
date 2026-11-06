@@ -707,9 +707,13 @@ void Manager::PrepareFonts() {
     {
         std::shared_lock lock(mutex_);
         std::shared_lock theme_lock(Theme::m_theme_);
-        const auto page = GetPage(current_groupID);
-        const auto& theme = page ? *page->theme : Theme::default_theme;
-        requiredFonts.emplace(theme.font_name, theme.prompt_size * resolutionScale);
+        if (const auto group = groups.find(current_groupID); group != groups.end()) {
+            for (const auto& page : group->second | std::views::values) {
+                requiredFonts.emplace(page.theme->font_name, page.theme->prompt_size * resolutionScale);
+            }
+        } else {
+            requiredFonts.emplace(Theme::default_theme.font_name, Theme::default_theme.prompt_size * resolutionScale);
+        }
     }
 
     const auto fontManager = MANAGER(IconFont);
@@ -719,8 +723,10 @@ void Manager::PrepareFonts() {
         std::unique_lock lock(mutex_);
         std::unique_lock theme_lock(Theme::m_theme_);
         Theme::default_theme = Theme::Theme();
-        if (const auto page = GetPage(current_groupID)) {
-            page->theme = &Theme::default_theme;
+        if (const auto group = groups.find(current_groupID); group != groups.end()) {
+            for (auto& page : group->second | std::views::values) {
+                page.theme = &Theme::default_theme;
+            }
         }
         requiredFonts.clear();
         requiredFonts.emplace(Theme::default_theme.font_name, Theme::default_theme.prompt_size * resolutionScale);
@@ -953,8 +959,10 @@ bool Manager::RemoveFromQ(const SkyPromptAPI::ClientID a_clientID, const SkyProm
 
 bool Manager::HasTask() const {
     std::shared_lock lock(mutex_);
-    const auto page = GetPage(current_groupID);
-    return page && page->HasQueue();
+    const auto group = groups.find(current_groupID);
+    return group != groups.end() && std::ranges::any_of(group->second | std::views::values, [](const auto& page) {
+        return page.HasQueue();
+    });
 }
 
 bool Manager::Page::HasQueue() const {
@@ -1306,7 +1314,8 @@ void Manager::Page::ShowPromptRow(const size_t index, const bool isList, const s
     }
 }
 
-void Manager::Page::Render(const SkyPromptAPI::ClientID pageIndex, const SkyPromptAPI::ClientID pageCount) {
+void Manager::Page::Render(const SkyPromptAPI::ClientID groupID, const SkyPromptAPI::ClientID pageID,
+                           const SkyPromptAPI::ClientID groupIndex, const SkyPromptAPI::ClientID groupCount) {
     const auto& pageTheme = *theme;
     const auto& pageFonts = MANAGER(IconFont)->GetFonts(pageTheme.font_name,
                                                       pageTheme.prompt_size * GetResolutionScale());
@@ -1336,11 +1345,12 @@ void Manager::Page::Render(const SkyPromptAPI::ClientID pageIndex, const SkyProm
     }
 
     const float windowPadding = 0.4f * pageTheme.prompt_size;
-    BeginImGuiWindow("SkyPrompt", GetSkyPromptContentOrigin(pageTheme, windowPos), windowPadding);
+    BeginImGuiWindow(std::format("SkyPrompt##{}_{}", groupID, pageID).c_str(),
+                     GetSkyPromptContentOrigin(pageTheme, windowPos), windowPadding);
     RenderSkyPrompt(pageTheme, windowPos);
 
-    if (pageCount > 1) {
-        DrawCycleIndicators(pageTheme, pageFonts.smallFont, pageIndex, pageCount);
+    if (groupCount > 1) {
+        DrawCycleIndicators(pageTheme, pageFonts.smallFont, groupIndex, groupCount);
     }
 
     EndImGuiWindow();
@@ -1355,7 +1365,7 @@ void Manager::Page::Render(const SkyPromptAPI::ClientID pageIndex, const SkyProm
         for (const auto index : rowIndices) {
             ShowPromptRow(index, isList, visibleCount);
         }
-        BeginImGuiWindow(std::format("SkyPromptHover{}", i++).c_str(),
+        BeginImGuiWindow(std::format("SkyPromptHover{}##{}_{}", i++, groupID, pageID).c_str(),
                          GetSkyPromptContentOrigin(pageTheme, window_pos), windowPadding);
         if (position.world) VR::BeginWorldPrompt(*position.world, GetWindowDrawList());
         RenderSkyPrompt(pageTheme, window_pos);
@@ -1371,15 +1381,17 @@ void Manager::Render() {
     }
 
     std::unique_lock lock(mutex_);
-    const auto page = GetPage(current_groupID);
-    if (!page) return;
+    const auto group = groups.find(current_groupID);
+    if (group == groups.end()) return;
 
     SkyPromptAPI::ClientID otherGroups = 0;
     SkyPromptAPI::ClientID index = 0;
     if (MCP::Settings::cycle_controls.load()) {
         for (const auto& [groupID, groupPages] : groups) {
             if (groupID != current_groupID) {
-                if (groupPages.at(groupID).HasQueue()) {
+                if (std::ranges::any_of(groupPages | std::views::values, [](const auto& page) {
+                    return page.HasQueue();
+                })) {
                     ++otherGroups;
                 }
             } else {
@@ -1387,7 +1399,9 @@ void Manager::Render() {
             }
         }
     }
-    page->Render(index + 1, otherGroups + 1);
+    for (auto& [pageID, page] : group->second) {
+        page.Render(current_groupID, pageID, index + 1, otherGroups + 1);
+    }
 }
 
 void Manager::Clear(const SkyPromptAPI::PromptEventType a_event_type) {
