@@ -205,8 +205,7 @@ std::optional<bool> InputHook::ProcessVRNavigation(RE::InputEvent* event, const 
     const auto direction = navigation.Step(stick->xValue, stick->yValue);
     const auto renderer = MANAGER(ImGui::Renderer);
     if (direction == Direction::kUp || direction == Direction::kDown) {
-        renderer->ProcessListNavigation(direction == Direction::kUp
-            ? PromptLayouts::List::Navigation::kPrevious : PromptLayouts::List::Navigation::kNext);
+        renderer->ProcessInput(direction);
     } else if ((direction == Direction::kLeft || direction == Direction::kRight) && MCP::Settings::cycle_controls) {
         renderer->CyclePage(direction == Direction::kLeft);
     }
@@ -232,13 +231,10 @@ bool InputHook::ProcessInput(RE::InputEvent* event) {
     }
     if (!available) return block;
 
-    if (const auto handled = render_manager->ProcessListInput(event)) {
-        return *handled;
-    }
     const auto button_event = event->AsButtonEvent();
     const auto key = button_event ? input_manager->Convert(button_event->GetIDCode(), button_event->GetDevice()) : 0;
-    block = render_manager->ProcessInput(event, key);
-    if (button_event && !block && key != 0 && button_event->IsDown()) {
+    if (const auto handled = render_manager->ProcessInput(event, key)) return *handled;
+    if (button_event && key != 0 && button_event->IsDown()) {
         const auto device = input_manager->GetInputDevice();
         const bool is_L = key == MCP::Settings::cycle_L[device];
         const bool is_R = key == MCP::Settings::cycle_R[device];
