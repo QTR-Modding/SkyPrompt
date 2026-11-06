@@ -914,7 +914,7 @@ bool Manager::RemoveFromQ(const SkyPromptAPI::ClientID a_clientID, const SkyProm
                 removed |= a_manager->RemoveFromQ(a_clientID, a_prompt_sink, a_interaction);
             }
             if (compatibleID != current_pageID) {
-                RemoveEmptyRows(*page);
+                page->RemoveEmptyRows(false);
             }
         }
     }
@@ -1238,22 +1238,21 @@ void Manager::CleanUpQueue() {
     for (const auto& manager : page->managers) {
         manager->CleanUpQueue(*page->theme);
     }
-    if (RemoveEmptyRows(*page) && page->managers.empty()) {
+    if (page->RemoveEmptyRows(true) && page->managers.empty()) {
         lock.unlock();
         CyclePage(false);
     }
 }
 
-bool Manager::RemoveEmptyRows(Page& page) {
-    auto& rows = page.managers;
-    const bool active = &page == GetPage(current_pageID);
+bool Manager::Page::RemoveEmptyRows(const bool active) {
+    auto& rows = managers;
     bool removed = false;
     for (size_t index = rows.size(); index > 0;) {
         --index;
         if (!rows[index]->HasQueue()) {
             rows.erase(rows.begin() + index);
             if (active) {
-                page.list.OnRowRemoved(index);
+                list.OnRowRemoved(index);
             }
             removed = true;
         }
@@ -1261,10 +1260,10 @@ bool Manager::RemoveEmptyRows(Page& page) {
     if (removed) {
         int index = 0;
         for (const auto& row : rows) {
-            row->SetDefaultKeyIndex(*page.theme, index++);
+            row->SetDefaultKeyIndex(*theme, index++);
         }
         if (active) {
-            page.list.ClampSelection(rows.size());
+            list.ClampSelection(rows.size());
         }
     }
     return removed;

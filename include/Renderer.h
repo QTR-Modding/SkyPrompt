@@ -193,6 +193,7 @@ namespace ImGui::Renderer {
             SubManager* GetSubManagerByKey(uint32_t a_prompt_key) const;
             std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> GetPromptButtons() const;
             bool WakeUpPrompt(const SkyPromptAPI::PromptSink* a_prompt_sink) const;
+            bool RemoveEmptyRows(bool active);
         };
 
         std::map<SkyPromptAPI::ClientID, Page> pages; // every page has a leader
@@ -200,7 +201,6 @@ namespace ImGui::Renderer {
         // Caller holds mutex_.
         const Page* GetPage(SkyPromptAPI::ClientID pageID) const;
         Page* GetPage(SkyPromptAPI::ClientID pageID);
-        bool RemoveEmptyRows(Page& page);
 
         // Caller holds mutex_.
         SkyPromptAPI::ClientID FindCompatibleClientID(SkyPromptAPI::ClientID a_clientID) const;
