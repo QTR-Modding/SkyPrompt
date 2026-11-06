@@ -123,7 +123,8 @@ namespace ImGui::Renderer {
         bool RemoveFromQ(const Interaction& a_interaction);
         bool RemoveFromQ(SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink,
                          const std::optional<Interaction>& a_interaction = std::nullopt);
-        void SetDefaultKeyIndex(const Theme::Theme& theme, int index);
+        void SetDefaultKeyIndex(const Theme::Theme& theme, int index,
+                                std::optional<uint32_t> previousKey = std::nullopt);
         void ResetQueue();
         void ShowQueue(const Theme::Theme& theme);
         void WakeUpQueue();
@@ -141,6 +142,7 @@ namespace ImGui::Renderer {
         bool IsHidden() const;
 
         std::vector<Interaction> GetInteractions() const;
+        SkyPromptAPI::ClientID GetClientID() const;
         Interaction GetCurrentInteraction() const;
         const InteractionButton* GetCurrentButton() const;
         void AddSink(const Interaction& a_interaction, const SkyPromptAPI::PromptSink* a_sink);
@@ -180,7 +182,6 @@ namespace ImGui::Renderer {
 
 
         struct Group {
-            SkyPromptAPI::ClientID group_leaderID;
             std::vector<std::unique_ptr<SubManager>> managers;
             PromptLayouts::List list;
             Theme::Theme* theme = &Theme::default_theme;
@@ -198,6 +199,10 @@ namespace ImGui::Renderer {
             bool WakeUpPrompt(const SkyPromptAPI::PromptSink* a_prompt_sink) const;
             bool RemoveEmptyRows(bool active);
             bool ContainsClient(SkyPromptAPI::ClientID clientID) const;
+            void CollectClients(std::set<SkyPromptAPI::ClientID>& clients) const;
+            void CollectRowKeys(std::map<const SubManager*, uint32_t>& keys) const;
+            void MoveClientRowsTo(SkyPromptAPI::ClientID clientID, Group& target);
+            void UpdateRowKeys(const std::map<const SubManager*, uint32_t>& previousKeys);
             bool CanJoin(SkyPromptAPI::ClientID clientID) const;
             SubManager* Add2Q(const Interaction& a_interaction, const ButtonMutables& a_mutables,
                               SkyPromptAPI::PromptType a_type, RefID a_refid,
@@ -220,13 +225,16 @@ namespace ImGui::Renderer {
         };
 
         std::map<SkyPromptAPI::ClientID, std::map<SkyPromptAPI::ClientID, Group>> pages;
+        std::map<SkyPromptAPI::ClientID, Theme::Theme*> requestedThemes;
 
         // Caller holds mutex_.
-        const Group* GetGroup(SkyPromptAPI::ClientID pageID, SkyPromptAPI::ClientID groupID) const;
         Group* GetGroup(SkyPromptAPI::ClientID pageID, SkyPromptAPI::ClientID groupID);
 
         // Caller holds mutex_.
         std::pair<SkyPromptAPI::ClientID, SkyPromptAPI::ClientID> FindGroupIDs(SkyPromptAPI::ClientID clientID) const;
+        bool CanJoinPage(SkyPromptAPI::ClientID pageID, SkyPromptAPI::ClientID clientID) const;
+        // Caller holds mutex_ exclusively and m_theme_ shared or exclusively.
+        SkyPromptAPI::ClientID RegroupPage(SkyPromptAPI::ClientID pageID, SkyPromptAPI::ClientID addedClient = 0);
 
         void Clear(SkyPromptAPI::PromptEventType a_event_type);
 
@@ -262,7 +270,7 @@ namespace ImGui::Renderer {
 
         bool InitializeClient(SkyPromptAPI::ClientID a_clientID);
         bool RequestTheme(SkyPromptAPI::ClientID a_clientID, std::string_view theme_name);
-        const Theme::Theme& GetCurrentTheme() const;
+        std::vector<const Theme::Theme*> GetCurrentThemes() const;
         void PrepareFonts();
         bool CyclePage(bool a_left);
     };
