@@ -192,6 +192,7 @@ namespace ImGui::Renderer {
             std::optional<bool> ProcessListNavigation(PromptLayouts::List::Navigation navigation);
             SubManager* GetSubManagerByKey(uint32_t a_prompt_key) const;
             std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> GetPromptButtons() const;
+            bool WakeUpPrompt(const SkyPromptAPI::PromptSink* a_prompt_sink) const;
         };
 
         std::map<SkyPromptAPI::ClientID, Page> pages; // every page has a leader
@@ -201,6 +202,7 @@ namespace ImGui::Renderer {
         Page* GetPage(SkyPromptAPI::ClientID pageID);
         bool RemoveEmptyRows(Page& page);
 
+        // Caller holds mutex_.
         SkyPromptAPI::ClientID FindCompatibleClientID(SkyPromptAPI::ClientID a_clientID) const;
 
         void Clear(SkyPromptAPI::PromptEventType a_event_type);
@@ -213,8 +215,6 @@ namespace ImGui::Renderer {
                                            SkyPromptAPI::ActionID a_action);
 
         bool Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, SkyPromptAPI::ClientID a_clientID);
-        bool IsInQueue(SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink,
-                       bool wake_up = false);
         bool RemoveFromQ(SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink,
                          const std::optional<Interaction>& a_interaction = std::nullopt);
         [[nodiscard]] bool HasTask() const;

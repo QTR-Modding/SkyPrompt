@@ -235,8 +235,6 @@ SkyPromptAPI::ClientID Manager::FindCompatibleClientID(const SkyPromptAPI::Clien
         });
     };
 
-    std::shared_lock lock(mutex_);
-
     if (const auto page = GetPage(current_pageID); page && contains_client(page->managers)) {
         return current_pageID;
     }
@@ -774,8 +772,15 @@ bool Manager::CyclePage(const bool a_left) {
 }
 
 bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyPromptAPI::ClientID a_clientID) {
-    const bool refresh = IsInQueue(a_clientID, a_prompt_sink, true);
-    auto compatibleID = FindCompatibleClientID(a_clientID);
+    bool refresh = false;
+    SkyPromptAPI::ClientID compatibleID;
+    {
+        std::shared_lock lock(mutex_);
+        compatibleID = FindCompatibleClientID(a_clientID);
+        if (const auto page = GetPage(compatibleID)) {
+            refresh = page->WakeUpPrompt(a_prompt_sink);
+        }
+    }
 
     if (compatibleID == 0) {
         compatibleID = a_clientID;
@@ -887,30 +892,12 @@ void Manager::RestorePromptOrder(const SkyPromptAPI::ClientID pageID, const SkyP
     }
 }
 
-bool Manager::IsInQueue(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink,
-                        const bool wake_up) {
+bool Manager::Page::WakeUpPrompt(const SkyPromptAPI::PromptSink* a_prompt_sink) const {
     bool result = false;
-
-    const auto compatibleID = FindCompatibleClientID(a_clientID);
-    if (compatibleID == 0) {
-        return false;
-    }
-
-    std::shared_lock lock(mutex_);
-    const auto page = GetPage(compatibleID);
-
-    if (!page) {
-        return false;
-    }
-
-    for (const auto& a_manager : page->managers) {
+    for (const auto& a_manager : managers) {
         if (a_manager->IsInQueue(a_prompt_sink)) {
             result = true;
-            if (wake_up) {
-                a_manager->WakeUpQueue();
-            } else {
-                return result;
-            }
+            a_manager->WakeUpQueue();
         }
     }
     return result;
@@ -918,10 +905,10 @@ bool Manager::IsInQueue(const SkyPromptAPI::ClientID a_clientID, const SkyPrompt
 
 bool Manager::RemoveFromQ(const SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink,
                          const std::optional<Interaction>& a_interaction) {
-    const auto compatibleID = FindCompatibleClientID(a_clientID);
     bool removed = false;
     {
         std::unique_lock lock(mutex_);
+        const auto compatibleID = FindCompatibleClientID(a_clientID);
         if (const auto page = GetPage(compatibleID)) {
             for (const auto& a_manager : page->managers) {
                 removed |= a_manager->RemoveFromQ(a_clientID, a_prompt_sink, a_interaction);
