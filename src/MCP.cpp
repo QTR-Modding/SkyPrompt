@@ -1,4 +1,5 @@
 #include "MCP.h"
+#include "Renderer.h"
 #include "SKSEMCP/SKSEMenuFramework.hpp"
 #include "Utils.h"
 #include "rapidjson/document.h"
@@ -185,7 +186,7 @@ namespace {
             if (filename.empty()) MCP::Settings::to_json();
         }
 
-        void RenderSelector();
+        void RenderSelector(std::span<const Theme::Theme* const> activeThemes);
         bool RenderLayout();
         bool RenderPosition();
         bool RenderAppearance();
@@ -195,10 +196,10 @@ namespace {
 
     ThemeEditor theme_editor;
 
-    void ThemeEditor::RenderSelector() {
+    void ThemeEditor::RenderSelector(const std::span<const Theme::Theme* const> activeThemes) {
         if (!BeginSettingsTable("theme.editor.fields")) return;
-        const auto label = [](const std::string_view a_name, const Theme::Theme& a_theme) {
-            return &a_theme == Theme::last_theme
+        const auto label = [activeThemes](const std::string_view a_name, const Theme::Theme& a_theme) {
+            return std::ranges::find(activeThemes, &a_theme) != activeThemes.end()
                        ? Translations::Format("$SkyPromptMCPThemeActive", a_name)
                        : std::string(a_name);
         };
@@ -1381,11 +1382,12 @@ void __stdcall MCP::RenderTheme() {
         refreshStyle.store(true);
     }
 
+    const auto activeThemes = MANAGER(ImGui::Renderer)->GetCurrentThemes();
     std::unique_lock lock(Theme::m_theme_);
     ImGuiMCP::SameLine();
     RenderThemeExport(theme_editor.GetTheme());
     ImGuiMCP::Spacing();
-    theme_editor.RenderSelector();
+    theme_editor.RenderSelector(activeThemes);
     auto& theme = theme_editor.GetTheme();
     bool changed = false;
     if (LocalizedButton("$SkyPromptMCPSettingsResetDefaults", "settings.resetDefaults")) {

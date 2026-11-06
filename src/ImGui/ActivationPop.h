@@ -12,6 +12,7 @@ namespace ImGui {
             ImVec2 textCenter;
             ImVec2 textSize;
             float iconSize;
+            ImFont* font;
             float fontSize;
             float angle;
             float alpha;
@@ -37,7 +38,7 @@ namespace ImGui {
         static void DrawCopy(const Visual& visual, float progress);
 
     public:
-        void Capture(const RenderInfo& info, ImVec2 iconCenter, ImVec2 textCenter,
+        void Capture(const Theme::Theme& theme, const RenderInfo& info, ImVec2 iconCenter, ImVec2 textCenter,
                      ImVec2 textSize, float angle = 0.0f, bool showIcon = true);
         void Trigger(const Interaction& interaction);
         void Draw();

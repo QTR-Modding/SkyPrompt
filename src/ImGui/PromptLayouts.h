@@ -46,15 +46,15 @@ namespace ImGui::PromptLayouts {
         PromptBounds bounds;
     };
 
-    float GetIconSize();
-    float GetSeparatorGap();
-    VerticalPromptLayout MeasureVerticalPrompts(const std::vector<RenderInfo>& batch);
-    HorizontalPromptLayout MeasureHorizontalPrompts(const std::vector<RenderInfo>& batch,
+    float GetIconSize(const Theme::Theme& theme);
+    float GetSeparatorGap(const Theme::Theme& theme);
+    VerticalPromptLayout MeasureVerticalPrompts(const Theme::Theme& theme, const std::vector<RenderInfo>& batch);
+    HorizontalPromptLayout MeasureHorizontalPrompts(const Theme::Theme& theme, const std::vector<RenderInfo>& batch,
                                                     float lineSpacingPx);
     DiamondArm GetDiamondArm(std::size_t index);
-    bool IsDiamondTextFirst(DiamondArm arm);
-    float GetPromptIconCenterX(const PromptItemDimensions& dimensions, bool textFirst);
-    DiamondPromptLayout MeasureDiamondPrompts(const std::vector<RenderInfo>& batch,
+    bool IsDiamondTextFirst(const Theme::Theme& theme, DiamondArm arm);
+    float GetPromptIconCenterX(const Theme::Theme& theme, const PromptItemDimensions& dimensions, bool textFirst);
+    DiamondPromptLayout MeasureDiamondPrompts(const Theme::Theme& theme, const std::vector<RenderInfo>& batch,
                                               float lineSpacingPx);
 
     struct List {
@@ -71,8 +71,8 @@ namespace ImGui::PromptLayouts {
         size_t selection = 0;
         size_t firstVisible = 0;
 
-        static float GetIndicatorPadding();
-        static Navigation GetNavigation(const RE::ButtonEvent& button, uint32_t activateKey);
+        static float GetIndicatorPadding(const Theme::Theme& theme);
+        static Navigation GetNavigation(const RE::ButtonEvent& button, uint32_t buttonKey, uint32_t activateKey);
         void MoveSelection(Navigation navigation, size_t promptCount);
         void Reset();
         void OnRowRemoved(size_t index);

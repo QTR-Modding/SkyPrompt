@@ -40,10 +40,16 @@ namespace IconFont {
             IconTexture ps4;
         };
 
-        void LoadIcons();
-        [[nodiscard]] bool ReloadFonts();
+        struct FontPair {
+            ImFont* normalFont;
+            ImFont* smallFont;
+        };
 
-        [[nodiscard]] ImFont* GetSmallFont() const;
+        void LoadIcons();
+        [[nodiscard]] bool ReloadFonts(const std::set<std::pair<std::string, float>>& requiredFonts);
+
+        [[nodiscard]] const FontPair& GetFonts(std::string_view filename, float size) const;
+        [[nodiscard]] bool HasFonts() const { return !fonts.empty(); }
         [[nodiscard]] const std::set<FontInfo>& GetAvailableFonts() const;
         [[nodiscard]] const FontInfo* GetFontInfoByName(std::string_view a_fontName) const;
 
@@ -71,7 +77,7 @@ namespace IconFont {
 
         std::set<FontInfo> availableFonts;
 
-        ImFont* smallFont{nullptr};
+        std::map<std::pair<std::string, float>, FontPair, std::less<>> fonts;
 
         IconTexture stepperLeft{L"StepperLeft"sv};
         IconTexture stepperRight{L"StepperRight"sv};
@@ -240,12 +246,13 @@ namespace ImGui {
     };
 
 
-    ImVec2 ButtonIcon(const IconFont::IconTexture* a_texture);
+    ImVec2 ButtonIcon(const Theme::Theme& theme, const IconFont::IconTexture* a_texture);
 
-    void DrawCycleIndicators(SkyPromptAPI::ClientID curr_index, SkyPromptAPI::ClientID queue_size);
+    void DrawCycleIndicators(const Theme::Theme& theme, ImFont* smallFont,
+                             SkyPromptAPI::ClientID curr_index, SkyPromptAPI::ClientID queue_size);
 
     inline std::vector<RenderInfo> renderBatch;
 
-    ImVec2 GetSkyPromptContentOrigin(const ImVec2& anchor);
-    void RenderSkyPrompt(const ImVec2& anchor);
+    ImVec2 GetSkyPromptContentOrigin(const Theme::Theme& theme, const ImVec2& anchor);
+    void RenderSkyPrompt(const Theme::Theme& theme, const ImVec2& anchor);
 }

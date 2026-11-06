@@ -124,11 +124,8 @@ namespace Theme {
 
     bool WriteThemeFile(const std::filesystem::path& a_path, const rapidjson::Document& a_document);
     void LoadThemes();
-    void ReLoadDefaultTheme();
 
     inline std::unordered_map<std::string, Theme> themes_loaded;
 
     inline std::shared_mutex m_theme_;
-    inline std::unordered_map<SkyPromptAPI::ClientID, Theme*> themes;
-    inline Theme* last_theme = &default_theme;
 };

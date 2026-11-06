@@ -93,7 +93,14 @@ void DrawHook::thunk(std::uint32_t a_timer) {
         io.DisplaySize.y = static_cast<float>(screenSize.height);
     }
     VR::PrepareFrame(previousDisplaySize);
-    Styles::GetSingleton()->OnStyleRefresh();
+    if (MCP::refreshStyle.exchange(false)) {
+        Styles::GetSingleton()->OnStyleRefresh();
+        MANAGER(ImGui::Renderer)->PrepareFonts();
+    }
+    if (!MANAGER(IconFont)->HasFonts()) {
+        VR::Render(CreateD3DAndSwapChain::context, false);
+        return;
+    }
     ImGui_ImplDX11_NewFrame();
     NewFrame();
     {
@@ -198,10 +205,9 @@ std::optional<bool> InputHook::ProcessVRNavigation(RE::InputEvent* event, const 
     const auto direction = navigation.Step(stick->xValue, stick->yValue);
     const auto renderer = MANAGER(ImGui::Renderer);
     if (direction == Direction::kUp || direction == Direction::kDown) {
-        renderer->ProcessListNavigation(direction == Direction::kUp
-            ? PromptLayouts::List::Navigation::kPrevious : PromptLayouts::List::Navigation::kNext);
+        renderer->ProcessInput(direction);
     } else if ((direction == Direction::kLeft || direction == Direction::kRight) && MCP::Settings::cycle_controls) {
-        renderer->CycleClient(direction == Direction::kLeft);
+        renderer->CyclePage(direction == Direction::kLeft);
     }
     // Forward a neutral movement event so Skyrim clears any previously held direction.
     const auto prompts = renderer->GetPromptButtons();
@@ -225,79 +231,17 @@ bool InputHook::ProcessInput(RE::InputEvent* event) {
     }
     if (!available) return block;
 
-    if (const auto handled = render_manager->ProcessListInput(event)) {
-        return *handled;
-    }
-
-    if (const auto button_event = event->AsButtonEvent()) {
-        const auto key = input_manager->Convert(button_event->GetIDCode(), button_event->GetDevice());
-        for (const auto prompt_buttons = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] :
-             prompt_buttons) {
-            if (prompt_key != 0 && prompt_key == key) {
-                if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
-                    block = true;
-                }
-                const auto now = std::chrono::steady_clock::now();
-                if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
-                    submanager->buttonState.isPressing = button_event->IsPressed();
-                    if (button_event->IsDown()) {
-                        submanager->buttonState.acceptedThisPress = false;
-                        submanager->buttonState.pressCount++;
-                        submanager->buttonState.lastPressTime = now;
-                        submanager->SendEvent(submanager->GetCurrentInteraction(),
-                                              SkyPromptAPI::PromptEventType::kDown);
-                    } else if (button_event->IsUp()) {
-                        submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kUp);
-                    }
-                    if (submanager->buttonState.pressCount > 0 || !submanager->buttonState.isPressing) {
-                        submanager->UpdateProgressCircle(submanager->buttonState.isPressing);
-                    }
-                }
-            }
-        }
-
-        if (!block && key != 0 && button_event->IsDown()) {
-            const auto device = input_manager->GetInputDevice();
-            const bool is_L = key == MCP::Settings::cycle_L[device];
-            const bool is_R = key == MCP::Settings::cycle_R[device];
-            if (is_L || is_R) {
-                block = Manager::GetSingleton()->CycleClient(is_L);
-            }
-        }
-    } else if (const auto mouse_event = event->AsMouseMoveEvent()) {
-        constexpr auto key = SkyPromptAPI::kMouseMove;
-        for (const auto prompt_keys = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] :
-             prompt_keys) {
-            if (prompt_key != 0 && prompt_key == key) {
-                if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
-                    block = true;
-                }
-                if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
-                    submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove,
-                                          {static_cast<float>(mouse_event->mouseInputX),
-                                           static_cast<float>(mouse_event->mouseInputY)});
-                    submanager->UpdateProgressCircle(mouse_event->mouseInputX != 0 || mouse_event->mouseInputY != 0);
-                }
-            }
-        }
-    } else if (const auto thumbstick_event = event->AsThumbstickEvent()) {
-        const auto key = thumbstick_event->IsLeft() ? SkyPromptAPI::kThumbstickMoveL : SkyPromptAPI::kThumbstickMoveR;
-        for (const auto prompt_keys = render_manager->GetPromptButtons(); const auto& [prompt_type,prompt_key] :
-             prompt_keys) {
-            if (prompt_key != 0 && prompt_key == key) {
-                if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
-                    block = true;
-                }
-                if (const auto submanager = render_manager->GetSubManagerByKey(prompt_key)) {
-                    submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove,
-                                          {thumbstick_event->xValue, thumbstick_event->yValue});
-                    submanager->
-                        UpdateProgressCircle(thumbstick_event->xValue != 0.f || thumbstick_event->yValue != 0.f);
-                }
-            }
+    const auto button_event = event->AsButtonEvent();
+    const auto key = button_event ? input_manager->Convert(button_event->GetIDCode(), button_event->GetDevice()) : 0;
+    if (const auto handled = render_manager->ProcessInput(event, key)) return *handled;
+    if (button_event && key != 0 && button_event->IsDown()) {
+        const auto device = input_manager->GetInputDevice();
+        const bool is_L = key == MCP::Settings::cycle_L[device];
+        const bool is_R = key == MCP::Settings::cycle_R[device];
+        if (is_L || is_R) {
+            block = render_manager->CyclePage(is_L);
         }
     }
-
     return block;
 }
 
