@@ -248,7 +248,11 @@ void Manager::Group::CollectClients(std::set<SkyPromptAPI::ClientID>& clients) c
 }
 
 void Manager::Group::CollectRowKeys(std::map<const SubManager*, uint32_t>& keys) const {
-    for (const auto& manager : managers) keys.emplace(manager.get(), manager->GetPromptKey(*theme));
+    for (const auto& manager : managers) {
+        const bool receivesInput = theme->prompt_alignment != Theme::kList ||
+                                   (list.selection < managers.size() && manager == managers[list.selection]);
+        keys.emplace(manager.get(), receivesInput ? manager->GetPromptKey(*theme) : 0);
+    }
 }
 
 void Manager::Group::MoveClientRowsTo(const SkyPromptAPI::ClientID clientID, Group& target) {
@@ -266,11 +270,12 @@ void Manager::Group::MoveClientRowsTo(const SkyPromptAPI::ClientID clientID, Gro
 }
 
 void Manager::Group::UpdateRowKeys(const std::map<const SubManager*, uint32_t>& previousKeys) {
+    list.ClampSelection(managers.size());
     int index = 0;
     for (const auto& manager : managers) {
-        manager->SetDefaultKeyIndex(*theme, index++, previousKeys.at(manager.get()));
+        const bool receivesInput = theme->prompt_alignment != Theme::kList || manager == managers[list.selection];
+        manager->SetDefaultKeyIndex(*theme, index++, previousKeys.at(manager.get()), receivesInput);
     }
-    list.ClampSelection(managers.size());
 }
 
 bool Manager::CanJoinPage(const SkyPromptAPI::ClientID pageID, const SkyPromptAPI::ClientID clientID) const {
@@ -310,8 +315,9 @@ SkyPromptAPI::ClientID Manager::RegroupPage(const SkyPromptAPI::ClientID pageID,
         const auto request = requestedThemes.find(clientID);
         const auto theme = request != requestedThemes.end() ? request->second : fallback;
         const auto groupID = providers.size() <= 1 ? pageID : providers.at(theme);
-        auto& target = page.try_emplace(groupID).first->second;
-        themesChanged |= target.theme != theme;
+        const auto [targetIt, inserted] = page.try_emplace(groupID);
+        auto& target = targetIt->second;
+        themesChanged |= inserted || target.theme != theme;
         target.theme = theme;
         if (clientID == addedClient) addedGroup = groupID;
         for (auto& [sourceID, source] : page) {
@@ -656,14 +662,15 @@ bool SubManager::RemoveFromQ(const SkyPromptAPI::ClientID a_clientID,
 }
 
 void SubManager::SetDefaultKeyIndex(const Theme::Theme& theme, const int index,
-                                   const std::optional<uint32_t> previousKey) {
+                                   const std::optional<uint32_t> previousKey, const bool receivesInput) {
     std::unique_lock lock(q_mutex_);
     const auto current = interactQueue.current_button;
     const auto oldKey = previousKey ? *previousKey : (current ? current->GetKey(theme) : 0);
     for (const auto& button : interactQueue.buttons) {
         button.default_key_index = index;
     }
-    if (current && current->GetKey(theme) != oldKey) {
+    const auto newKey = current && receivesInput ? current->GetKey(theme) : 0;
+    if (!receivesInput || newKey != oldKey) {
         ResetButtonState();
     }
 }
@@ -817,6 +824,7 @@ void Manager::PrepareFonts() {
     }
 
     const auto fontManager = MANAGER(IconFont);
+    activationPop.Clear();
     if (fontManager->ReloadFonts(requiredFonts)) return;
 
     {

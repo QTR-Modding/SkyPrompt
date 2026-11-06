@@ -124,7 +124,7 @@ namespace ImGui::Renderer {
         bool RemoveFromQ(SkyPromptAPI::ClientID a_clientID, const SkyPromptAPI::PromptSink* a_prompt_sink,
                          const std::optional<Interaction>& a_interaction = std::nullopt);
         void SetDefaultKeyIndex(const Theme::Theme& theme, int index,
-                                std::optional<uint32_t> previousKey = std::nullopt);
+                                std::optional<uint32_t> previousKey = std::nullopt, bool receivesInput = true);
         void ResetQueue();
         void ShowQueue(const Theme::Theme& theme);
         void WakeUpQueue();

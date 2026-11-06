@@ -12,6 +12,7 @@ namespace ImGui {
             ImVec2 textCenter;
             ImVec2 textSize;
             float iconSize;
+            ImFont* font;
             float fontSize;
             float angle;
             float alpha;

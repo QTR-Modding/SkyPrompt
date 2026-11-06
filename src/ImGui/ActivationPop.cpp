@@ -28,6 +28,7 @@ namespace ImGui {
         visual.textCenter = textCenter;
         visual.textSize = textSize;
         visual.iconSize = PromptLayouts::GetIconSize(theme);
+        visual.font = GetFont();
         visual.fontSize = GetFontSize();
         visual.angle = angle;
         visual.alpha = info.alpha;
@@ -52,7 +53,6 @@ namespace ImGui {
 
     void ActivationPop::DrawCopy(const Visual& visual, const float progress) {
         auto* drawList = GetForegroundDrawList();
-        auto* font = GetFont();
         const float alpha = visual.alpha * visual.opacity * (1.0f - progress);
         const auto color = [alpha](const ImU32 value) {
             auto rgba = ColorConvertU32ToFloat4(value);
@@ -75,9 +75,9 @@ namespace ImGui {
             const auto firstTextVertex = drawList->VtxBuffer.Size;
             const auto position = visual.textCenter - visual.textSize * 0.5f;
             constexpr ImVec2 shadowOffset{2.5f, 2.5f};
-            drawList->AddText(font, visual.fontSize, position + shadowOffset,
+            drawList->AddText(visual.font, visual.fontSize, position + shadowOffset,
                               color(IM_COL32(0, 0, 0, 255 * visual.shadow)), visual.text.c_str());
-            drawList->AddText(font, visual.fontSize, position, color(visual.color), visual.text.c_str());
+            drawList->AddText(visual.font, visual.fontSize, position, color(visual.color), visual.text.c_str());
             ShadeVertsTransformPos(drawList, firstTextVertex, drawList->VtxBuffer.Size,
                                    visual.textCenter, c, s, visual.textCenter);
 
