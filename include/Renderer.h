@@ -159,7 +159,7 @@ namespace ImGui::Renderer {
     };
 
     class Manager : public REX::Singleton<Manager> {
-        void RestorePromptOrder(SkyPromptAPI::ClientID pageID, SkyPromptAPI::ClientID clientID,
+        void RestorePromptOrder(SkyPromptAPI::ClientID groupID, SkyPromptAPI::ClientID clientID,
                                 std::span<const SkyPromptAPI::Prompt> prompts);
 
         std::shared_mutex events_to_send_mutex;
@@ -170,9 +170,9 @@ namespace ImGui::Renderer {
                           SkyPromptAPI::PromptType a_type, RefID a_refid,
                           const std::map<Input::DEVICE, uint32_t>& a_bttn_map, bool show = true);
 
-        bool SwitchToPage(SkyPromptAPI::ClientID pageID);
+        bool SwitchToGroup(SkyPromptAPI::ClientID groupID);
 
-        SkyPromptAPI::ClientID current_pageID = 0;
+        SkyPromptAPI::ClientID current_groupID = 0;
 
         mutable std::shared_mutex mutex_;
         std::atomic<bool> isPaused = false;
@@ -216,11 +216,11 @@ namespace ImGui::Renderer {
             void ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func);
         };
 
-        std::map<SkyPromptAPI::ClientID, Page> pages; // every page has a leader
+        std::map<SkyPromptAPI::ClientID, std::map<SkyPromptAPI::ClientID, Page>> groups;
 
         // Caller holds mutex_.
-        const Page* GetPage(SkyPromptAPI::ClientID pageID) const;
-        Page* GetPage(SkyPromptAPI::ClientID pageID);
+        const Page* GetPage(SkyPromptAPI::ClientID groupID) const;
+        Page* GetPage(SkyPromptAPI::ClientID groupID);
 
         // Caller holds mutex_.
         SkyPromptAPI::ClientID FindCompatibleClientID(SkyPromptAPI::ClientID a_clientID) const;
