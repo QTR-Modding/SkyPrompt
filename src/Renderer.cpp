@@ -1432,7 +1432,7 @@ bool Manager::IsHidden() const {
 }
 
 std::optional<bool> Manager::Page::ProcessInput(RE::InputEvent* event, const uint32_t buttonKey) {
-    if (const auto handled = ProcessListInput(event)) return *handled;
+    if (const auto handled = ProcessListInput(event, buttonKey)) return *handled;
     bool block = false;
 
     if (const auto button_event = event->AsButtonEvent()) {
@@ -1510,11 +1510,12 @@ std::optional<bool> Manager::Page::ProcessInput(const Input::VRNavigation::Direc
     }
 }
 
-std::optional<bool> Manager::Page::ProcessListInput(RE::InputEvent* event) {
+std::optional<bool> Manager::Page::ProcessListInput(RE::InputEvent* event, const uint32_t buttonKey) {
     if (theme->prompt_alignment != Theme::kList) return std::nullopt;
     const auto button = event->AsButtonEvent();
     if (!button) return std::nullopt;
-    const auto navigation = PromptLayouts::List::GetNavigation(*button, GetControlKey(RE::UserEvents::GetSingleton()->activate));
+    const auto navigation = PromptLayouts::List::GetNavigation(
+        *button, buttonKey, GetControlKey(RE::UserEvents::GetSingleton()->activate));
     return ProcessListNavigation(navigation);
 }
 

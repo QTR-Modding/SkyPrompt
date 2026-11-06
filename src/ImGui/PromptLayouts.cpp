@@ -295,14 +295,14 @@ namespace ImGui::PromptLayouts {
         }
     }
 
-    List::Navigation List::GetNavigation(const RE::ButtonEvent& button, const uint32_t activateKey) {
+    List::Navigation List::GetNavigation(const RE::ButtonEvent& button, const uint32_t buttonKey,
+                                        const uint32_t activateKey) {
         using namespace SKSE::InputMap;
-        const auto key = Input::Manager::Convert(button.GetIDCode(), button.GetDevice());
-        if (key == activateKey) return Navigation::kUnhandled;
-        const bool up = key == Input::Manager::Convert(MOUSE::kWheelUp, RE::INPUT_DEVICE::kMouse) ||
-                        key == kGamepadButtonOffset_DPAD_UP;
-        const bool down = key == Input::Manager::Convert(MOUSE::kWheelDown, RE::INPUT_DEVICE::kMouse) ||
-                          key == kGamepadButtonOffset_DPAD_DOWN;
+        if (buttonKey == activateKey) return Navigation::kUnhandled;
+        const bool up = buttonKey == Input::Manager::Convert(MOUSE::kWheelUp, RE::INPUT_DEVICE::kMouse) ||
+                        buttonKey == kGamepadButtonOffset_DPAD_UP;
+        const bool down = buttonKey == Input::Manager::Convert(MOUSE::kWheelDown, RE::INPUT_DEVICE::kMouse) ||
+                          buttonKey == kGamepadButtonOffset_DPAD_DOWN;
         if (up || down) {
             const float held = button.HeldDuration();
             if (button.IsDown() || (button.IsPressed() &&

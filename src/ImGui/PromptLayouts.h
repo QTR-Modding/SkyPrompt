@@ -72,7 +72,7 @@ namespace ImGui::PromptLayouts {
         size_t firstVisible = 0;
 
         static float GetIndicatorPadding(const Theme::Theme& theme);
-        static Navigation GetNavigation(const RE::ButtonEvent& button, uint32_t activateKey);
+        static Navigation GetNavigation(const RE::ButtonEvent& button, uint32_t buttonKey, uint32_t activateKey);
         void MoveSelection(Navigation navigation, size_t promptCount);
         void Reset();
         void OnRowRemoved(size_t index);
