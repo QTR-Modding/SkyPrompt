@@ -35,16 +35,6 @@ namespace Input {
         VRNavigation vrNavigation;
 
     private:
-        // members
-        bool screenshotQueued{false};
-        bool menuHidden{false};
-
-        float keyHeldDuration{0.5};
-
-        std::uint32_t screenshotKeyboard{0};
-        std::uint32_t screenshotMouse{0};
-        std::uint32_t screenshotGamepad{0};
-
         DEVICE inputDevice{REL::Module::IsVR() ? kVR : kKeyboardMouse};
     };
 }

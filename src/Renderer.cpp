@@ -181,11 +181,6 @@ void ButtonQueue::Show(const Theme::Theme& theme, float progress, const Interact
 
 
 const InteractionButton* ButtonQueue::AddButton(const InteractionButton& a_button) {
-    // check if the button already exists
-    if (const auto it = buttons.find(a_button); it != buttons.end()) {
-        return nullptr;
-    }
-    // add the button
     if (const auto [fst, snd] = buttons.insert(a_button); snd) {
         return &*fst;
     }
