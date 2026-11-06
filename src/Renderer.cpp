@@ -1362,7 +1362,10 @@ void Manager::Page::Render(const SkyPromptAPI::ClientID groupID, const SkyPrompt
     }
 
     const float windowPadding = 0.4f * pageTheme.prompt_size;
-    BeginImGuiWindow(std::format("SkyPrompt##{}_{}", groupID, pageID).c_str(),
+    fmt::memory_buffer windowName;
+    fmt::format_to(std::back_inserter(windowName), "SkyPrompt##{}_{}", groupID, pageID);
+    windowName.push_back('\0');
+    BeginImGuiWindow(windowName.data(),
                      GetSkyPromptContentOrigin(pageTheme, windowPos), windowPadding);
     RenderSkyPrompt(pageTheme, windowPos);
 
@@ -1382,7 +1385,10 @@ void Manager::Page::Render(const SkyPromptAPI::ClientID groupID, const SkyPrompt
         for (const auto index : rowIndices) {
             ShowPromptRow(index, isList, visibleCount);
         }
-        BeginImGuiWindow(std::format("SkyPromptHover{}##{}_{}", i++, groupID, pageID).c_str(),
+        windowName.clear();
+        fmt::format_to(std::back_inserter(windowName), "SkyPromptHover{}##{}_{}", i++, groupID, pageID);
+        windowName.push_back('\0');
+        BeginImGuiWindow(windowName.data(),
                          GetSkyPromptContentOrigin(pageTheme, window_pos), windowPadding);
         if (position.world) VR::BeginWorldPrompt(*position.world, GetWindowDrawList());
         RenderSkyPrompt(pageTheme, window_pos);
