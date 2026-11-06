@@ -537,14 +537,15 @@ RE::TESObjectREFR* SubManager::GetAttachedObject() const {
     return nullptr;
 }
 
-void SubManager::Update(const Interaction& a_interaction, const ButtonMutables& a_mutables) const {
+bool SubManager::Update(const Interaction& a_interaction, const ButtonMutables& a_mutables) const {
     std::unique_lock lock(q_mutex_);
     for (const auto& a_button : interactQueue.buttons) {
         if (a_button.interaction == a_interaction) {
             a_button.mutables = a_mutables;
-            return;
+            return true;
         }
     }
+    return false;
 }
 
 void SubManager::RestoreMutables(const Interaction& a_interaction) {
@@ -734,20 +735,18 @@ SubManager* Manager::Group::Add2Q(
     auto& manager_list = managers;
 
     for (const auto& a_manager : manager_list) {
-        if (std::ranges::any_of(a_manager->GetInteractions(),
-                                [&](const auto& i) { return i == a_interaction; })) {
-            a_manager->Update(a_interaction, a_mutables);
+        if (a_manager->Update(a_interaction, a_mutables)) {
             return a_manager.get();
         }
     }
 
     int index = 0;
     for (const auto& a_manager : manager_list) {
-        if (const auto& interactions = a_manager->GetInteractions(); interactions.empty()) {
+        if (const auto event = a_manager->GetQueuedEvent(); event == 0) {
             const auto iButton = InteractionButton(a_interaction, a_mutables, a_type, a_refid, a_bttn_map, index);
             a_manager->Add2Q(*theme, iButton, show);
             return a_manager.get();
-        } else if (interactions.front().event == a_interaction.event) {
+        } else if (event == a_interaction.event) {
             a_manager->WakeUpQueue();
             const auto iButton = InteractionButton(a_interaction, a_mutables, a_type, a_refid, a_bttn_map, index);
             a_manager->Add2Q(*theme, iButton, show);
@@ -1011,8 +1010,7 @@ void Manager::Group::RestorePromptOrder(const SkyPromptAPI::ClientID clientID,
 
         const auto event = InteractionID::Pack(clientID, prompt.eventID);
         const auto row = std::ranges::find_if(rows, [event](const auto& candidate) {
-            const auto interactions = candidate->GetInteractions();
-            return !interactions.empty() && interactions.front().event == event;
+            return candidate->GetQueuedEvent() == event;
         });
         if (row == rows.end()) continue;
 
@@ -1278,18 +1276,13 @@ bool SubManager::IsHidden() const {
     return interactQueue.IsHidden();
 }
 
-std::vector<Interaction> SubManager::GetInteractions() const {
+SCENES::Event SubManager::GetQueuedEvent() const {
     std::shared_lock lock(q_mutex_);
-    std::vector<Interaction> interactions;
-    for (const auto& a_button : interactQueue.buttons) {
-        interactions.push_back(a_button.interaction);
-    }
-    return interactions;
+    return interactQueue.buttons.empty() ? 0 : interactQueue.buttons.begin()->interaction.event;
 }
 
 SkyPromptAPI::ClientID SubManager::GetClientID() const {
-    std::shared_lock lock(q_mutex_);
-    return interactQueue.buttons.empty() ? 0 : InteractionID::Client(interactQueue.buttons.begin()->interaction.event);
+    return InteractionID::Client(GetQueuedEvent());
 }
 
 Interaction SubManager::GetCurrentInteraction() const {

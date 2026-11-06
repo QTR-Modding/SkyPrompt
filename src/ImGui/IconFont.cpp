@@ -148,7 +148,7 @@ namespace IconFont {
         builder.BuildRanges(&ranges);
 
         constexpr int kMaxAtlasDimension = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
-        std::map<std::pair<std::string, float>, FontPair> loadedFonts;
+        std::map<std::pair<std::string, float>, FontPair, std::less<>> loadedFonts;
 
         auto tryBuildFonts = [&io, &ranges, &requiredFonts, &loadedFonts, fontPath, this](const float scale) -> bool {
             loadedFonts.clear();
@@ -204,8 +204,8 @@ namespace IconFont {
         return true;
     }
 
-    const Manager::FontPair& Manager::GetFonts(const std::string& filename, const float size) const {
-        const auto it = fonts.find({filename, size});
+    const Manager::FontPair& Manager::GetFonts(const std::string_view filename, const float size) const {
+        const auto it = fonts.find(std::pair{filename, size});
         // Theme changes during event dispatch use the prepared fonts until the next refresh.
         return it != fonts.end() ? it->second : fonts.begin()->second;
     }

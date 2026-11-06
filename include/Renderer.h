@@ -141,7 +141,7 @@ namespace ImGui::Renderer {
         bool HasPrompt() const;
         bool IsHidden() const;
 
-        std::vector<Interaction> GetInteractions() const;
+        SCENES::Event GetQueuedEvent() const;
         SkyPromptAPI::ClientID GetClientID() const;
         Interaction GetCurrentInteraction() const;
         const InteractionButton* GetCurrentButton() const;
@@ -157,7 +157,7 @@ namespace ImGui::Renderer {
         AttachedPosition GetAttachedObjectPos(const Theme::Theme& theme) const;
         RE::TESObjectREFR* GetAttachedObject() const;
 
-        void Update(const Interaction& a_interaction, const ButtonMutables& a_mutables) const;
+        bool Update(const Interaction& a_interaction, const ButtonMutables& a_mutables) const;
     };
 
     class Manager : public REX::Singleton<Manager> {
