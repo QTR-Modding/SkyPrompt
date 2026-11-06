@@ -159,34 +159,34 @@ namespace ImGui::Renderer {
     };
 
     class Manager : public REX::Singleton<Manager> {
-        void RestorePromptOrder(SkyPromptAPI::ClientID groupID, SkyPromptAPI::ClientID pageID,
+        void RestorePromptOrder(SkyPromptAPI::ClientID pageID, SkyPromptAPI::ClientID groupID,
                                 SkyPromptAPI::ClientID clientID,
                                 std::span<const SkyPromptAPI::Prompt> prompts);
 
         std::shared_mutex events_to_send_mutex;
         std::map<std::pair<SkyPromptAPI::ClientID, const SkyPromptAPI::PromptSink*>,
                  std::deque<SkyPromptAPI::PromptEvent>> events_to_send_;
-        SubManager* Add2Q(SkyPromptAPI::ClientID groupID, SkyPromptAPI::ClientID pageID, const Interaction& a_interaction,
+        SubManager* Add2Q(SkyPromptAPI::ClientID pageID, SkyPromptAPI::ClientID groupID, const Interaction& a_interaction,
                           const ButtonMutables& a_mutables,
                           SkyPromptAPI::PromptType a_type, RefID a_refid,
                           const std::map<Input::DEVICE, uint32_t>& a_bttn_map, bool show = true);
 
-        bool SwitchToGroup(SkyPromptAPI::ClientID groupID);
+        bool SwitchToPage(SkyPromptAPI::ClientID pageID);
 
-        SkyPromptAPI::ClientID current_groupID = 0;
+        SkyPromptAPI::ClientID current_pageID = 0;
 
         mutable std::shared_mutex mutex_;
         std::atomic<bool> isPaused = false;
 
 
-        struct Page {
-            SkyPromptAPI::ClientID page_leaderID;
+        struct Group {
+            SkyPromptAPI::ClientID group_leaderID;
             std::vector<std::unique_ptr<SubManager>> managers;
             PromptLayouts::List list;
             Theme::Theme* theme = &Theme::default_theme;
 
-            void Render(SkyPromptAPI::ClientID groupID, SkyPromptAPI::ClientID pageID,
-                        SkyPromptAPI::ClientID groupIndex, SkyPromptAPI::ClientID groupCount);
+            void Render(SkyPromptAPI::ClientID pageID, SkyPromptAPI::ClientID groupID,
+                        SkyPromptAPI::ClientID pageIndex, SkyPromptAPI::ClientID pageCount);
             void ShowPromptRow(size_t index, bool isList, size_t visibleCount);
             std::optional<bool> ProcessInput(RE::InputEvent* event, uint32_t buttonKey);
             std::optional<bool> ProcessInput(Input::VRNavigation::Direction direction);
@@ -219,14 +219,14 @@ namespace ImGui::Renderer {
             void ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func);
         };
 
-        std::map<SkyPromptAPI::ClientID, std::map<SkyPromptAPI::ClientID, Page>> groups;
+        std::map<SkyPromptAPI::ClientID, std::map<SkyPromptAPI::ClientID, Group>> pages;
 
         // Caller holds mutex_.
-        const Page* GetPage(SkyPromptAPI::ClientID groupID, SkyPromptAPI::ClientID pageID) const;
-        Page* GetPage(SkyPromptAPI::ClientID groupID, SkyPromptAPI::ClientID pageID);
+        const Group* GetGroup(SkyPromptAPI::ClientID pageID, SkyPromptAPI::ClientID groupID) const;
+        Group* GetGroup(SkyPromptAPI::ClientID pageID, SkyPromptAPI::ClientID groupID);
 
         // Caller holds mutex_.
-        std::pair<SkyPromptAPI::ClientID, SkyPromptAPI::ClientID> FindPageIDs(SkyPromptAPI::ClientID clientID) const;
+        std::pair<SkyPromptAPI::ClientID, SkyPromptAPI::ClientID> FindGroupIDs(SkyPromptAPI::ClientID clientID) const;
 
         void Clear(SkyPromptAPI::PromptEventType a_event_type);
 
