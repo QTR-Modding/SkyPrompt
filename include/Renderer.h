@@ -194,6 +194,26 @@ namespace ImGui::Renderer {
             std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> GetPromptButtons() const;
             bool WakeUpPrompt(const SkyPromptAPI::PromptSink* a_prompt_sink) const;
             bool RemoveEmptyRows(bool active);
+            bool ContainsClient(SkyPromptAPI::ClientID clientID) const;
+            bool CanJoin(SkyPromptAPI::ClientID clientID) const;
+            SubManager* Add2Q(const Interaction& a_interaction, const ButtonMutables& a_mutables,
+                              SkyPromptAPI::PromptType a_type, RefID a_refid,
+                              const std::map<Input::DEVICE, uint32_t>& a_bttn_map, bool show);
+            bool RemoveFromQ(SkyPromptAPI::ClientID clientID, const SkyPromptAPI::PromptSink* sink,
+                             const std::optional<Interaction>& interaction, bool active);
+            void RestorePromptOrder(SkyPromptAPI::ClientID clientID, std::span<const SkyPromptAPI::Prompt> prompts,
+                                    bool active);
+            void Start();
+            void Stop();
+            bool CleanUpQueue();
+            void Clear(SkyPromptAPI::PromptEventType eventType);
+            void ResetQueue() const;
+            void WakeUpQueue() const;
+            bool HasQueue() const;
+            bool IsHidden() const;
+            bool IsEmpty() const { return managers.empty(); }
+            void OnShown();
+            void ForEachManager(const std::function<void(std::unique_ptr<SubManager>&)>& a_func);
         };
 
         std::map<SkyPromptAPI::ClientID, Page> pages; // every page has a leader
