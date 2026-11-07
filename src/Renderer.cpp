@@ -1629,65 +1629,55 @@ bool Manager::Group::IsHidden() const {
 
 std::optional<bool> Manager::Group::ProcessInput(RE::InputEvent* event, const uint32_t buttonKey) {
     if (const auto handled = ProcessListInput(event, buttonKey)) return *handled;
+    const auto button_event = event->AsButtonEvent();
+    const auto mouse_event = event->AsMouseMoveEvent();
+    const auto thumbstick_event = event->AsThumbstickEvent();
+    auto key = buttonKey;
+    if (mouse_event) {
+        key = SkyPromptAPI::kMouseMove;
+    } else if (thumbstick_event) {
+        key = thumbstick_event->IsLeft() ? SkyPromptAPI::kThumbstickMoveL : SkyPromptAPI::kThumbstickMoveR;
+    } else if (!button_event) {
+        return std::nullopt;
+    }
+
+    auto inputRows = std::span(managers);
+    if (theme->prompt_alignment == Theme::kList) {
+        if (list.selection >= inputRows.size()) return std::nullopt;
+        inputRows = inputRows.subspan(list.selection, 1);
+    }
+
     bool block = false;
-
-    if (const auto button_event = event->AsButtonEvent()) {
-        for (const auto prompt_buttons = GetPromptButtons(); const auto& [prompt_type,prompt_key] :
-             prompt_buttons) {
-            if (prompt_key != 0 && prompt_key == buttonKey) {
-                if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
-                    block = true;
-                }
-                const auto now = std::chrono::steady_clock::now();
-                if (const auto submanager = GetSubManagerByKey(prompt_key)) {
-                    submanager->buttonState.isPressing = button_event->IsPressed();
-                    if (button_event->IsDown()) {
-                        submanager->buttonState.acceptedThisPress = false;
-                        submanager->buttonState.pressCount++;
-                        submanager->buttonState.lastPressTime = now;
-                        submanager->SendEvent(submanager->GetCurrentInteraction(),
-                                              SkyPromptAPI::PromptEventType::kDown);
-                    } else if (button_event->IsUp()) {
-                        submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kUp);
-                    }
-                    if (submanager->buttonState.pressCount > 0 || !submanager->buttonState.isPressing) {
-                        submanager->UpdateProgressCircle(*theme, submanager->buttonState.isPressing);
-                    }
-                }
-            }
+    for (const auto& submanager : inputRows) {
+        if (submanager->IsHidden()) continue;
+        const auto prompt_key = submanager->GetPromptKey(*theme);
+        if (prompt_key == 0 || prompt_key != key) continue;
+        if (PromptTypeFlags::GetBlocksInput(submanager->GetPromptType())) {
+            block = true;
         }
-
-    } else if (const auto mouse_event = event->AsMouseMoveEvent()) {
-        constexpr auto key = SkyPromptAPI::kMouseMove;
-        for (const auto prompt_keys = GetPromptButtons(); const auto& [prompt_type,prompt_key] :
-             prompt_keys) {
-            if (prompt_key != 0 && prompt_key == key) {
-                if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
-                    block = true;
-                }
-                if (const auto submanager = GetSubManagerByKey(prompt_key)) {
-                    submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove,
-                                          {static_cast<float>(mouse_event->mouseInputX),
-                                           static_cast<float>(mouse_event->mouseInputY)});
-                    submanager->UpdateProgressCircle(*theme, mouse_event->mouseInputX != 0 || mouse_event->mouseInputY != 0);
-                }
+        if (button_event) {
+            const auto now = std::chrono::steady_clock::now();
+            submanager->buttonState.isPressing = button_event->IsPressed();
+            if (button_event->IsDown()) {
+                submanager->buttonState.acceptedThisPress = false;
+                submanager->buttonState.pressCount++;
+                submanager->buttonState.lastPressTime = now;
+                submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kDown);
+            } else if (button_event->IsUp()) {
+                submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kUp);
             }
-        }
-    } else if (const auto thumbstick_event = event->AsThumbstickEvent()) {
-        const auto key = thumbstick_event->IsLeft() ? SkyPromptAPI::kThumbstickMoveL : SkyPromptAPI::kThumbstickMoveR;
-        for (const auto prompt_keys = GetPromptButtons(); const auto& [prompt_type,prompt_key] :
-             prompt_keys) {
-            if (prompt_key != 0 && prompt_key == key) {
-                if (PromptTypeFlags::GetBlocksInput(prompt_type)) {
-                    block = true;
-                }
-                if (const auto submanager = GetSubManagerByKey(prompt_key)) {
-                    submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove,
-                                          {thumbstick_event->xValue, thumbstick_event->yValue});
-                    submanager->
-                        UpdateProgressCircle(*theme, thumbstick_event->xValue != 0.f || thumbstick_event->yValue != 0.f);
-                }
+            if (submanager->buttonState.pressCount > 0 || !submanager->buttonState.isPressing) {
+                submanager->UpdateProgressCircle(*theme, submanager->buttonState.isPressing);
             }
+        } else if (mouse_event) {
+            submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove,
+                                  {static_cast<float>(mouse_event->mouseInputX),
+                                   static_cast<float>(mouse_event->mouseInputY)});
+            submanager->UpdateProgressCircle(*theme, mouse_event->mouseInputX != 0 || mouse_event->mouseInputY != 0);
+        } else if (thumbstick_event) {
+            submanager->SendEvent(submanager->GetCurrentInteraction(), SkyPromptAPI::PromptEventType::kMove,
+                                  {thumbstick_event->xValue, thumbstick_event->yValue});
+            submanager->UpdateProgressCircle(*theme, thumbstick_event->xValue != 0.f || thumbstick_event->yValue != 0.f);
         }
     }
 
@@ -1732,25 +1722,6 @@ std::optional<bool> Manager::Group::ProcessListNavigation(const PromptLayouts::L
         }
     }
     return block;
-}
-
-SubManager* Manager::Group::GetSubManagerByKey(const uint32_t a_prompt_key) const {
-    if (theme->prompt_alignment == Theme::kList) {
-        const auto selected = list.selection < managers.size() ? managers[list.selection].get() : nullptr;
-        return selected && selected->GetPromptKey(*theme) == a_prompt_key ? selected : nullptr;
-    }
-    for (auto& a_manager : managers) {
-        if (const auto key = a_manager->GetPromptKey(*theme); key == a_prompt_key) {
-            return a_manager.get();
-        }
-    }
-    return nullptr;
-}
-
-std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> Manager::Group::GetPromptButtons() const {
-    std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> buttons;
-    CollectPromptButtons(buttons);
-    return buttons;
 }
 
 void Manager::Group::CollectPromptButtons(std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>>& buttons) const {

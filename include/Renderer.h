@@ -193,8 +193,6 @@ namespace ImGui::Renderer {
             std::optional<bool> ProcessInput(Input::VRNavigation::Direction direction);
             std::optional<bool> ProcessListInput(RE::InputEvent* event, uint32_t buttonKey);
             std::optional<bool> ProcessListNavigation(PromptLayouts::List::Navigation navigation);
-            SubManager* GetSubManagerByKey(uint32_t a_prompt_key) const;
-            std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>> GetPromptButtons() const;
             void CollectPromptButtons(std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>>& buttons) const;
             bool WakeUpPrompt(const SkyPromptAPI::PromptSink* a_prompt_sink) const;
             bool RemoveEmptyRows(bool active);
