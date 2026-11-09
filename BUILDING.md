@@ -15,14 +15,10 @@ Set `VCPKG_ROOT` to your vcpkg folder:
 $env:VCPKG_ROOT = 'C:/src/vcpkg'
 ```
 
-Clone [CommonLibVR-MIT](https://github.com/QTR-Modding/CommonLibVR-MIT) and select
-the revision used by this version of SkyPrompt:
+Set `COMMONLIB_SSE_FOLDER` to the path of your CommonLib clone.
 
 ```powershell
-git clone --recursive https://github.com/QTR-Modding/CommonLibVR-MIT.git C:/src/CommonLibVR-MIT
-git -C C:/src/CommonLibVR-MIT checkout 800eeae864eef097cfcec184c57435b18dcc4761
-git -C C:/src/CommonLibVR-MIT submodule update --init --recursive
-$env:COMMONLIB_SSE_FOLDER = 'C:/src/CommonLibVR-MIT'
+$env:COMMONLIB_SSE_FOLDER = 'C:/src/CommonLib'
 ```
 
 Adjust those paths to your clones. In the SkyPrompt source directory, run:
