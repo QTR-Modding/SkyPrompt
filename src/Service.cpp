@@ -10,12 +10,6 @@ bool ProcessSendPrompt(const SkyPromptAPI::PromptSink* a_sink, const SkyPromptAP
         return false;
     }
 
-    for (const auto new_prompts = a_sink->GetPrompts(); auto& prompt : new_prompts) {
-        if (prompt.text.empty()) {
-            logger::warn("Empty prompt text");
-            return false;
-        }
-    }
     return MANAGER(ImGui::Renderer)->Add2Q(a_sink, a_clientID);
 }
 

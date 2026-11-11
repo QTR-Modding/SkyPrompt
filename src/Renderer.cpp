@@ -932,12 +932,6 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
     bool success = true;
     for (const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color, progress] : prompts) {
         auto a_txt = std::string(text);
-        if (a_txt.empty()) {
-            logger::warn("Empty prompt text");
-            success = false;
-            break;
-        }
-
         TranslateEmbedded(a_txt);
         const auto interaction = MakeInteraction(a_clientID, a_event, a_action);
         if (a_txt.find_first_not_of(" \t\r\n\f\v") == std::string::npos) {
