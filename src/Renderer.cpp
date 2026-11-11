@@ -926,17 +926,9 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
     }
 
     const bool newClient = pageID == 0;
-    if (newClient) {
-        std::unique_lock lock(mutex_);
-        pageID = a_clientID;
-        if (current_pageID != 0 && current_pageID != a_clientID && CanJoinPage(current_pageID, a_clientID)) {
-            pageID = current_pageID;
-        }
-        std::shared_lock theme_lock(Theme::m_theme_);
-        groupID = RegroupPage(pageID, a_clientID);
-    }
-
     const auto prompts = a_prompt_sink->GetPrompts();
+    std::vector<Interaction> hidden;
+    bool hasVisiblePrompt = false;
     bool success = true;
     for (const auto& [text, a_event, a_action, a_type, a_refid, button_key, text_color, progress] : prompts) {
         auto a_txt = std::string(text);
@@ -947,6 +939,24 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
         }
 
         TranslateEmbedded(a_txt);
+        const auto interaction = MakeInteraction(a_clientID, a_event, a_action);
+        if (a_txt.find_first_not_of(" \t\r\n\f\v") == std::string::npos) {
+            if (refresh) {
+                hidden.push_back(interaction);
+            }
+            continue;
+        }
+        hasVisiblePrompt = true;
+
+        if (pageID == 0) {
+            std::unique_lock lock(mutex_);
+            pageID = a_clientID;
+            if (current_pageID != 0 && current_pageID != a_clientID && CanJoinPage(current_pageID, a_clientID)) {
+                pageID = current_pageID;
+            }
+            std::shared_lock theme_lock(Theme::m_theme_);
+            groupID = RegroupPage(pageID, a_clientID);
+        }
 
         std::map<Input::DEVICE, uint32_t> temp_button_keys;
         for (const auto& [a_device, key] : button_key) {
@@ -958,7 +968,6 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
                 temp_button_keys[device] = a_new_key;
             }
         }
-        const auto interaction = MakeInteraction(a_clientID, a_event, a_action);
         if (const auto submanager =
             Add2Q(pageID, groupID, interaction, {.text = a_txt, .text_color = text_color, .progress = progress},
                   a_type, a_refid,
@@ -971,18 +980,21 @@ bool Manager::Add2Q(const SkyPromptAPI::PromptSink* a_prompt_sink, const SkyProm
         }
     }
 
-    if (newClient && (!success || prompts.empty())) {
+    if (newClient && pageID != 0 && !success) {
         std::unique_lock lock(mutex_);
         std::shared_lock theme_lock(Theme::m_theme_);
         RegroupPage(pageID);
     }
     if (refresh) {
         RestorePromptOrder(pageID, groupID, a_clientID, prompts);
-    } else if (success) {
+    } else if (success && hasVisiblePrompt) {
         SwitchToPage(pageID);
     }
 
-    return success && !refresh;
+    for (const auto& interaction : hidden) {
+        RemoveFromQ(a_clientID, a_prompt_sink, interaction);
+    }
+    return success && !refresh && hasVisiblePrompt;
 }
 
 void Manager::RestorePromptOrder(const SkyPromptAPI::ClientID pageID, const SkyPromptAPI::ClientID groupID,
