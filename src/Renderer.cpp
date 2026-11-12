@@ -1716,18 +1716,30 @@ std::optional<bool> Manager::Group::ProcessListNavigation(const PromptLayouts::L
 
     if (theme->prompt_alignment != Theme::kList) return std::nullopt;
     if (list.selection >= managers.size()) return std::nullopt;
-    const auto selected = managers[list.selection].get();
-    if (selected->IsHidden()) return std::nullopt;
-    const bool block = PromptTypeFlags::GetBlocksInput(selected->GetPromptType());
+    const auto previous = list.selection;
+    const auto selected = managers[previous].get();
+    const bool hidden = selected->IsHidden();
     // Finish the current press before changing its target.
-    if (navigation != PromptLayouts::List::Navigation::kNone && !selected->buttonState.isPressing) {
-        selected->buttonState.Reset();
-        list.MoveSelection(navigation, managers.size());
-        for (const auto& manager : managers) {
-            manager->WakeUpQueue();
+    if (navigation != PromptLayouts::List::Navigation::kNone && (hidden || !selected->buttonState.isPressing)) {
+        do {
+            const auto current = list.selection;
+            list.MoveSelection(navigation, managers.size());
+            if (list.selection == current) {
+                list.selection = previous;
+                break;
+            }
+        } while (managers[list.selection]->IsHidden());
+
+        if (!hidden || list.selection != previous) {
+            selected->buttonState.Reset();
+            WakeUpQueue();
         }
     }
-    return block;
+    if (hidden && list.selection == previous) {
+        return std::nullopt;
+    }
+    const auto inputRow = hidden ? managers[list.selection].get() : selected;
+    return PromptTypeFlags::GetBlocksInput(inputRow->GetPromptType());
 }
 
 void Manager::Group::CollectPromptButtons(std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>>& buttons) const {
