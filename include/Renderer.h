@@ -32,6 +32,7 @@ struct InteractionButton {
     std::map<Input::DEVICE, uint32_t> keys;
     mutable int default_key_index = 0;
 
+    [[nodiscard]] bool HasMissingAttachedRef() const;
     [[nodiscard]] uint32_t GetKey(const Theme::Theme& theme) const;
 
     explicit InteractionButton(const Interaction& a_interaction, const Mutables& a_mutables,
@@ -49,7 +50,7 @@ struct ButtonQueue {
     float lifetime = MCP::Settings::lifetime;
     float elapsed = 0.0f;
     [[nodiscard]] bool expired() const { return elapsed >= lifetime; }
-    [[nodiscard]] bool IsHidden() const { return alpha <= 0.f; }
+    [[nodiscard]] bool IsHidden() const { return !current_button || alpha <= 0.f; }
 
     std::set<InteractionButton> buttons;
     const InteractionButton* current_button = nullptr;
@@ -61,7 +62,7 @@ struct ButtonQueue {
     const InteractionButton* AddButton(const InteractionButton& a_button);
     bool RemoveButton(const Interaction& a_interaction);
     [[nodiscard]] bool IsEmpty() const { return buttons.empty(); }
-    [[nodiscard]] const InteractionButton* Next() const;
+    [[nodiscard]] const InteractionButton* Next(bool skipMissingAttachedRefs = false) const;
     [[nodiscard]] size_t size() const { return buttons.size(); }
 };
 
@@ -140,6 +141,7 @@ namespace ImGui::Renderer {
         void NextPrompt(const Theme::Theme& theme);
         bool HasPrompt() const;
         bool IsHidden() const;
+        bool CanReceiveInput() const;
 
         SCENES::Event GetQueuedEvent() const;
         SkyPromptAPI::ClientID GetClientID() const;

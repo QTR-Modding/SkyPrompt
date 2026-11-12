@@ -149,6 +149,10 @@ void ButtonQueue::Show(const Theme::Theme& theme, float progress, const Interact
         WakeUp();
     }
 
+    if (current_button->HasMissingAttachedRef()) {
+        return;
+    }
+
     auto button_state = has_progress ? ButtonStateToFloat(a_button_state) : -1.f;
 
     const auto buttonKey = current_button->GetKey(theme);
@@ -200,18 +204,28 @@ bool ButtonQueue::RemoveButton(const Interaction& a_interaction) {
     return true;
 }
 
-const InteractionButton* ButtonQueue::Next() const {
-    if (current_button) {
-        if (auto it = buttons.find(*current_button); it != buttons.end()) {
-            ++it;
-            if (it != buttons.end()) {
-                return &*it;
-            }
-            return &*buttons.begin();
-        }
-    } else if (!buttons.empty()) {
-        return &*buttons.begin();
+const InteractionButton* ButtonQueue::Next(const bool skipMissingAttachedRefs) const {
+    if (buttons.empty()) {
+        return nullptr;
     }
+
+    const auto current = current_button ? buttons.find(*current_button) : buttons.end();
+    if (current_button && current == buttons.end()) {
+        return nullptr;
+    }
+    auto it = current_button ? std::next(current) : buttons.begin();
+    if (it == buttons.end()) {
+        it = buttons.begin();
+    }
+    const auto first = it;
+    do {
+        if (!skipMissingAttachedRefs || !it->HasMissingAttachedRef()) {
+            return &*it;
+        }
+        if (++it == buttons.end()) {
+            it = buttons.begin();
+        }
+    } while (it != first);
     return nullptr;
 }
 
@@ -693,8 +707,7 @@ void SubManager::ResetQueue() {
 
 void SubManager::ShowQueue(const Theme::Theme& theme) {
     if (std::shared_lock lock(q_mutex_); !interactQueue.IsEmpty()) {
-        const auto curr_ = interactQueue.current_button;
-        if (!curr_ || interactQueue.IsHidden()) {
+        if (interactQueue.IsHidden()) {
             {
                 std::unique_lock lock2(progress_mutex_);
                 progress_circle = 0.0f;
@@ -1111,6 +1124,13 @@ void SubManager::CleanUpQueue(const Theme::Theme& theme) {
     ) {
         lock.unlock();
         ClearQueue(SkyPromptAPI::kTimeout);
+    } else if (const auto current = interactQueue.current_button; current && current->HasMissingAttachedRef()) {
+        const auto next = interactQueue.Next(true);
+        if (!next) {
+            return;
+        }
+        interactQueue.current_button = next;
+        ResetButtonState();
     }
     ButtonStateActions(theme);
 }
@@ -1241,7 +1261,7 @@ SkyPromptAPI::PromptType SubManager::GetPromptType() const {
 void SubManager::NextPrompt(const Theme::Theme& theme) {
     {
         std::unique_lock lock(q_mutex_);
-        if (const auto next = interactQueue.Next()) {
+        if (const auto next = interactQueue.Next(true)) {
             Show(theme, next);
         }
     }
@@ -1269,11 +1289,13 @@ bool SubManager::HasPrompt() const {
 }
 
 bool SubManager::IsHidden() const {
-    if (!HasPrompt()) {
-        return true;
-    }
     std::shared_lock lock(q_mutex_);
     return interactQueue.IsHidden();
+}
+
+bool SubManager::CanReceiveInput() const {
+    std::shared_lock lock(q_mutex_);
+    return !interactQueue.IsHidden() && !interactQueue.current_button->HasMissingAttachedRef();
 }
 
 SCENES::Event SubManager::GetQueuedEvent() const {
@@ -1318,6 +1340,10 @@ bool SubManager::IsInQueue(const SkyPromptAPI::PromptSink* a_sink) const {
         }
     }
     return false;
+}
+
+bool InteractionButton::HasMissingAttachedRef() const {
+    return attached_object && !attached_object.get();
 }
 
 uint32_t InteractionButton::GetKey(const Theme::Theme& theme) const {
@@ -1649,7 +1675,7 @@ std::optional<bool> Manager::Group::ProcessInput(RE::InputEvent* event, const ui
 
     bool block = false;
     for (const auto& submanager : inputRows) {
-        if (submanager->IsHidden()) continue;
+        if (!submanager->CanReceiveInput()) continue;
         const auto prompt_key = submanager->GetPromptKey(*theme);
         if (prompt_key == 0 || prompt_key != key) continue;
         if (PromptTypeFlags::GetBlocksInput(submanager->GetPromptType())) {
@@ -1710,24 +1736,36 @@ std::optional<bool> Manager::Group::ProcessListNavigation(const PromptLayouts::L
 
     if (theme->prompt_alignment != Theme::kList) return std::nullopt;
     if (list.selection >= managers.size()) return std::nullopt;
-    const auto selected = managers[list.selection].get();
-    if (selected->IsHidden()) return std::nullopt;
-    const bool block = PromptTypeFlags::GetBlocksInput(selected->GetPromptType());
+    const auto previous = list.selection;
+    const auto selected = managers[previous].get();
+    const bool hidden = !selected->CanReceiveInput();
     // Finish the current press before changing its target.
-    if (navigation != PromptLayouts::List::Navigation::kNone && !selected->buttonState.isPressing) {
-        selected->buttonState.Reset();
-        list.MoveSelection(navigation, managers.size());
-        for (const auto& manager : managers) {
-            manager->WakeUpQueue();
+    if (navigation != PromptLayouts::List::Navigation::kNone && (hidden || !selected->buttonState.isPressing)) {
+        do {
+            const auto current = list.selection;
+            list.MoveSelection(navigation, managers.size());
+            if (list.selection == current) {
+                list.selection = previous;
+                break;
+            }
+        } while (!managers[list.selection]->CanReceiveInput());
+
+        if (!hidden || list.selection != previous) {
+            selected->buttonState.Reset();
+            WakeUpQueue();
         }
     }
-    return block;
+    if (hidden && list.selection == previous) {
+        return std::nullopt;
+    }
+    const auto inputRow = hidden ? managers[list.selection].get() : selected;
+    return PromptTypeFlags::GetBlocksInput(inputRow->GetPromptType());
 }
 
 void Manager::Group::CollectPromptButtons(std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>>& buttons) const {
     if (theme->prompt_alignment == Theme::kList) {
         if (const auto selected = list.selection < managers.size() ? managers[list.selection].get() : nullptr;
-            selected && !selected->IsHidden()) {
+            selected && selected->CanReceiveInput()) {
             if (const auto key = selected->GetPromptKey(*theme); key != 0) {
                 buttons.emplace_back(selected->GetPromptType(), key);
             }
@@ -1735,7 +1773,7 @@ void Manager::Group::CollectPromptButtons(std::vector<std::pair<SkyPromptAPI::Pr
         return;
     }
     for (const auto& a_manager : managers) {
-        if (a_manager->IsHidden()) {
+        if (!a_manager->CanReceiveInput()) {
             continue;
         }
         if (const auto key = a_manager->GetPromptKey(*theme); key != 0) {
