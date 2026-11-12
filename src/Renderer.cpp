@@ -697,8 +697,7 @@ void SubManager::ResetQueue() {
 
 void SubManager::ShowQueue(const Theme::Theme& theme) {
     if (std::shared_lock lock(q_mutex_); !interactQueue.IsEmpty()) {
-        const auto curr_ = interactQueue.current_button;
-        if (!curr_ || interactQueue.IsHidden()) {
+        if (interactQueue.IsHidden()) {
             {
                 std::unique_lock lock2(progress_mutex_);
                 progress_circle = 0.0f;
@@ -1274,8 +1273,12 @@ bool SubManager::HasPrompt() const {
 
 bool SubManager::IsHidden() const {
     std::shared_lock lock(q_mutex_);
-    const auto button = interactQueue.current_button;
-    return !button || interactQueue.IsHidden() || button->HasMissingAttachedRef();
+    return interactQueue.IsHidden();
+}
+
+bool SubManager::CanReceiveInput() const {
+    std::shared_lock lock(q_mutex_);
+    return !interactQueue.IsHidden() && !interactQueue.current_button->HasMissingAttachedRef();
 }
 
 SCENES::Event SubManager::GetQueuedEvent() const {
@@ -1655,7 +1658,7 @@ std::optional<bool> Manager::Group::ProcessInput(RE::InputEvent* event, const ui
 
     bool block = false;
     for (const auto& submanager : inputRows) {
-        if (submanager->IsHidden()) continue;
+        if (!submanager->CanReceiveInput()) continue;
         const auto prompt_key = submanager->GetPromptKey(*theme);
         if (prompt_key == 0 || prompt_key != key) continue;
         if (PromptTypeFlags::GetBlocksInput(submanager->GetPromptType())) {
@@ -1718,7 +1721,7 @@ std::optional<bool> Manager::Group::ProcessListNavigation(const PromptLayouts::L
     if (list.selection >= managers.size()) return std::nullopt;
     const auto previous = list.selection;
     const auto selected = managers[previous].get();
-    const bool hidden = selected->IsHidden();
+    const bool hidden = !selected->CanReceiveInput();
     // Finish the current press before changing its target.
     if (navigation != PromptLayouts::List::Navigation::kNone && (hidden || !selected->buttonState.isPressing)) {
         do {
@@ -1728,7 +1731,7 @@ std::optional<bool> Manager::Group::ProcessListNavigation(const PromptLayouts::L
                 list.selection = previous;
                 break;
             }
-        } while (managers[list.selection]->IsHidden());
+        } while (!managers[list.selection]->CanReceiveInput());
 
         if (!hidden || list.selection != previous) {
             selected->buttonState.Reset();
@@ -1745,7 +1748,7 @@ std::optional<bool> Manager::Group::ProcessListNavigation(const PromptLayouts::L
 void Manager::Group::CollectPromptButtons(std::vector<std::pair<SkyPromptAPI::PromptType, uint32_t>>& buttons) const {
     if (theme->prompt_alignment == Theme::kList) {
         if (const auto selected = list.selection < managers.size() ? managers[list.selection].get() : nullptr;
-            selected && !selected->IsHidden()) {
+            selected && selected->CanReceiveInput()) {
             if (const auto key = selected->GetPromptKey(*theme); key != 0) {
                 buttons.emplace_back(selected->GetPromptType(), key);
             }
@@ -1753,7 +1756,7 @@ void Manager::Group::CollectPromptButtons(std::vector<std::pair<SkyPromptAPI::Pr
         return;
     }
     for (const auto& a_manager : managers) {
-        if (a_manager->IsHidden()) {
+        if (!a_manager->CanReceiveInput()) {
             continue;
         }
         if (const auto key = a_manager->GetPromptKey(*theme); key != 0) {

@@ -50,7 +50,7 @@ struct ButtonQueue {
     float lifetime = MCP::Settings::lifetime;
     float elapsed = 0.0f;
     [[nodiscard]] bool expired() const { return elapsed >= lifetime; }
-    [[nodiscard]] bool IsHidden() const { return alpha <= 0.f; }
+    [[nodiscard]] bool IsHidden() const { return !current_button || alpha <= 0.f; }
 
     std::set<InteractionButton> buttons;
     const InteractionButton* current_button = nullptr;
@@ -141,6 +141,7 @@ namespace ImGui::Renderer {
         void NextPrompt(const Theme::Theme& theme);
         bool HasPrompt() const;
         bool IsHidden() const;
+        bool CanReceiveInput() const;
 
         SCENES::Event GetQueuedEvent() const;
         SkyPromptAPI::ClientID GetClientID() const;
