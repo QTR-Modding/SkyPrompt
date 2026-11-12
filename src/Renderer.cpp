@@ -149,6 +149,10 @@ void ButtonQueue::Show(const Theme::Theme& theme, float progress, const Interact
         WakeUp();
     }
 
+    if (current_button->attached_object && !current_button->attached_object.get()) {
+        return;
+    }
+
     auto button_state = has_progress ? ButtonStateToFloat(a_button_state) : -1.f;
 
     const auto buttonKey = current_button->GetKey(theme);
