@@ -62,7 +62,7 @@ struct ButtonQueue {
     const InteractionButton* AddButton(const InteractionButton& a_button);
     bool RemoveButton(const Interaction& a_interaction);
     [[nodiscard]] bool IsEmpty() const { return buttons.empty(); }
-    [[nodiscard]] const InteractionButton* Next() const;
+    [[nodiscard]] const InteractionButton* Next(bool skipMissingAttachedRefs = false) const;
     [[nodiscard]] size_t size() const { return buttons.size(); }
 };
 

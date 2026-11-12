@@ -204,18 +204,28 @@ bool ButtonQueue::RemoveButton(const Interaction& a_interaction) {
     return true;
 }
 
-const InteractionButton* ButtonQueue::Next() const {
-    if (current_button) {
-        if (auto it = buttons.find(*current_button); it != buttons.end()) {
-            ++it;
-            if (it != buttons.end()) {
-                return &*it;
-            }
-            return &*buttons.begin();
-        }
-    } else if (!buttons.empty()) {
-        return &*buttons.begin();
+const InteractionButton* ButtonQueue::Next(const bool skipMissingAttachedRefs) const {
+    if (buttons.empty()) {
+        return nullptr;
     }
+
+    const auto current = current_button ? buttons.find(*current_button) : buttons.end();
+    if (current_button && current == buttons.end()) {
+        return nullptr;
+    }
+    auto it = current_button ? std::next(current) : buttons.begin();
+    if (it == buttons.end()) {
+        it = buttons.begin();
+    }
+    const auto first = it;
+    do {
+        if (!skipMissingAttachedRefs || !it->HasMissingAttachedRef()) {
+            return &*it;
+        }
+        if (++it == buttons.end()) {
+            it = buttons.begin();
+        }
+    } while (it != first);
     return nullptr;
 }
 
@@ -1114,6 +1124,13 @@ void SubManager::CleanUpQueue(const Theme::Theme& theme) {
     ) {
         lock.unlock();
         ClearQueue(SkyPromptAPI::kTimeout);
+    } else if (const auto current = interactQueue.current_button; current && current->HasMissingAttachedRef()) {
+        const auto next = interactQueue.Next(true);
+        if (!next) {
+            return;
+        }
+        interactQueue.current_button = next;
+        ResetButtonState();
     }
     ButtonStateActions(theme);
 }
@@ -1244,7 +1261,7 @@ SkyPromptAPI::PromptType SubManager::GetPromptType() const {
 void SubManager::NextPrompt(const Theme::Theme& theme) {
     {
         std::unique_lock lock(q_mutex_);
-        if (const auto next = interactQueue.Next()) {
+        if (const auto next = interactQueue.Next(true)) {
             Show(theme, next);
         }
     }
