@@ -149,7 +149,7 @@ void ButtonQueue::Show(const Theme::Theme& theme, float progress, const Interact
         WakeUp();
     }
 
-    if (current_button->attached_object && !current_button->attached_object.get()) {
+    if (current_button->HasMissingAttachedRef()) {
         return;
     }
 
@@ -1273,11 +1273,9 @@ bool SubManager::HasPrompt() const {
 }
 
 bool SubManager::IsHidden() const {
-    if (!HasPrompt()) {
-        return true;
-    }
     std::shared_lock lock(q_mutex_);
-    return interactQueue.IsHidden();
+    const auto button = interactQueue.current_button;
+    return !button || interactQueue.IsHidden() || button->HasMissingAttachedRef();
 }
 
 SCENES::Event SubManager::GetQueuedEvent() const {
@@ -1322,6 +1320,10 @@ bool SubManager::IsInQueue(const SkyPromptAPI::PromptSink* a_sink) const {
         }
     }
     return false;
+}
+
+bool InteractionButton::HasMissingAttachedRef() const {
+    return attached_object && !attached_object.get();
 }
 
 uint32_t InteractionButton::GetKey(const Theme::Theme& theme) const {

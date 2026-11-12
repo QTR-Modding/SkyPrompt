@@ -32,6 +32,7 @@ struct InteractionButton {
     std::map<Input::DEVICE, uint32_t> keys;
     mutable int default_key_index = 0;
 
+    [[nodiscard]] bool HasMissingAttachedRef() const;
     [[nodiscard]] uint32_t GetKey(const Theme::Theme& theme) const;
 
     explicit InteractionButton(const Interaction& a_interaction, const Mutables& a_mutables,
