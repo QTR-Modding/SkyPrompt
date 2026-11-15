@@ -640,7 +640,8 @@ void ImGui::DrawCycleIndicators(const Theme::Theme& theme,
 
     SameLine();
 
-    PushFont(nullptr, GetStyle().FontSizeBase * 0.65f);
+    constexpr float cycleIndicatorFontScale = 0.65f;
+    PushFont(nullptr, GetStyle().FontSizeBase * cycleIndicatorFontScale);
     const std::string text = std::format("({}/{})", curr_index, queue_size);
     const ImVec2 textSize = CalcTextSize(text.c_str());
 
