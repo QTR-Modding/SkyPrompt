@@ -10,7 +10,6 @@ namespace Translations {
     [[nodiscard]] const std::string* TryGet(std::string_view a_key);
     [[nodiscard]] const std::string& Get(std::string_view a_key);
     [[nodiscard]] const std::string& GetEnglish(std::string_view a_key);
-    [[nodiscard]] std::string GlyphText();
     [[nodiscard]] std::string FormatArgs(std::string_view a_key, std::format_args a_args);
     [[nodiscard]] std::string WithID(std::string_view a_visible_text, std::string_view a_stable_id);
     [[nodiscard]] std::string ImGuiLabel(std::string_view a_key, std::string_view a_stable_id);

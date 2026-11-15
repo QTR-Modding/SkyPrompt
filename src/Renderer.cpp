@@ -821,23 +821,24 @@ std::vector<const Theme::Theme*> Manager::GetCurrentThemes() const {
 }
 
 void Manager::PrepareFonts() {
-    const float resolutionScale = GetResolutionScale();
-    std::set<std::pair<std::string, float>> requiredFonts;
+    std::set<std::string> requiredFonts;
     {
         std::shared_lock lock(mutex_);
         std::shared_lock theme_lock(Theme::m_theme_);
         if (const auto page = pages.find(current_pageID); page != pages.end()) {
             for (const auto& group : page->second | std::views::values) {
-                requiredFonts.emplace(group.theme->font_name, group.theme->prompt_size * resolutionScale);
+                requiredFonts.emplace(group.theme->font_name);
             }
         } else {
-            requiredFonts.emplace(Theme::default_theme.font_name, Theme::default_theme.prompt_size * resolutionScale);
+            requiredFonts.emplace(Theme::default_theme.font_name);
         }
     }
 
     const auto fontManager = MANAGER(IconFont);
     activationPop.Clear();
-    if (fontManager->ReloadFonts(requiredFonts)) return;
+    if (fontManager->LoadFonts(requiredFonts)) {
+        return;
+    }
 
     {
         std::unique_lock lock(mutex_);
@@ -852,9 +853,11 @@ void Manager::PrepareFonts() {
             RegroupPage(current_pageID);
         }
         requiredFonts.clear();
-        requiredFonts.emplace(Theme::default_theme.font_name, Theme::default_theme.prompt_size * resolutionScale);
+        requiredFonts.emplace(Theme::default_theme.font_name);
     }
-    if (!fontManager->ReloadFonts(requiredFonts)) return;
+    if (!fontManager->LoadFonts(requiredFonts)) {
+        return;
+    }
 }
 
 bool Manager::SwitchToPage(const SkyPromptAPI::ClientID pageID) {
@@ -1487,12 +1490,10 @@ void Manager::Group::ShowPromptRow(const size_t index, const bool isList, const 
 void Manager::Group::Render(const SkyPromptAPI::ClientID pageID, const SkyPromptAPI::ClientID groupID,
                            const SkyPromptAPI::ClientID pageIndex, const SkyPromptAPI::ClientID pageCount) {
     const auto& groupTheme = *theme;
-    const auto& groupFonts = MANAGER(IconFont)->GetFonts(groupTheme.font_name,
-                                                      groupTheme.prompt_size * GetResolutionScale());
-    PushFont(groupFonts.normalFont);
+    const auto resScale = GetResolutionScale();
+    PushFont(MANAGER(IconFont)->GetFont(groupTheme.font_name), groupTheme.prompt_size * resScale);
     const auto [width, height] = ImGui::GetIO().DisplaySize;
 
-    const auto resScale = GetResolutionScale();
     const ImVec2 windowPos(
         width * groupTheme.xPercent - groupTheme.marginX * resScale,
         height * groupTheme.yPercent - groupTheme.marginY * resScale
@@ -1523,7 +1524,7 @@ void Manager::Group::Render(const SkyPromptAPI::ClientID pageID, const SkyPrompt
     RenderSkyPrompt(groupTheme, windowPos);
 
     if (pageCount > 1) {
-        DrawCycleIndicators(groupTheme, groupFonts.smallFont, pageIndex, pageCount);
+        DrawCycleIndicators(groupTheme, pageIndex, pageCount);
     }
 
     EndImGuiWindow();

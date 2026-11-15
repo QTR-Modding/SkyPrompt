@@ -24,6 +24,10 @@
   ],
   "overrides": [
     {
+      "name": "imgui",
+      "version": "1.92.6"
+    },
+    {
       "name": "fmt",
       "version": "10.1.0"
     }
