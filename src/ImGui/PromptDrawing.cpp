@@ -616,7 +616,7 @@ ImVec2 ImGui::ButtonIcon(const Theme::Theme& theme, const IconFont::IconTexture*
     return a_size;
 }
 
-void ImGui::DrawCycleIndicators(const Theme::Theme& theme, ImFont* smallFont,
+void ImGui::DrawCycleIndicators(const Theme::Theme& theme,
                                  SkyPromptAPI::ClientID curr_index, SkyPromptAPI::ClientID queue_size) {
     auto* iconMgr = MANAGER(IconFont);
     const auto* inputMgr = MANAGER(Input);
@@ -640,7 +640,8 @@ void ImGui::DrawCycleIndicators(const Theme::Theme& theme, ImFont* smallFont,
 
     SameLine();
 
-    PushFont(smallFont);
+    constexpr float cycleIndicatorFontScale = 0.65f;
+    PushFont(nullptr, GetStyle().FontSizeBase * cycleIndicatorFontScale);
     const std::string text = std::format("({}/{})", curr_index, queue_size);
     const ImVec2 textSize = CalcTextSize(text.c_str());
 

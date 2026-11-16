@@ -1,32 +1,5 @@
 #include "IconsFonts.h"
-#include "Translations.h"
-#include <imgui_impl_dx11.h>
 #include "ClibUtilsQTR/StringHelpers.hpp"
-
-namespace {
-    ImFont* LoadFontIconSet(const float a_fontSize, const ImVector<ImWchar>& a_ranges,
-                            const std::string& a_fontPath, const std::string& font_name) {
-        const auto& io = ImGui::GetIO();
-
-        const auto iconManager = MANAGER(IconFont);
-        const auto& availableFonts = iconManager->GetAvailableFonts();
-        if (availableFonts.empty()) {
-            logger::error("No available fonts in {}", a_fontPath);
-            return nullptr;
-        }
-
-        const auto selectedFontInfo = iconManager->GetFontInfoByName(font_name);
-        const auto& fontInfo = selectedFontInfo ? *selectedFontInfo : *availableFonts.begin();
-        const auto a_fontName = (std::filesystem::path(a_fontPath) / fontInfo.GetName()).string();
-        const auto a_font = io.Fonts->AddFontFromFileTTF(a_fontName.c_str(), a_fontSize, nullptr, a_ranges.Data);
-        if (!a_font) {
-            logger::error("Failed to load font: {}", a_fontName);
-            return nullptr;
-        }
-
-        return a_font;
-    }
-}
 
 namespace IconFont {
     IconTexture::IconTexture(const std::wstring_view a_iconName) :
@@ -112,13 +85,9 @@ namespace IconFont {
         checkboxFilled.Load();
     }
 
-    bool Manager::ReloadFonts(const std::set<std::pair<std::string, float>>& requiredFonts) {
-        auto& io = ImGui::GetIO();
-        fonts.clear();
-        std::set<FontInfo> discoveredFonts{};
-
-        constexpr auto fontPath = R"(Data\Interface\ImGuiIcons\Fonts\)";
-
+    bool Manager::LoadFonts(const std::set<std::string>& requiredFonts) {
+        std::set<FontInfo> discoveredFonts;
+        const std::filesystem::path fontPath = R"(Data\Interface\ImGuiIcons\Fonts\)";
         for (const auto& entry : std::filesystem::directory_iterator(fontPath)) {
             const auto extension = StringHelpers::toLowercase(entry.path().extension().string());
             if (extension == ".ttf" || extension == ".otf") {
@@ -126,88 +95,42 @@ namespace IconFont {
             }
         }
 
-        if (discoveredFonts.empty()) {
-            logger::error("No fonts found in {}", fontPath);
-            return false;
-        }
-
         availableFonts = std::move(discoveredFonts);
-
-        ImVector<ImWchar> ranges;
-
-        ImFontGlyphRangesBuilder builder;
-        builder.AddText(RE::BSScaleformManager::GetSingleton()->validNameChars.c_str());
-        const auto translated_glyphs = Translations::GlyphText();
-        builder.AddText(translated_glyphs.c_str());
-        builder.AddChar(0xf030); // CAMERA
-        builder.AddChar(0xf017); // CLOCK
-        builder.AddChar(0xf183); // PERSON
-        builder.AddChar(0xf042); // CONTRAST
-        builder.AddChar(0xf03e); // IMAGE
-
-        builder.BuildRanges(&ranges);
-
-        constexpr int kMaxAtlasDimension = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
-        std::map<std::pair<std::string, float>, FontPair, std::less<>> loadedFonts;
-
-        auto tryBuildFonts = [&io, &ranges, &requiredFonts, &loadedFonts, fontPath, this](const float scale) -> bool {
-            loadedFonts.clear();
-            io.FontDefault = nullptr;
-            io.Fonts->Clear();
-
-            for (const auto& [filename, size] : requiredFonts) {
-                auto& pair = loadedFonts[{filename, size}];
-                pair.normalFont = LoadFontIconSet(size * scale, ranges, fontPath, filename);
-                pair.smallFont = LoadFontIconSet(size * 0.65f * scale, ranges, fontPath, filename);
-                if (!pair.normalFont || !pair.smallFont) {
-                    logger::error("Failed to load font pair: {} at size {}", filename, size);
-                    return false;
-                }
-            }
-
-            if (!io.Fonts->Build()) {
-                logger::error("Failed to rebuild ImGui font atlas at scale {}", scale);
-                return false;
-            }
-
-            const auto texWidth = io.Fonts->TexWidth;
-            const auto texHeight = io.Fonts->TexHeight;
-            if (texWidth > kMaxAtlasDimension || texHeight > kMaxAtlasDimension) {
-                logger::error("ImGui font atlas size {}x{} exceeds DirectX limit {} (scale {})", texWidth, texHeight,
-                              kMaxAtlasDimension, scale);
-                return false;
-            }
-
-            return true;
-        };
-
-        float scale = 1.0f;
-        bool built = tryBuildFonts(scale);
-        while (!built && scale > 0.1f) {
-            scale *= 0.8f;
-            logger::warn("Retrying font atlas build at scale {}", scale);
-            built = tryBuildFonts(scale);
-        }
-
-        if (!built) {
-            logger::critical("Failed to build ImGui font atlas within DirectX texture limits");
+        if (availableFonts.empty()) {
+            logger::error("No fonts found in {}", fontPath.string());
             return false;
         }
 
-        ImGui_ImplDX11_InvalidateDeviceObjects();
-        if (!ImGui_ImplDX11_CreateDeviceObjects()) {
-            logger::error("Failed to recreate ImGui device objects after font reload");
-            io.Fonts->Clear();
-            return false;
+        ImFontConfig config;
+        config.Flags = ImFontFlags_NoLoadError;
+        const auto atlas = ImGui::GetIO().Fonts;
+        for (const auto& filename : requiredFonts) {
+            const auto name = GetFontInfoForRendering(filename).GetName();
+            if (fonts.contains(name)) {
+                continue;
+            }
+            const auto file = (fontPath / name).string();
+            const auto font = atlas->AddFontFromFileTTF(file.c_str(), 0.0f, &config);
+            if (!font) {
+                logger::error("Failed to load font: {}", file);
+                return false;
+            }
+            fonts.emplace(name, font);
         }
-        fonts = std::move(loadedFonts);
         return true;
     }
 
-    const Manager::FontPair& Manager::GetFonts(const std::string_view filename, const float size) const {
-        const auto it = fonts.find(std::pair{filename, size});
-        // Theme changes during event dispatch use the prepared fonts until the next refresh.
+    ImFont* Manager::GetFont(const std::string_view filename) const {
+        if (const auto it = fonts.find(filename); it != fonts.end()) {
+            return it->second;
+        }
+        const auto it = fonts.find(GetFontInfoForRendering(filename).GetName());
         return it != fonts.end() ? it->second : fonts.begin()->second;
+    }
+
+    const Manager::FontInfo& Manager::GetFontInfoForRendering(const std::string_view filename) const {
+        const auto font = GetFontInfoByName(filename);
+        return font ? *font : *availableFonts.begin();
     }
 
     const std::set<Manager::FontInfo>& Manager::GetAvailableFonts() const {

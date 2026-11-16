@@ -203,7 +203,6 @@ namespace ImGui::VR {
             const auto scale = data.FramebufferScale;
             if (scale == ImVec2(1.0f, 1.0f)) return;
 
-            // Our DX11 backend predates framebuffer scaling support.
             for (const auto commands : data.CmdLists) {
                 for (auto& vertex : commands->VtxBuffer) {
                     vertex.pos = vertex.pos * scale;

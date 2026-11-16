@@ -278,8 +278,6 @@ namespace {
     };
 
     StringMap<std::string> strings = english;
-    std::string glyph_text;
-    std::mutex glyph_text_mutex;
 }
 
 void Translations::Load() {
@@ -299,22 +297,6 @@ void Translations::Load() {
 
     for (auto& [key, value] : strings) {
         value = translator.Get(key);
-    }
-
-    std::string loaded_glyph_text;
-    const auto append_glyphs = [&loaded_glyph_text](const auto& table) {
-        for (const auto& entry : table) {
-            loaded_glyph_text.append(entry.second);
-            loaded_glyph_text.push_back('\n');
-        }
-    };
-
-    append_glyphs(strings);
-    append_glyphs(english);
-
-    {
-        std::lock_guard lock(glyph_text_mutex);
-        glyph_text = std::move(loaded_glyph_text);
     }
 }
 
@@ -341,11 +323,6 @@ const std::string& Translations::GetEnglish(const std::string_view a_key) {
     logger::warn("English translation key not found: {}", a_key);
     static const std::string empty;
     return empty;
-}
-
-std::string Translations::GlyphText() {
-    std::lock_guard lock(glyph_text_mutex);
-    return glyph_text;
 }
 
 std::string Translations::FormatArgs(const std::string_view a_key, const std::format_args a_args) {
