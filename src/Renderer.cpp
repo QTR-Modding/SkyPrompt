@@ -438,11 +438,10 @@ namespace {
         return screenLocOut;
     }
 
-    ImVec2 WorldToScreenLoc(const RE::NiPoint3 position, const RE::NiPointer<RE::NiCamera>& a_cam) {
+    ImVec2 WorldToScreenLoc(const RE::NiPoint3 position, RE::NiCamera* a_cam) {
         float z;
         ImVec2 screenLocOut;
-        RE::NiCamera::WorldPtToScreenPt3(a_cam->GetRuntimeData().worldToCam, a_cam->GetRuntimeData2().port,
-                                         position, screenLocOut.x, screenLocOut.y, z, 1e-5f);
+        a_cam->WorldPtToScreenPt3(position, screenLocOut.x, screenLocOut.y, z, 1e-5f);
         const ImVec2 rect = ImGui::GetIO().DisplaySize;
         screenLocOut.x = rect.x * screenLocOut.x;
         screenLocOut.y = 1.0f - screenLocOut.y;
@@ -486,16 +485,16 @@ SubManager::AttachedPosition SubManager::GetAttachedObjectPos(const Theme::Theme
         RE::NiPoint3 pos;
         ImVec2 pos2d;
 
-        if (const auto temp_ref = RE::Inventory3DManager::GetSingleton()->tempRef;
-            temp_ref && ref->GetFormID() == temp_ref->GetFormID()) {
-            if (const auto inv3dmngr = RE::Inventory3DManager::GetSingleton(); !inv3dmngr->GetRuntimeData().loadedModels
-                .empty()) {
-                if (const auto& model = inv3dmngr->GetRuntimeData().loadedModels.back().spModel) {
-                    OffsetPosition(model->world.translate, RE::UI3DSceneManager::GetSingleton()->cachedCameraPos, pos,
-                                   model->worldBound.radius - theme.attachedOffsetX, theme.attachedOffsetY);
-                    pos2d = WorldToScreenLoc(pos, RE::UI3DSceneManager::GetSingleton()->camera) + ImVec2{
-                                (theme.prompt_size + padding) * DisplayTweaks::resolutionScale, 0};
-                }
+        const auto inventory = RE::Inventory3DManager::GetSingleton();
+        if (const auto temp_ref = inventory->tempRef; temp_ref && ref->GetFormID() == temp_ref->GetFormID()) {
+            const auto scene = RE::UI3DSceneManager::GetSingleton();
+            const auto camera = scene->GetCamera();
+            if (const auto model = inventory->GetLastLoadedModel(); model && camera) {
+                const auto& cameraPos = REL::Module::IsVR() ? camera->world.translate : scene->cachedCameraPos;
+                OffsetPosition(model->world.translate, cameraPos, pos,
+                               model->worldBound.radius - theme.attachedOffsetX, theme.attachedOffsetY);
+                pos2d = WorldToScreenLoc(pos, camera) + ImVec2{
+                            (theme.prompt_size + padding) * DisplayTweaks::resolutionScale, 0};
             }
             FastClampToScreen(pos2d);
             return {pos2d, std::nullopt};
