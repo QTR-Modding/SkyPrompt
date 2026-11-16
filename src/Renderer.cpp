@@ -485,21 +485,25 @@ SubManager::AttachedPosition SubManager::GetAttachedObjectPos(const Theme::Theme
         RE::NiPoint3 pos;
         ImVec2 pos2d;
 
+        const auto vrNodes = REL::Module::IsVR() ? RE::PlayerCharacter::GetSingleton()->GetVRNodeData() : nullptr;
         const auto inventory = RE::Inventory3DManager::GetSingleton();
         if (const auto temp_ref = inventory->tempRef; temp_ref && ref->GetFormID() == temp_ref->GetFormID()) {
             const auto scene = RE::UI3DSceneManager::GetSingleton();
             const auto camera = scene->GetCamera();
             if (const auto model = inventory->GetLastLoadedModel(); model && camera) {
-                const auto& cameraPos = REL::Module::IsVR() ? camera->world.translate : scene->cachedCameraPos;
+                const auto& cameraPos = vrNodes && vrNodes->HmdNode ? vrNodes->HmdNode->world.translate
+                    : REL::Module::IsVR() ? camera->world.translate : scene->cachedCameraPos;
                 OffsetPosition(model->world.translate, cameraPos, pos,
                                model->worldBound.radius - theme.attachedOffsetX, theme.attachedOffsetY);
-                pos2d = WorldToScreenLoc(pos, camera) + ImVec2{
-                            (theme.prompt_size + padding) * DisplayTweaks::resolutionScale, 0};
+                const ImVec2 offset{(theme.prompt_size + padding) * DisplayTweaks::resolutionScale, 0};
+                if (auto world = VR::GetWorldAnchor(pos)) {
+                    return {world->origin + offset, world};
+                }
+                pos2d = WorldToScreenLoc(pos, camera) + offset;
             }
             FastClampToScreen(pos2d);
             return {pos2d, std::nullopt};
         }
-        const auto* vrNodes = REL::Module::IsVR() ? RE::PlayerCharacter::GetSingleton()->GetVRNodeData() : nullptr;
         const auto cameraPos = vrNodes && vrNodes->HmdNode ? vrNodes->HmdNode->world.translate
             : RE::PlayerCamera::GetSingleton()->GetRuntimeData2().pos;
         if (const auto a_head = [&]() -> RE::NiAVObject* {
