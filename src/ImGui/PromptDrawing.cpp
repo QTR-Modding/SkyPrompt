@@ -488,6 +488,9 @@ namespace {
                 drawList->VtxBuffer[vertex].col = MulAlpha(drawList->VtxBuffer[vertex].col, renderInfo.alpha);
             }
         }
+        ImGui::PushStyleVarY(ImGuiStyleVar_ItemSpacing, 0.0f);
+        ImGui::Dummy({});
+        ImGui::PopStyleVar();
         return {.min = start + layout.bounds.min, .size = layout.bounds.size};
     }
 
