@@ -538,7 +538,6 @@ SubManager::AttachedPosition SubManager::GetAttachedObjectPos(const Theme::Theme
         float scale = 1.0f;
         if (!theme.attachedFixedSize) {
             scale = std::lerp(1.0f, 1.0f / 3.0f, std::min(pos.GetDistance(cameraPos) / 800.0f, 1.0f));
-            pos2d *= scale;
         }
 
         if (auto world = VR::GetWorldAnchor(pos)) {
