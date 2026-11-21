@@ -656,7 +656,7 @@ void ImGui::DrawCycleIndicators(const Theme::Theme& theme,
 }
 
 
-void ImGui::RenderSkyPrompt(const Theme::Theme& theme, const ImVec2& anchor) {
+void ImGui::RenderSkyPrompt(const Theme::Theme& theme, const ImVec2& anchor, const float a_scale) {
     if (renderBatch.empty()) {
         return;
     }
@@ -704,6 +704,6 @@ void ImGui::RenderSkyPrompt(const Theme::Theme& theme, const ImVec2& anchor) {
     for (const auto& effect : theme.special_effects) {
         const auto a_size = GetFontSize() * theme.icon2font_ratio;
         SkyPrompt::AddOns::RenderSpecialEffect(GetSpecialsView(effect), anchor, a_size,
-                                               Renderer::GetResolutionScale());
+                                               Renderer::GetResolutionScale() * a_scale);
     }
 }

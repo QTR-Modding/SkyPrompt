@@ -155,6 +155,7 @@ namespace ImGui::Renderer {
         struct AttachedPosition {
             ImVec2 screen;
             std::optional<VR::WorldAnchor> world;
+            float scale = 1.0f;
         };
         AttachedPosition GetAttachedObjectPos(const Theme::Theme& theme) const;
         RE::TESObjectREFR* GetAttachedObject() const;

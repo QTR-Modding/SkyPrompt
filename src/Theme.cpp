@@ -134,6 +134,7 @@ Theme::Theme::Theme(const rapidjson::Value& a_value) {
     marginY = block.marginY.get();
     attachedOffsetX = block.attachedOffsetX.get();
     attachedOffsetY = block.attachedOffsetY.get();
+    attachedFixedSize = block.attachedFixedSize.get();
     xPercent = block.xPercent.get();
     yPercent = block.yPercent.get();
 
@@ -217,6 +218,7 @@ void Theme::Theme::UpdateSettings(rapidjson::Document& a_document) const {
     set("marginY", marginY);
     set("attachedOffsetX", attachedOffsetX);
     set("attachedOffsetY", attachedOffsetY);
+    set("attachedfixedsize", attachedFixedSize);
     set("xPercent", xPercent);
     set("yPercent", yPercent);
     set("prompt_size", prompt_size);
