@@ -535,13 +535,18 @@ SubManager::AttachedPosition SubManager::GetAttachedObjectPos(const Theme::Theme
 
         OffsetPosition(pos, cameraPos, pos, -theme.attachedOffsetX, theme.attachedOffsetY);
 
+        float scale = 1.0f;
+        if (!theme.attachedFixedSize) {
+            scale = std::lerp(1.0f, 1.0f / 3.0f, std::min(pos.GetDistance(cameraPos) / 800.0f, 1.0f));
+        }
+
         if (auto world = VR::GetWorldAnchor(pos)) {
-            return {world->origin + pos2d, world};
+            return {world->origin + pos2d, world, scale};
         }
         pos2d += WorldToScreenLoc(pos);
         FastClampToScreen(pos2d);
 
-        return {pos2d, std::nullopt};
+        return {pos2d, std::nullopt, scale};
     }
     return {};
 }
@@ -1494,7 +1499,8 @@ void Manager::Group::Render(const SkyPromptAPI::ClientID pageID, const SkyPrompt
                            const SkyPromptAPI::ClientID pageIndex, const SkyPromptAPI::ClientID pageCount) {
     const auto& groupTheme = *theme;
     const auto resScale = GetResolutionScale();
-    PushFont(MANAGER(IconFont)->GetFont(groupTheme.font_name), groupTheme.prompt_size * resScale);
+    const auto font = MANAGER(IconFont)->GetFont(groupTheme.font_name);
+    PushFont(font, groupTheme.prompt_size * resScale);
     const auto [width, height] = ImGui::GetIO().DisplaySize;
 
     const ImVec2 windowPos(
@@ -1539,6 +1545,9 @@ void Manager::Group::Render(const SkyPromptAPI::ClientID pageID, const SkyPrompt
         window_pos.x -= groupTheme.marginX * resScale;
         window_pos.y -= groupTheme.marginY * resScale;
         renderBatch.clear();
+        if (position.scale != 1.0f) {
+            PushFont(font, groupTheme.prompt_size * resScale * position.scale);
+        }
         for (const auto index : rowIndices) {
             ShowPromptRow(index, isList, visibleCount);
         }
@@ -1546,11 +1555,14 @@ void Manager::Group::Render(const SkyPromptAPI::ClientID pageID, const SkyPrompt
         fmt::format_to(std::back_inserter(windowName), "SkyPromptHover{}##{}_{}", i++, pageID, groupID);
         windowName.push_back('\0');
         BeginImGuiWindow(windowName.data(),
-                         GetSkyPromptContentOrigin(groupTheme, window_pos), windowPadding);
+                         GetSkyPromptContentOrigin(groupTheme, window_pos), windowPadding * position.scale);
         if (position.world) VR::BeginWorldPrompt(*position.world, GetWindowDrawList());
-        RenderSkyPrompt(groupTheme, window_pos);
+        RenderSkyPrompt(groupTheme, window_pos, position.scale);
         if (position.world) VR::EndWorldPrompt();
         EndImGuiWindow();
+        if (position.scale != 1.0f) {
+            PopFont();
+        }
     }
     PopFont();
 }

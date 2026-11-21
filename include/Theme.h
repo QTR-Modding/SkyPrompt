@@ -19,6 +19,7 @@ namespace Theme {
         Field<float, rapidjson::Value> marginY = {"marginY", 0.0f};
         Field<float, rapidjson::Value> attachedOffsetX = {"attachedOffsetX", 0.0f};
         Field<float, rapidjson::Value> attachedOffsetY = {"attachedOffsetY", 0.0f};
+        Field<bool, rapidjson::Value> attachedFixedSize = {"attachedFixedSize", true};
         Field<float, rapidjson::Value> xPercent = {"xPercent", 0.85f};
         Field<float, rapidjson::Value> yPercent = {"yPercent", 0.85f};
         Field<float, rapidjson::Value> prompt_size = {"prompt_size", 45.65f};
@@ -91,6 +92,7 @@ namespace Theme {
         float marginY = -140.979f;
         float attachedOffsetX = 0.f;
         float attachedOffsetY = 0.f;
+        bool attachedFixedSize = true;
         float xPercent = 0.779f;
         float yPercent = 0.737f;
         float prompt_size = 45.65f;

@@ -251,5 +251,5 @@ namespace ImGui {
     inline std::vector<RenderInfo> renderBatch;
 
     ImVec2 GetSkyPromptContentOrigin(const Theme::Theme& theme, const ImVec2& anchor);
-    void RenderSkyPrompt(const Theme::Theme& theme, const ImVec2& anchor);
+    void RenderSkyPrompt(const Theme::Theme& theme, const ImVec2& anchor, float a_scale = 1.0f);
 }

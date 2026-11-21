@@ -268,6 +268,7 @@ namespace {
         settings.marginY = defaults.marginY;
         settings.attachedOffsetX = defaults.attachedOffsetX;
         settings.attachedOffsetY = defaults.attachedOffsetY;
+        settings.attachedFixedSize = defaults.attachedFixedSize;
         settings.prompt_size = defaults.prompt_size;
         settings.icon2font_ratio = defaults.icon2font_ratio;
         settings.prompt_order = defaults.prompt_order;
@@ -367,6 +368,9 @@ namespace {
         changed |= SettingFloat("$SkyPromptMCPSettingsIcon2FontRatio", "settings.icon2FontRatio", &theme.icon2font_ratio,
                                 0.5f, 2.0f, "$SkyPromptMCPSettingsIcon2FontRatioHelp");
         if (changed) MCP::Settings::shouldReloadPromptSize.store(true);
+        const auto fixedSizeLabel = SettingRow(Translations::Get("$SkyPromptMCPSettingsAttachedFixedSize"),
+                                               "theme.attachedFixedSize", "$SkyPromptMCPSettingsAttachedFixedSizeHelp");
+        changed |= ImGuiMCP::Checkbox(fixedSizeLabel.c_str(), &theme.attachedFixedSize);
         changed |= MCP::Settings::FontSettings(theme);
         ImGuiMCP::EndTable();
         return changed;
@@ -1071,6 +1075,7 @@ void MCP::Settings::to_json() {
     root.AddMember("marginY", Theme::default_theme.marginY, allocator);
     root.AddMember("attachedOffsetX", Theme::default_theme.attachedOffsetX, allocator);
     root.AddMember("attachedOffsetY", Theme::default_theme.attachedOffsetY, allocator);
+    root.AddMember("attachedFixedSize", Theme::default_theme.attachedFixedSize, allocator);
     root.AddMember("prompt_size", Theme::default_theme.prompt_size, allocator);
     root.AddMember("icon2font_ratio", Theme::default_theme.icon2font_ratio, allocator);
     root.AddMember("linespacing", Theme::default_theme.linespacing, allocator);
@@ -1256,6 +1261,9 @@ void MCP::Settings::from_json() {
     }
     if (mcp.HasMember("attachedOffsetY")) {
         Theme::default_theme.attachedOffsetY = mcp["attachedOffsetY"].GetFloat();
+    }
+    if (const auto member = mcp.FindMember("attachedFixedSize"); member != mcp.MemberEnd() && member->value.IsBool()) {
+        Theme::default_theme.attachedFixedSize = member->value.GetBool();
     }
     if (mcp.HasMember("prompt_size")) {
         Theme::default_theme.prompt_size = mcp["prompt_size"].GetFloat();
