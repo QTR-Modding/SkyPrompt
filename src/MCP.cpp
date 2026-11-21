@@ -1075,7 +1075,7 @@ void MCP::Settings::to_json() {
     root.AddMember("marginY", Theme::default_theme.marginY, allocator);
     root.AddMember("attachedOffsetX", Theme::default_theme.attachedOffsetX, allocator);
     root.AddMember("attachedOffsetY", Theme::default_theme.attachedOffsetY, allocator);
-    root.AddMember("attachedfixedsize", Theme::default_theme.attachedFixedSize, allocator);
+    root.AddMember("attachedFixedSize", Theme::default_theme.attachedFixedSize, allocator);
     root.AddMember("prompt_size", Theme::default_theme.prompt_size, allocator);
     root.AddMember("icon2font_ratio", Theme::default_theme.icon2font_ratio, allocator);
     root.AddMember("linespacing", Theme::default_theme.linespacing, allocator);
@@ -1262,7 +1262,7 @@ void MCP::Settings::from_json() {
     if (mcp.HasMember("attachedOffsetY")) {
         Theme::default_theme.attachedOffsetY = mcp["attachedOffsetY"].GetFloat();
     }
-    if (const auto member = mcp.FindMember("attachedfixedsize"); member != mcp.MemberEnd() && member->value.IsBool()) {
+    if (const auto member = mcp.FindMember("attachedFixedSize"); member != mcp.MemberEnd() && member->value.IsBool()) {
         Theme::default_theme.attachedFixedSize = member->value.GetBool();
     }
     if (mcp.HasMember("prompt_size")) {

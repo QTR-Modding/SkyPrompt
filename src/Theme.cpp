@@ -218,7 +218,7 @@ void Theme::Theme::UpdateSettings(rapidjson::Document& a_document) const {
     set("marginY", marginY);
     set("attachedOffsetX", attachedOffsetX);
     set("attachedOffsetY", attachedOffsetY);
-    set("attachedfixedsize", attachedFixedSize);
+    set("attachedFixedSize", attachedFixedSize);
     set("xPercent", xPercent);
     set("yPercent", yPercent);
     set("prompt_size", prompt_size);
