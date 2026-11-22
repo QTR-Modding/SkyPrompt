@@ -53,6 +53,12 @@ SkyPrompt provides a unified “prompt bar” / interaction overlay:
 3. Open mod settings (Menu Framework) to configure position, size, device keys, themes.
 4. Install mods that integrate with SkyPrompt to see it in action.
 
+### Attached prompt size
+
+Select your theme under **SkyPrompt > Theme**, then open **Appearance**. Turn off **Fixed Size for Attached Prompts** to make prompts attached to world objects shrink as the camera moves away.
+
+In a theme JSON file, set `attachedFixedSize` to `false`. It defaults to `true` for fixed size.
+
 ---
 
 ## 🧪 Quick Start (Developer)
